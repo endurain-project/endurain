@@ -21,7 +21,7 @@ def _build_app(mock_db):
         return 1
 
     app.dependency_overrides[auth_deps.check_scopes] = _mock
-    app.dependency_overrides[auth_deps.get_sub_from_access_token] = _uid
+    app.dependency_overrides[auth_deps.get_current_user_id] = _uid
     app.dependency_overrides[core_db.get_db] = lambda: mock_db
     return app
 
@@ -34,5 +34,13 @@ class TestReadWorkoutSteps:
         client = TestClient(_build_app(mock_db))
         mock_get.return_value = ActivityWorkoutStepsPage.build([], 0, 1, 200)
 
-        response = client.get("/activities/1/workout-steps", headers={"Authorization": "Bearer x"})
+        response = client.get(
+            "/activities/00000000-0000-4000-8000-000000000001/workout-steps", headers={"Authorization": "Bearer x"}
+        )
         assert response.status_code == 200
+
+    def test_a_malformed_activity_id_answers_422(self, mock_db):
+        client = TestClient(_build_app(mock_db))
+
+        response = client.get("/activities/not-a-uuid/workout-steps", headers={"Authorization": "Bearer x"})
+        assert response.status_code == 422

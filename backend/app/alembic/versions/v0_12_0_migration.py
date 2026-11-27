@@ -160,7 +160,8 @@ def upgrade() -> None:
     # Copy existing default_activity_visibility values from users table
     connection.execute(
         text(
-            "UPDATE users_privacy_settings SET default_activity_visibility = (SELECT default_activity_visibility FROM users WHERE users.id = users_privacy_settings.user_id);"
+            "UPDATE users_privacy_settings SET default_activity_visibility = (SELECT default_activity_visibility FROM "
+            "users WHERE users.id = users_privacy_settings.user_id);"
         )
     )
     op.drop_column("users", "default_activity_visibility")
@@ -326,7 +327,8 @@ def downgrade() -> None:
     connection = op.get_bind()
     connection.execute(
         text(
-            "UPDATE users SET default_activity_visibility = (SELECT default_activity_visibility FROM users_privacy_settings WHERE users_privacy_settings.user_id = users.id);"
+            "UPDATE users SET default_activity_visibility = (SELECT default_activity_visibility FROM "
+            "users_privacy_settings WHERE users_privacy_settings.user_id = users.id);"
         )
     )
     op.drop_index(op.f("ix_users_privacy_settings_user_id"), table_name="users_privacy_settings")

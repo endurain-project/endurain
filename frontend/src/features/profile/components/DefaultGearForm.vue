@@ -4,12 +4,13 @@ import { LoaderCircle } from '@lucide/vue'
 
 import type { DefaultGear, DefaultGearValues } from '@/features/profile/types'
 import type { GearOptionsByType } from '@/features/profile/composables/useDefaultGear'
-import type { Gear } from '@/features/gears/types'
+import type { Gear, GearType } from '@/features/gears/types'
 
 import { Button } from '@/components/ui/button'
 import { FormField } from '@/components/ui/form-field'
 import { inputFieldClass } from '@/components/ui/input/fieldClasses'
 import { useForm } from '@/composables/useForm'
+import { isStaleWrite } from '@/services/ifMatch'
 import { useToasts } from '@/composables/useToasts'
 import { useUpdateDefaultGearMutation } from '@/features/profile/composables/useDefaultGear'
 import { DEFAULT_GEAR_GROUPS } from '@/features/profile/utils/defaultGearFields'
@@ -47,13 +48,12 @@ function toFormValues(gear: DefaultGear): DefaultGearValues {
 }
 
 /** The gears offered for a given gear type (empty when none exist). */
-function gearsForType(gearType: number): Gear[] {
+function gearsForType(gearType: GearType): Gear[] {
   return props.options[gearType] ?? []
 }
 
 /**
- * Persists the assignments, merging them over the loaded record so id/userId
- * round-trip. The outcome is surfaced as a toast.
+ * Persists the assignments, merging them over the loaded record. The outcome is surfaced as a toast.
  *
  * @param values - The current assignments.
  */
@@ -61,8 +61,10 @@ async function submitForm(values: DefaultGearValues): Promise<void> {
   try {
     await updateMutation.mutateAsync({ ...props.defaultGear, ...values })
     toasts.success(t('settings.profile.defaultGear.saveSuccess'))
-  } catch {
-    toasts.error(t('settings.profile.defaultGear.saveError'))
+  } catch (error) {
+    toasts.error(
+      isStaleWrite(error) ? t('app.staleError') : t('settings.profile.defaultGear.saveError'),
+    )
   }
 }
 

@@ -1,10 +1,26 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import {
   getSafeRedirect,
-  isCustomSchemeRedirect,
-  setAllowedRedirectSchemes,
+  isNativeRedirect,
+  setAllowedRedirectUris,
 } from '@/composables/useSafeRedirect'
+
+const APP_CALLBACKS = [
+  'endurain://callback',
+  'endurain:/oauth2redirect',
+  'Endurain:callback',
+  'endurain://x',
+  'endurain:/x',
+]
+
+beforeEach(() => {
+  setAllowedRedirectUris(APP_CALLBACKS)
+})
+
+afterEach(() => {
+  setAllowedRedirectUris([])
+})
 
 describe('getSafeRedirect', () => {
   it('allows internal absolute paths', () => {
@@ -51,6 +67,7 @@ describe('getSafeRedirect', () => {
   })
 
   it('blocks a control character inside a custom-scheme deep link', () => {
+    setAllowedRedirectUris(['endurain://call\nback'])
     expect(getSafeRedirect('endurain://call\nback')).toBe('/')
   })
 
@@ -62,8 +79,13 @@ describe('getSafeRedirect', () => {
     expect(getSafeRedirect('/redirect://evil.example')).toBe('/')
   })
 
-  it('allows native-app custom-scheme deep links', () => {
+  it('allows listed native-app custom-scheme deep links', () => {
     expect(getSafeRedirect('endurain://callback')).toBe('endurain://callback')
+  })
+
+  it('allows a deep link without an authority, as RFC 3986 ends the scheme at the first colon', () => {
+    expect(getSafeRedirect('endurain:/oauth2redirect')).toBe('endurain:/oauth2redirect')
+    expect(getSafeRedirect('Endurain:callback')).toBe('Endurain:callback')
   })
 
   it('blocks script-bearing pseudo-scheme redirects', () => {
@@ -75,6 +97,8 @@ describe('getSafeRedirect', () => {
     expect(getSafeRedirect('data://text/html,<script>alert(1)</script>')).toBe('/')
     expect(getSafeRedirect('vbscript://msgbox(1)')).toBe('/')
     expect(getSafeRedirect('file:///etc/passwd')).toBe('/')
+    expect(getSafeRedirect('blob:https://app.example/uuid')).toBe('/')
+    expect(getSafeRedirect('data:text/html,<script>alert(1)</script>')).toBe('/')
   })
 
   it('falls back to root for empty or non-string values', () => {
@@ -83,57 +107,130 @@ describe('getSafeRedirect', () => {
   })
 })
 
-describe('isCustomSchemeRedirect', () => {
-  it('recognises the allowed app scheme but not http(s)', () => {
-    expect(isCustomSchemeRedirect('endurain://x')).toBe(true)
-    expect(isCustomSchemeRedirect('https://x')).toBe(false)
-    expect(isCustomSchemeRedirect('/x')).toBe(false)
+describe('isNativeRedirect', () => {
+  it('recognises a listed app address but not an unlisted http(s) one', () => {
+    expect(isNativeRedirect('endurain://x')).toBe(true)
+    expect(isNativeRedirect('https://x')).toBe(false)
+    expect(isNativeRedirect('/x')).toBe(false)
+    expect(isNativeRedirect('https:x')).toBe(false)
+  })
+
+  it('reads the scheme up to the first colon only from a well-formed scheme', () => {
+    expect(isNativeRedirect('endurain:/x')).toBe(true)
+    expect(isNativeRedirect('/endurain:/x')).toBe(false)
+    expect(isNativeRedirect('end urain:/x')).toBe(false)
   })
 
   it('rejects dangerous pseudo-schemes', () => {
-    expect(isCustomSchemeRedirect('javascript://%0aalert(1)')).toBe(false)
-    expect(isCustomSchemeRedirect('data://text/html,x')).toBe(false)
-    expect(isCustomSchemeRedirect('vbscript://x')).toBe(false)
-    expect(isCustomSchemeRedirect('file://x')).toBe(false)
+    expect(isNativeRedirect('javascript://%0aalert(1)')).toBe(false)
+    expect(isNativeRedirect('data://text/html,x')).toBe(false)
+    expect(isNativeRedirect('vbscript://x')).toBe(false)
+    expect(isNativeRedirect('file://x')).toBe(false)
   })
 })
 
-describe('setAllowedRedirectSchemes', () => {
-  afterEach(() => {
-    setAllowedRedirectSchemes(['endurain'])
+const HTTPS_ADDRESS = 'https://app.example.org/auth/sso/callback'
+
+describe('a claimed-https address', () => {
+  it('is native and safe only as an exact listed entry, its scheme in any letter case', () => {
+    setAllowedRedirectUris(['HTTPS://app.example.org/auth/sso/callback'])
+    expect(isNativeRedirect(HTTPS_ADDRESS)).toBe(true)
+    expect(isNativeRedirect('HTTPS://app.example.org/auth/sso/callback')).toBe(true)
+    expect(getSafeRedirect(HTTPS_ADDRESS)).toBe(HTTPS_ADDRESS)
   })
 
-  it('accepts schemes configured on the server', () => {
-    const redirect = 'nodomain.freeyourgadget.gadgetbridge://endurain/oauth/callback'
+  it.each([
+    'https://evil.example/auth/sso/callback',
+    'HTTPS://evil.example/',
+    'https://app.example.org/auth/sso/callback/',
+    'https://app.example.org/auth/sso/callback?x=1',
+    'https://app.example.org:8443/auth/sso/callback',
+    'https:app.example.org/auth/sso/callback',
+  ])('refuses the unlisted address %s', (redirect) => {
+    setAllowedRedirectUris([HTTPS_ADDRESS])
+    expect(isNativeRedirect(redirect)).toBe(false)
     expect(getSafeRedirect(redirect)).toBe('/')
-    setAllowedRedirectSchemes(['endurain', 'nodomain.freeyourgadget.gadgetbridge'])
-    expect(getSafeRedirect(redirect)).toBe(redirect)
   })
 
-  it('matches schemes case-insensitively', () => {
-    setAllowedRedirectSchemes(['MyApp'])
-    expect(isCustomSchemeRedirect('myapp://callback')).toBe(true)
-    expect(isCustomSchemeRedirect('MYAPP://callback')).toBe(true)
+  it('is refused while no address is set', () => {
+    setAllowedRedirectUris([])
+    expect(isNativeRedirect(HTTPS_ADDRESS)).toBe(false)
+    expect(getSafeRedirect(HTTPS_ADDRESS)).toBe('/')
   })
 
-  it('drops schemes that are no longer configured', () => {
-    setAllowedRedirectSchemes(['gadgetbridge'])
-    expect(isCustomSchemeRedirect('endurain://callback')).toBe(false)
+  it.each([
+    'https://',
+    'https:///callback',
+    'https:host/callback',
+    'https:/callback',
+    'https://user@app.example.org/cb',
+    'https://user:pw@app.example.org/cb',
+    'https://app.example.org:abc/cb',
+    'https://app example.org/cb',
+    'https://app.example.org\\cb',
+  ])('drops the malformed address %s from the setting', (uri) => {
+    setAllowedRedirectUris([uri, 'good://x'])
+    expect(isNativeRedirect(uri)).toBe(false)
+    expect(getSafeRedirect(uri)).toBe('/')
+    expect(isNativeRedirect('good://x')).toBe(true)
+  })
+})
+
+describe('setAllowedRedirectUris', () => {
+  it('allows an exact address', () => {
+    setAllowedRedirectUris(['endurain://oauth/callback'])
+    expect(isNativeRedirect('endurain://oauth/callback')).toBe(true)
+    expect(getSafeRedirect('endurain://oauth/callback')).toBe('endurain://oauth/callback')
   })
 
-  it.each(['http', 'https', 'javascript', 'DATA', 'vbscript', 'file'])(
-    'never allows the unsafe scheme %s even when configured',
-    (scheme) => {
-      setAllowedRedirectSchemes([scheme, 'good'])
-      expect(isCustomSchemeRedirect(`${scheme}://x`)).toBe(false)
-      expect(getSafeRedirect(`${scheme}://x`)).toBe('/')
-      expect(isCustomSchemeRedirect('good://x')).toBe(true)
-    },
-  )
+  it('matches the scheme case-insensitively and the rest exactly', () => {
+    setAllowedRedirectUris(['endurain://oauth/Callback'])
+    expect(isNativeRedirect('ENDURAIN://oauth/Callback')).toBe(true)
+    expect(isNativeRedirect('endurain://oauth/callback')).toBe(false)
+  })
 
-  it('ignores malformed entries', () => {
-    setAllowedRedirectSchemes(['', 'not a scheme', '1abc', 'good'])
-    expect(isCustomSchemeRedirect('good://x')).toBe(true)
-    expect(isCustomSchemeRedirect('1abc://x')).toBe(false)
+  it('matches an address without an authority, its path case kept', () => {
+    setAllowedRedirectUris(['Com.Example.App:/Callback'])
+    expect(isNativeRedirect('com.example.app:/Callback')).toBe(true)
+    expect(isNativeRedirect('COM.EXAMPLE.APP:/Callback')).toBe(true)
+    expect(isNativeRedirect('com.example.app:/callback')).toBe(false)
+  })
+
+  it.each([
+    'endurain://other',
+    'endurain://oauth/callback/extra',
+    'endurain://oauth/callback?x=1',
+    'endurain://oauth/callback#frag',
+  ])('refuses %s, another address under a listed scheme', (redirect) => {
+    setAllowedRedirectUris(['endurain://oauth/callback'])
+    expect(isNativeRedirect(redirect)).toBe(false)
+    expect(getSafeRedirect(redirect)).toBe('/')
+  })
+
+  it('allows no custom scheme while no address is set', () => {
+    setAllowedRedirectUris([])
+    expect(isNativeRedirect('endurain://anything')).toBe(false)
+    expect(getSafeRedirect('endurain://anything')).toBe('/')
+  })
+
+  it('refuses a scheme that only appears in another listed address', () => {
+    setAllowedRedirectUris(['gadgetbridge://auth'])
+    expect(isNativeRedirect('gadgetbridge://other')).toBe(false)
+    expect(isNativeRedirect('gadgetbridge://auth')).toBe(true)
+  })
+
+  it.each([
+    'http://x',
+    'HTTP://app.example.org/cb',
+    'javascript://x',
+    'DATA://x',
+    'vbscript://x',
+    'file://x',
+    'blob://x',
+    'javascript:alert(1)',
+  ])('never allows the unsafe address %s even when configured', (uri) => {
+    setAllowedRedirectUris([uri, 'good://x'])
+    expect(isNativeRedirect(uri)).toBe(false)
+    expect(isNativeRedirect('good://x')).toBe(true)
   })
 })

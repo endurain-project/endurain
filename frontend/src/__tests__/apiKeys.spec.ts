@@ -16,11 +16,11 @@ vi.mock('@/services/http', () => ({
 }))
 
 const apiKeyDto: ApiKeyDto = {
-  id: 'key-1',
-  user_id: 5,
+  id: '00000000-0000-4000-8000-0000000000d1',
+  user_id: '00000000-0000-4000-8000-000000000005',
   name: 'CI upload',
   key_prefix: 'endurain',
-  scopes: '["activities:upload"]',
+  scopes: ['activities:upload'],
   expires_at: '2026-12-31T00:00:00Z',
   last_used_at: '2026-06-01T00:00:00Z',
   created_at: '2026-01-01T00:00:00Z',
@@ -28,9 +28,9 @@ const apiKeyDto: ApiKeyDto = {
 }
 
 describe('mapApiKey', () => {
-  it('maps a full payload and parses the JSON scopes string', () => {
+  it('maps a full payload and keeps the scopes array', () => {
     expect(mapApiKey(apiKeyDto)).toEqual({
-      id: 'key-1',
+      id: '00000000-0000-4000-8000-0000000000d1',
       name: 'CI upload',
       keyPrefix: 'endurain',
       scopes: ['activities:upload'],
@@ -41,16 +41,12 @@ describe('mapApiKey', () => {
     })
   })
 
-  it('defaults nullable fields and tolerates a malformed scopes string', () => {
+  it('defaults nullable fields', () => {
     const mapped = mapApiKey({
       ...apiKeyDto,
-      scopes: 'not-json',
-      expires_at: null,
       last_used_at: null,
       is_active: false,
     })
-    expect(mapped.scopes).toEqual([])
-    expect(mapped.expiresAt).toBeNull()
     expect(mapped.lastUsedAt).toBeNull()
     expect(mapped.isActive).toBe(false)
   })
@@ -62,19 +58,19 @@ describe('api key service', () => {
   })
 
   it('fetchApiKeys reads the path and maps the records', async () => {
-    vi.mocked(apiFetch).mockResolvedValue([apiKeyDto])
+    vi.mocked(apiFetch).mockResolvedValue({ items: [apiKeyDto], next: null })
 
     const keys = await fetchApiKeys()
 
     expect(apiFetch).toHaveBeenCalledWith(
-      '/profile/api_keys',
+      '/profile/api-keys?num_records=200&page_number=1',
       expect.objectContaining({ signal: undefined }),
     )
     expect(keys).toHaveLength(1)
     expect(keys[0]?.scopes).toEqual(['activities:upload'])
   })
 
-  it('fetchApiKeys maps a null payload to an empty array', async () => {
+  it('fetchApiKeys maps a null payload to an empty list', async () => {
     vi.mocked(apiFetch).mockResolvedValue(null)
     await expect(fetchApiKeys()).resolves.toEqual([])
   })
@@ -92,25 +88,26 @@ describe('api key service', () => {
     })
 
     expect(rawKey).toBe('endurain_rawsecret')
-    expect(apiFetch).toHaveBeenCalledWith('/profile/api_keys', {
+    expect(apiFetch).toHaveBeenCalledWith('/profile/api-keys', {
       method: 'POST',
       body: JSON.stringify({
         name: 'CI upload',
         scopes: ['activities:upload'],
-        expires_at: '2026-12-31',
-        current_password: 'pw',
-        mfa_code: '123456',
+        // The start of the chosen day in the viewer's timezone, so the earliest date the picker offers
+        // (tomorrow, locally) is always in the future.
+        expires_at: new Date(2026, 11, 31).toISOString(),
+        step_up: { current_password: 'pw', mfa_code: '123456' },
       }),
     })
   })
 
-  it('revokeApiKey PATCHes the revoke path (void, id encoded)', async () => {
+  it('revokeApiKey POSTs the revoke path (void, id encoded)', async () => {
     vi.mocked(apiFetch).mockResolvedValue(undefined)
 
     await revokeApiKey('key 1')
 
-    expect(apiFetch).toHaveBeenCalledWith('/profile/api_keys/key%201/revoke', {
-      method: 'PATCH',
+    expect(apiFetch).toHaveBeenCalledWith('/profile/api-keys/key%201/revoke', {
+      method: 'POST',
       responseType: 'void',
     })
   })
@@ -120,7 +117,7 @@ describe('api key service', () => {
 
     await deleteApiKey('key 1')
 
-    expect(apiFetch).toHaveBeenCalledWith('/profile/api_keys/key%201', {
+    expect(apiFetch).toHaveBeenCalledWith('/profile/api-keys/key%201', {
       method: 'DELETE',
       responseType: 'void',
     })

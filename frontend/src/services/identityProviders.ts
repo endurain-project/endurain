@@ -1,15 +1,16 @@
-import type { IdentityProviderPublic, SsoTokenExchangeResponse } from '@/types'
+import type { IdentityProviderPublic, SsoExchangeResponse } from '@/types'
 
 import { apiFetch, API_BASE_URL } from './http'
+import { fetchAllPages } from './pagination'
 
 /**
- * Fetches enabled public identity providers.
+ * Fetches every enabled public identity provider, without credentials.
  *
  * @returns Enabled SSO providers.
  * @throws {HttpError} When provider discovery fails.
  */
 export function fetchEnabledIdentityProviders(): Promise<IdentityProviderPublic[]> {
-  return apiFetch<IdentityProviderPublic[]>('/public/idp', {
+  return fetchAllPages<IdentityProviderPublic>('/public/idp', undefined, {
     auth: false,
     retryOnUnauthorized: false,
   })
@@ -31,20 +32,18 @@ export function getIdentityProviderLoginUrl(slug: string, params: URLSearchParam
  *
  * @param sessionId - Session ID returned by the backend callback.
  * @param codeVerifier - PKCE code verifier stored before SSO redirect.
- * @returns Token exchange response.
+ * @returns The web token body, or the MFA step when the account has MFA enabled; its `next_step`
+ *   says which.
  * @throws {HttpError} When the exchange fails.
  */
 export function exchangeSessionForTokens(
   sessionId: string,
   codeVerifier: string,
-): Promise<SsoTokenExchangeResponse> {
-  return apiFetch<SsoTokenExchangeResponse>(
-    `/public/idp/session/${encodeURIComponent(sessionId)}/tokens`,
-    {
-      method: 'POST',
-      body: JSON.stringify({ code_verifier: codeVerifier }),
-      auth: false,
-      retryOnUnauthorized: false,
-    },
-  )
+): Promise<SsoExchangeResponse> {
+  return apiFetch<SsoExchangeResponse>(`/auth/sessions/${encodeURIComponent(sessionId)}/tokens`, {
+    method: 'POST',
+    body: JSON.stringify({ code_verifier: codeVerifier }),
+    auth: false,
+    retryOnUnauthorized: false,
+  })
 }

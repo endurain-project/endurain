@@ -1,400 +1,189 @@
-from datetime import date
-from unittest.mock import MagicMock, patch
+import uuid
+from datetime import UTC, date, datetime, timedelta
 
 import pytest
-from fastapi import HTTPException
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy import update
 
 import core.exceptions as core_exceptions
-from tests._helpers.db import setup_mock_execute
-from tests._helpers.models import mock_model
+import modules.gears.gear_components.crud as crud
+import modules.gears.gear_components.models as models
+from tests._helpers.auth import MOCK_USER_ID, OTHER_USER_ID
+from tests._helpers.gears import component_create, component_update
+
+GEAR = uuid.uuid4()
+OTHER_GEAR = uuid.uuid4()
+FIRST_CREATED = datetime(2024, 1, 1, tzinfo=UTC)
 
 
-def _make_gc_update(**kwargs):
-    from pydantic import BaseModel
-
-    class GCUpdate(BaseModel):
-        id: int = 1
-        brand: str | None = None
-        model: str | None = None
-        retired_date: object = None
-        active: object = None
-
-    return GCUpdate(**kwargs)
-
-
-class TestGetGearComponentsUser:
-    @patch("modules.gears.gear_components.crud._transform_gear_components", new=lambda x: x)
-    def test_success(self, mock_db):
-        import modules.gears.gear_components.crud as crud
-        import modules.gears.gear_components.models as m
-
-        c = mock_model(m.GearComponents, id=1, user_id=1)
-        setup_mock_execute(mock_db, return_scalars_all=[c])
-        r = crud.get_gear_components_user(user_id=1, db=mock_db)
-        assert r == [c]
-
-    def test_empty(self, mock_db):
-        import modules.gears.gear_components.crud as crud
-
-        setup_mock_execute(mock_db, return_scalars_all=[])
-        r = crud.get_gear_components_user(user_id=1, db=mock_db)
-        assert r == []
-
-    def test_db_error(self, mock_db):
-        import modules.gears.gear_components.crud as crud
-
-        mock_db.execute.side_effect = SQLAlchemyError("err")
-        with pytest.raises(core_exceptions.ProcessingError) as e:
-            crud.get_gear_components_user(user_id=1, db=mock_db)
-        assert e.value.status_code == 500
+def _create(db, gear_id=GEAR, user_id=MOCK_USER_ID, *, index=0, **overrides):
+    """Create a component whose creation time is ``index`` seconds after FIRST_CREATED."""
+    created = crud.create_gear_component(component_create(gear_id, **overrides), user_id, db)
+    db.execute(
+        update(models.GearComponents)
+        .where(models.GearComponents.id == created.id)
+        .values(created_at=FIRST_CREATED + timedelta(seconds=index))
+    )
+    db.flush()
+    return created
 
 
-class TestGetGearComponentsUserByGearId:
-    @patch("modules.gears.gear_components.crud._transform_gear_components", new=lambda x: x)
-    def test_success(self, mock_db):
-        import modules.gears.gear_components.crud as crud
-        import modules.gears.gear_components.models as m
+class TestCountOutsideTypes:
+    def test_only_this_users_components_of_this_gear_outside_the_types_are_counted(self, db):
+        crud.create_gear_component(component_create(GEAR, type="chain"), MOCK_USER_ID, db)
+        crud.create_gear_component(component_create(GEAR, type="laces"), MOCK_USER_ID, db)
+        crud.create_gear_component(component_create(OTHER_GEAR, type="chain"), MOCK_USER_ID, db)
+        crud.create_gear_component(component_create(GEAR, type="chain"), OTHER_USER_ID, db)
 
-        c = mock_model(m.GearComponents, id=1, gear_id=1, user_id=1)
-        setup_mock_execute(mock_db, return_scalars_all=[c])
-        r = crud.get_gear_components_user_by_gear_id(user_id=1, gear_id=1, db=mock_db)
-        assert r == [c]
-
-    @patch("modules.gears.gear_components.crud._transform_gear_components", new=lambda x: x)
-    def test_success_active_filter(self, mock_db):
-        import modules.gears.gear_components.crud as crud
-        import modules.gears.gear_components.models as m
-
-        c = mock_model(m.GearComponents, id=1, gear_id=1, user_id=1, active=True)
-        setup_mock_execute(mock_db, return_scalars_all=[c])
-        r = crud.get_gear_components_user_by_gear_id(user_id=1, gear_id=1, db=mock_db, active=True)
-        assert r == [c]
-
-    def test_empty(self, mock_db):
-        import modules.gears.gear_components.crud as crud
-
-        setup_mock_execute(mock_db, return_scalars_all=[])
-        r = crud.get_gear_components_user_by_gear_id(user_id=1, gear_id=1, db=mock_db)
-        assert r == []
-
-    def test_db_error(self, mock_db):
-        import modules.gears.gear_components.crud as crud
-
-        mock_db.execute.side_effect = SQLAlchemyError("err")
-        with pytest.raises(core_exceptions.ProcessingError) as e:
-            crud.get_gear_components_user_by_gear_id(user_id=1, gear_id=1, db=mock_db)
-        assert e.value.status_code == 500
+        assert crud.count_gear_components_outside_types(GEAR, MOCK_USER_ID, ["laces", "cleats"], db) == 1
+        assert crud.count_gear_components_outside_types(GEAR, MOCK_USER_ID, ["chain", "laces"], db) == 0
 
 
-class TestCreateGearComponent:
-    @patch("modules.gears.gear_components.crud._transform_gear_components", new=lambda x: x)
-    @patch("modules.gears.gear_components.crud.gear_components_models.GearComponents")
-    def test_success(self, mock_gc_cls, mock_db):
-        from datetime import datetime
+class TestExpectedUsage:
+    def test_the_expected_usage_is_stored_and_read_back(self, db):
+        created = crud.create_gear_component(component_create(GEAR, expected_usage=5_000_000), MOCK_USER_ID, db)
 
-        import modules.gears.gear_components.crud as crud
-        import modules.gears.gear_components.schema as s
-
-        gc = s.GearComponentCreate(
-            gear_id=1,
-            type="chain",
-            brand="Shimano",
-            model="Ultegra",
-            purchase_date=datetime(2024, 1, 1),
-            expected_kms=5000,
-            purchase_value=150.0,
-        )
-        r = crud.create_gear_component(gear_component=gc, user_id=1, db=mock_db)
-        mock_db.add.assert_called_once()
-        mock_db.commit.assert_called_once()
-        mock_db.refresh.assert_called_once()
-        assert r is not None
-
-    @patch("modules.gears.gear_components.crud.gear_components_models.GearComponents")
-    def test_db_error(self, mock_gc_cls, mock_db):
-        from datetime import datetime
-
-        import modules.gears.gear_components.crud as crud
-        import modules.gears.gear_components.schema as s
-
-        mock_db.add.side_effect = SQLAlchemyError("err")
-
-        gc = s.GearComponentCreate(
-            gear_id=1,
-            type="chain",
-            brand="Shimano",
-            model="Ultegra",
-            purchase_date=datetime(2024, 1, 1),
-            expected_kms=5000,
-            purchase_value=150.0,
-        )
-        with pytest.raises(core_exceptions.ProcessingError) as e:
-            crud.create_gear_component(gear_component=gc, user_id=1, db=mock_db)
-        assert e.value.status_code == 500
+        assert created.expected_usage == 5_000_000
+        assert crud.get_gear_components_user(MOCK_USER_ID, db)[0].expected_usage == 5_000_000
 
 
-class TestEditGearComponent:
-    @patch("modules.gears.gear_components.crud._transform_gear_components", new=lambda x: x)
-    def test_success(self, mock_db):
-        import modules.gears.gear_components.crud as crud
-        import modules.gears.gear_components.models as m
+class TestReads:
+    def test_components_are_scoped_to_their_owner_and_gear(self, db):
+        mine = _create(db, GEAR, MOCK_USER_ID, index=0)
+        other_gear = _create(db, OTHER_GEAR, MOCK_USER_ID, index=1)
+        _create(db, GEAR, OTHER_USER_ID, index=2)
 
-        db_gc = MagicMock(spec=m.GearComponents)
-        db_gc.id = 1
-        db_gc.retired_date = None
-        setup_mock_execute(mock_db, return_one_or_none=db_gc)
+        assert [c.id for c in crud.get_gear_components_user(MOCK_USER_ID, db)] == [mine.id, other_gear.id]
+        assert [c.id for c in crud.get_gear_components_user_by_gear_id(MOCK_USER_ID, GEAR, db)] == [mine.id]
 
-        from pydantic import BaseModel
+    def test_the_user_list_honours_the_limit(self, db):
+        first = _create(db, index=0)
+        _create(db, index=1)
 
-        class GCUpdate(BaseModel):
-            id: int = 1
-            brand: str = "SRAM"
-            model: str = "Red"
+        assert [c.id for c in crud.get_gear_components_user(MOCK_USER_ID, db, limit=1)] == [first.id]
 
-        r = crud.edit_gear_component(gear_component=GCUpdate(), user_id=1, db=mock_db)
-        assert r is db_gc
-        mock_db.commit.assert_called_once()
-        mock_db.refresh.assert_called_once_with(db_gc)
-
-    def test_not_found(self, mock_db):
-        import modules.gears.gear_components.crud as crud
-
-        setup_mock_execute(mock_db, return_one_or_none=None)
-
-        from pydantic import BaseModel
-
-        class GCUpdate(BaseModel):
-            id: int = 999
-            brand: str = "SRAM"
-
-        with pytest.raises(HTTPException) as e:
-            crud.edit_gear_component(gear_component=GCUpdate(), user_id=1, db=mock_db)
-        assert e.value.status_code == 404
-
-    @patch("modules.gears.gear_components.crud._transform_gear_components", new=lambda x: x)
-    def test_retired_date_sets_active_false(self, mock_db):
-        from datetime import datetime
-
-        import modules.gears.gear_components.crud as crud
-        import modules.gears.gear_components.models as m
-
-        db_gc = MagicMock(spec=m.GearComponents)
-        db_gc.id = 1
-        db_gc.retired_date = None
-        setup_mock_execute(mock_db, return_one_or_none=db_gc)
-
+    def test_the_active_filter_applies(self, db):
+        _create(db, index=0)
+        retired = _create(db, index=1)
         crud.edit_gear_component(
-            gear_component=_make_gc_update(id=1, retired_date=datetime(2024, 6, 1)),
-            user_id=1,
-            db=mock_db,
+            retired.id, component_update(retired_date=date(2025, 1, 1)), MOCK_USER_ID, db, if_match="*"
         )
-        assert db_gc.active is False
 
-    @patch("modules.gears.gear_components.crud._transform_gear_components", new=lambda x: x)
-    def test_retired_date_overrides_explicit_active(self, mock_db):
-        # A retired component is always inactive, even when the client
-        # explicitly sends active=true in the same request.
-        from datetime import datetime
-
-        import modules.gears.gear_components.crud as crud
-        import modules.gears.gear_components.models as m
-
-        db_gc = MagicMock(spec=m.GearComponents)
-        db_gc.id = 1
-        db_gc.retired_date = None
-        setup_mock_execute(mock_db, return_one_or_none=db_gc)
-
-        crud.edit_gear_component(
-            gear_component=_make_gc_update(id=1, retired_date=datetime(2024, 6, 1), active=True),
-            user_id=1,
-            db=mock_db,
-        )
-        assert db_gc.active is False
-
-    @patch("modules.gears.gear_components.crud._transform_gear_components", new=lambda x: x)
-    def test_deactivate_without_retired_date(self, mock_db):
-        # Regression: unchecking active with no retired date must persist
-        # active=false; the client value is honoured, not overridden.
-        import modules.gears.gear_components.crud as crud
-        import modules.gears.gear_components.models as m
-
-        db_gc = MagicMock(spec=m.GearComponents)
-        db_gc.id = 1
-        db_gc.retired_date = None
-        db_gc.active = True
-        setup_mock_execute(mock_db, return_one_or_none=db_gc)
-
-        crud.edit_gear_component(
-            gear_component=_make_gc_update(id=1, retired_date=None, active=False),
-            user_id=1,
-            db=mock_db,
-        )
-        assert db_gc.active is False
-        mock_db.commit.assert_called_once()
-
-    @patch("modules.gears.gear_components.crud._transform_gear_components", new=lambda x: x)
-    def test_reactivate_by_clearing_retired_date(self, mock_db):
-        # Clearing retired_date and sending active=true reactivates.
-        import modules.gears.gear_components.crud as crud
-        import modules.gears.gear_components.models as m
-
-        db_gc = MagicMock(spec=m.GearComponents)
-        db_gc.id = 1
-        db_gc.retired_date = "some_date"
-        db_gc.active = False
-        setup_mock_execute(mock_db, return_one_or_none=db_gc)
-
-        crud.edit_gear_component(
-            gear_component=_make_gc_update(id=1, retired_date=None, active=True),
-            user_id=1,
-            db=mock_db,
-        )
-        assert db_gc.active is True
-        mock_db.commit.assert_called_once()
-
-    @patch("modules.gears.gear_components.crud._transform_gear_components", new=lambda x: x)
-    def test_immutable_fields_ignored(self, mock_db):
-        import modules.gears.gear_components.crud as crud
-        import modules.gears.gear_components.models as m
-
-        db_gc = MagicMock(spec=m.GearComponents)
-        db_gc.id = 1
-        db_gc.retired_date = None
-        setup_mock_execute(mock_db, return_one_or_none=db_gc)
-
-        from pydantic import BaseModel
-
-        class GCUpdate(BaseModel):
-            id: int = 1
-            user_id: int = 999
-            gear_id: int = 999
-
-        crud.edit_gear_component(gear_component=GCUpdate(), user_id=1, db=mock_db)
-        assert db_gc.user_id != 999
-        assert db_gc.gear_id != 999
-        mock_db.commit.assert_called_once()
-
-    def test_db_error(self, mock_db):
-        import modules.gears.gear_components.crud as crud
-        import modules.gears.gear_components.models as m
-
-        db_gc = MagicMock(spec=m.GearComponents)
-        db_gc.id = 1
-        db_gc.retired_date = None
-        setup_mock_execute(mock_db, return_one_or_none=db_gc)
-        mock_db.commit.side_effect = SQLAlchemyError("err")
-
-        from pydantic import BaseModel
-
-        class GCUpdate(BaseModel):
-            id: int = 1
-            brand: str = "SRAM"
-
-        with pytest.raises(core_exceptions.ProcessingError) as e:
-            crud.edit_gear_component(gear_component=GCUpdate(), user_id=1, db=mock_db)
-        assert e.value.status_code == 500
-
-
-class TestDeleteGearComponent:
-    def test_success(self, mock_db):
-        import modules.gears.gear_components.crud as crud
-        import modules.gears.gear_components.models as m
-
-        db_gc = MagicMock(spec=m.GearComponents)
-        setup_mock_execute(mock_db, return_one_or_none=db_gc)
-        crud.delete_gear_component(user_id=1, gear_component_id=1, db=mock_db)
-        mock_db.delete.assert_called_once_with(db_gc)
-        mock_db.commit.assert_called_once()
-
-    def test_not_found(self, mock_db):
-        import modules.gears.gear_components.crud as crud
-
-        setup_mock_execute(mock_db, return_one_or_none=None)
-        with pytest.raises(HTTPException) as e:
-            crud.delete_gear_component(user_id=1, gear_component_id=999, db=mock_db)
-        assert e.value.status_code == 404
-
-    def test_db_error(self, mock_db):
-        import modules.gears.gear_components.crud as crud
-
-        mock_db.execute.side_effect = SQLAlchemyError("err")
-        with pytest.raises(core_exceptions.ProcessingError) as e:
-            crud.delete_gear_component(user_id=1, gear_component_id=1, db=mock_db)
-        assert e.value.status_code == 500
-
-
-class TestGetComponentsActivityStats:
-    @patch("modules.gears.gear_components.crud.activity_integration")
-    def test_success(self, mock_activities, mock_db):
-        import modules.activities.activity.contracts as activity_contracts
-        import modules.gears.gear_components.crud as crud
-
-        comp1 = MagicMock(id=1, purchase_date=date(2024, 1, 1), retired_date=None)
-        comp2 = MagicMock(id=2, purchase_date=date(2024, 6, 1), retired_date=date(2024, 9, 1))
-        mock_db.execute.return_value.all.return_value = [comp1, comp2]
-        mock_activities.get_gear_usage_totals_by_window.return_value = {
-            1: activity_contracts.ActivityUsageTotals(distance=10000.0, time=3600.0),
-            2: activity_contracts.ActivityUsageTotals(distance=5000.0, time=1800.0),
-        }
-
-        r = crud.get_components_activity_stats(gear_id=1, user_id=1, db=mock_db)
-
-        assert r == {
-            1: {"distance": 10000.0, "time": 3600.0},
-            2: {"distance": 5000.0, "time": 1800.0},
-        }
-        # Each component becomes one window; the activities module owns the join.
-        windows = mock_activities.get_gear_usage_totals_by_window.call_args.args[2]
-        assert [w.key for w in windows] == [1, 2]
-        assert windows[0].end_date is None
-        assert windows[1].end_date == date(2024, 9, 1)
-
-    @patch("modules.gears.gear_components.crud.activity_integration")
-    def test_empty(self, mock_activities, mock_db):
-        import modules.gears.gear_components.crud as crud
-
-        mock_db.execute.return_value.all.return_value = []
-        mock_activities.get_gear_usage_totals_by_window.return_value = {}
-        r = crud.get_components_activity_stats(gear_id=1, user_id=1, db=mock_db)
-        assert r == {}
-
-    def test_db_error(self, mock_db):
-        import modules.gears.gear_components.crud as crud
-
-        mock_db.execute.side_effect = SQLAlchemyError("err")
-        with pytest.raises(core_exceptions.ProcessingError) as e:
-            crud.get_components_activity_stats(gear_id=1, user_id=1, db=mock_db)
-        assert e.value.status_code == 500
-
-
-class TestComponentWindowIsLocal:
-    """The purchase/retired window is a calendar range, not an instant range.
-
-    ``purchase_date``/``retired_date`` are dates, so comparing them against the
-    raw ``start_time`` instant put the boundary at UTC midnight: at UTC-8 an
-    evening ride the day *before* a purchase counted towards the new component,
-    and at UTC+13 a morning ride *on* the purchase day did not count at all.
-
-    The aggregation itself now lives in the activities module, which owns the
-    local-date rule — see
-    ``tests/activities/activity/test_crud.py::TestSumGearUsageByWindow``. What is
-    still this module's responsibility is handing over the component bounds
-    unchanged, which is asserted here.
-    """
-
-    @patch("modules.gears.gear_components.crud.activity_integration")
-    def test_component_bounds_are_passed_through_as_calendar_dates(self, mock_activities):
-        import modules.gears.gear_components.crud as crud
-
-        db = MagicMock()
-        db.execute.return_value.all.return_value = [
-            MagicMock(id=7, purchase_date=date(2024, 3, 4), retired_date=date(2024, 5, 6)),
+        assert len(crud.get_gear_components_user_by_gear_id(MOCK_USER_ID, GEAR, db, active=True)) == 1
+        assert [c.id for c in crud.get_gear_components_user_by_gear_id(MOCK_USER_ID, GEAR, db, active=False)] == [
+            retired.id
         ]
-        mock_activities.get_gear_usage_totals_by_window.return_value = {}
 
-        crud.get_components_activity_stats(gear_id=1, user_id=1, db=db)
+    def test_a_gears_components_are_paged_and_counted(self, db):
+        created = [_create(db, index=i) for i in range(3)]
+        _create(db, GEAR, OTHER_USER_ID, index=3)
 
-        window = mock_activities.get_gear_usage_totals_by_window.call_args.args[2][0]
-        assert window.start_date == date(2024, 3, 4)
-        assert window.end_date == date(2024, 5, 6)
+        page = crud.get_gear_components_user_by_gear_id(MOCK_USER_ID, GEAR, db, page_number=2, num_records=2)
+
+        assert [c.id for c in page] == [created[2].id]
+        assert crud.get_gear_components_number_by_gear_id(MOCK_USER_ID, GEAR, db) == 3
+        assert crud.get_gear_components_number_by_gear_id(MOCK_USER_ID, GEAR, db, active=False) == 0
+
+    def test_a_users_components_are_offset_and_counted(self, db):
+        created = [_create(db, index=i) for i in range(3)]
+        _create(db, GEAR, OTHER_USER_ID, index=3)
+
+        assert [c.id for c in crud.get_gear_components_user(MOCK_USER_ID, db, limit=2, offset=1)] == [
+            created[1].id,
+            created[2].id,
+        ]
+        assert crud.get_gear_components_number(MOCK_USER_ID, db) == 3
+
+    def test_total_cost_sums_the_gears_components_for_its_owner(self, db):
+        crud.create_gear_component(component_create(GEAR, purchase_value="10.50"), MOCK_USER_ID, db)
+        crud.create_gear_component(component_create(GEAR, purchase_value="4.50"), MOCK_USER_ID, db)
+        crud.create_gear_component(component_create(GEAR, purchase_value="100.00"), OTHER_USER_ID, db)
+        crud.create_gear_component(component_create(OTHER_GEAR, purchase_value="100.00"), MOCK_USER_ID, db)
+
+        assert crud.get_gear_components_total_cost(GEAR, MOCK_USER_ID, db) == 15.0
+        assert crud.get_gear_components_total_cost(uuid.uuid4(), MOCK_USER_ID, db) == 0.0
+
+
+class TestOrdering:
+    def test_the_user_list_orders_by_creation_time_then_id(self, mock_db):
+        crud.get_gear_components_user(MOCK_USER_ID, mock_db)
+
+        compiled = str(mock_db.execute.call_args.args[0].compile(compile_kwargs={"literal_binds": True}))
+        assert "ORDER BY gear_components.created_at, gear_components.id" in compiled
+
+    def test_the_gear_list_orders_by_creation_time_then_id(self, mock_db):
+        crud.get_gear_components_user_by_gear_id(MOCK_USER_ID, GEAR, mock_db)
+
+        compiled = str(mock_db.execute.call_args.args[0].compile(compile_kwargs={"literal_binds": True}))
+        assert "ORDER BY gear_components.created_at, gear_components.id" in compiled
+
+    def test_the_lists_follow_creation_order_whatever_the_ids(self, db):
+        created = [_create(db, index=i) for i in (2, 0, 1)]
+
+        expected = [created[1].id, created[2].id, created[0].id]
+        assert [c.id for c in crud.get_gear_components_user(MOCK_USER_ID, db)] == expected
+        assert [c.id for c in crud.get_gear_components_user_by_gear_id(MOCK_USER_ID, GEAR, db)] == expected
+
+
+class TestWrites:
+    def test_a_new_component_starts_active_and_staged(self, db):
+        created = crud.create_gear_component(component_create(GEAR), MOCK_USER_ID, db)
+        assert created.active is True
+
+        db.rollback()
+        assert crud.get_gear_components_user(MOCK_USER_ID, db) == []
+
+    def test_a_retired_component_is_always_inactive(self, db):
+        created = crud.create_gear_component(component_create(GEAR), MOCK_USER_ID, db)
+
+        updated = crud.edit_gear_component(
+            created.id, component_update(retired_date=date(2025, 1, 1), active=True), MOCK_USER_ID, db, if_match="*"
+        )
+
+        assert updated.active is False
+
+    def test_an_unretired_component_keeps_the_submitted_active_flag(self, db):
+        created = crud.create_gear_component(component_create(GEAR), MOCK_USER_ID, db)
+
+        updated = crud.edit_gear_component(created.id, component_update(active=False), MOCK_USER_ID, db, if_match="*")
+
+        assert updated.active is False
+
+    def test_an_update_cannot_move_a_component_to_another_gear(self):
+        with pytest.raises(ValueError):
+            component_update(gear_id=OTHER_GEAR)
+
+    def test_edit_honours_if_match_and_bumps_the_version(self, db):
+        created = crud.create_gear_component(component_create(GEAR), MOCK_USER_ID, db)
+
+        updated = crud.edit_gear_component(
+            created.id, component_update(brand="SRAM"), MOCK_USER_ID, db, if_match=f'"{created.version}"'
+        )
+
+        assert updated.version == created.version + 1
+        with pytest.raises(core_exceptions.PreconditionFailedError):
+            crud.edit_gear_component(
+                created.id, component_update(brand="X"), MOCK_USER_ID, db, if_match=f'"{created.version}"'
+            )
+
+    def test_edit_and_delete_of_a_foreign_component_are_not_found(self, db):
+        created = crud.create_gear_component(component_create(GEAR), MOCK_USER_ID, db)
+
+        with pytest.raises(core_exceptions.NotFoundError):
+            crud.edit_gear_component(created.id, component_update(brand="x"), OTHER_USER_ID, db, if_match="*")
+        with pytest.raises(core_exceptions.NotFoundError):
+            crud.delete_gear_component(OTHER_USER_ID, created.id, db, if_match="*")
+
+    def test_delete_removes_the_component(self, db):
+        created = crud.create_gear_component(component_create(GEAR), MOCK_USER_ID, db)
+
+        crud.delete_gear_component(MOCK_USER_ID, created.id, db, if_match=f'"{created.version}"')
+
+        assert crud.get_gear_components_user(MOCK_USER_ID, db) == []
+
+    def test_delete_of_a_stale_version_is_refused_and_keeps_the_component(self, db):
+        created = crud.create_gear_component(component_create(GEAR), MOCK_USER_ID, db)
+
+        with pytest.raises(core_exceptions.PreconditionFailedError):
+            crud.delete_gear_component(MOCK_USER_ID, created.id, db, if_match=f'"{created.version + 1}"')
+
+        assert len(crud.get_gear_components_user(MOCK_USER_ID, db)) == 1

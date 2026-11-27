@@ -18,8 +18,7 @@ _ONE_WEEK = timedelta(days=7)
 
 @dataclass(frozen=True, slots=True)
 class StreakResult:
-    """
-    Result of a streak calculation.
+    """Result of a streak calculation.
 
     Attributes:
         current_streak: Consecutive met weeks up to now.
@@ -47,8 +46,7 @@ class StreakResult:
 
 @lru_cache(maxsize=256)
 def _resolve_timezone(tz_name: str | None) -> tzinfo:
-    """
-    Resolve an activity timezone string to a tzinfo.
+    """Resolve an activity timezone string to a tzinfo.
 
     Activity timezones are usually IANA names, but some
     importers store values such as ``"(GMT+01:00) Europe/Zurich"``;
@@ -71,8 +69,7 @@ def _resolve_timezone(tz_name: str | None) -> tzinfo:
 
 
 def local_start_date(start_time: datetime | str | None, tz_name: str | None) -> date | None:
-    """
-    Return the local calendar date an activity started on.
+    """Return the local calendar date an activity started on.
 
     Args:
         start_time: Activity start (aware, naive UTC, ISO string or None).
@@ -91,8 +88,7 @@ def bucket_activities_by_week(
     activity_dates: Iterable[date],
     first_day_of_week: core_calendar.WeekdayValue,
 ) -> Counter[date]:
-    """
-    Count activities per week.
+    """Count activities per week.
 
     Args:
         activity_dates: Local start date of each activity.
@@ -110,8 +106,7 @@ def calculate_weekly_streak(
     min_activities_per_week: int,
     recent_weeks: int = DEFAULT_RECENT_WEEKS,
 ) -> StreakResult:
-    """
-    Calculate current and longest weekly streaks.
+    """Calculate current and longest weekly streaks.
 
     A week is "met" when its count reaches the target. The
     current week only extends the streak once it is met; while

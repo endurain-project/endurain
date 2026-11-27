@@ -11,51 +11,65 @@ import {
 
 import type { Notification } from '@/features/notifications/types'
 
+import { isProblem } from '@/services/problems'
 import { queryKeys } from '@/services/queryKeys'
 import { useAuthStore } from '@/features/auth/stores/auth'
+import { useRealtime } from '@/composables/useRealtime'
 import {
+  deleteNotification,
   fetchNotifications,
+  fetchUnreadNotificationsCount,
   markAllNotificationsRead,
   markNotificationRead,
   type NotificationsPage,
+  type NotificationsSlice,
 } from '@/features/notifications/services/notifications'
 
 /** Default notifications page size when a caller doesn't specify one. */
 const DEFAULT_PAGE_SIZE = 25
+
+/** How often the unread badge polls while the realtime connection is unavailable. */
+export const UNREAD_POLL_INTERVAL_MS = 60_000
+
+/** Connected fallback for a realtime hint lost during a server-side channel gap. */
+export const UNREAD_CONNECTED_POLL_INTERVAL_MS = 5 * 60_000
 
 /**
  * Read path for the notifications list — the canonical server-state pattern:
  * a service function (`fetchNotifications`) + a key from the central
  * {@link queryKeys} factory, consumed through TanStack Query so callers inherit
  * caching, de-duplication, background refetch, and cancellation. The query is
- * gated on authentication so it never fires for a logged-out viewer.
+ * gated on authentication so it never fires for a logged-out viewer, and on the
+ * caller's `enabled` flag so a closed preview neither loads nor refetches on a
+ * realtime push. It is always stale, so each time the flag turns on it refetches:
+ * a push that was lost never leaves stale rows in front of the user.
  *
- * @param params - Optional reactive page/size; defaults to page 1.
- * @returns The TanStack Query result for the notifications page.
+ * @param params - Optional reactive slice size; always reads the first slice.
+ * @param enabled - Reactive gate (e.g. "the preview is open") ANDed with the auth gate.
+ * @returns The TanStack Query result for the first notifications slice.
  */
-export function useNotificationsQuery(params?: MaybeRefOrGetter<Partial<NotificationsPage>>) {
+export function useNotificationsQuery(
+  params?: MaybeRefOrGetter<Partial<Pick<NotificationsPage, 'numRecords'>>>,
+  enabled: MaybeRefOrGetter<boolean> = true,
+) {
   const { isAuthenticated } = storeToRefs(useAuthStore())
 
-  const page = computed<NotificationsPage>(() => {
-    const value = toValue(params)
-    return {
-      page: value?.page ?? 1,
-      numRecords: value?.numRecords ?? DEFAULT_PAGE_SIZE,
-    }
-  })
+  const page = computed<NotificationsPage>(() => ({
+    numRecords: toValue(params)?.numRecords ?? DEFAULT_PAGE_SIZE,
+  }))
 
   return useQuery<Notification[]>({
     queryKey: computed(() => queryKeys.notifications.list(page.value)),
-    queryFn: ({ signal }) => fetchNotifications(page.value, signal),
-    enabled: isAuthenticated,
+    queryFn: async ({ signal }) => (await fetchNotifications(page.value, signal)).items,
+    enabled: computed(() => toValue(enabled) && isAuthenticated.value),
+    staleTime: 0,
   })
 }
 
 /**
- * Canonical paginated-list pattern: an infinite query that appends one page at
- * a time as the viewer scrolls. Copy this for every list view (activities,
- * gears, health). The query is keyed on the page size only — not the page
- * number — so all pages share one cache entry (`InfiniteData<Notification[]>`),
+ * Canonical keyset-list pattern: an infinite query that appends one slice at
+ * a time as the viewer scrolls, resuming from the previous slice's cursor. The
+ * query is keyed on the slice size only — not the cursor — so all slices share one cache entry (`InfiniteData<NotificationsSlice>`),
  * which is what lets {@link applyOptimisticRead} flip a single row across the
  * whole list. Gated on authentication so it never fires when logged out.
  *
@@ -68,45 +82,48 @@ export function useInfiniteNotificationsQuery(pageSize: number = DEFAULT_PAGE_SI
   return useInfiniteQuery({
     queryKey: queryKeys.notifications.list({ numRecords: pageSize }),
     queryFn: ({ pageParam, signal }) =>
-      fetchNotifications({ page: pageParam, numRecords: pageSize }, signal),
-    initialPageParam: 1,
-    // A short page means the server has no more rows, so stop paging; otherwise
-    // request the next page number.
-    getNextPageParam: (lastPage: Notification[], _allPages, lastPageParam: number) =>
-      lastPage.length < pageSize ? undefined : lastPageParam + 1,
+      fetchNotifications({ cursor: pageParam, numRecords: pageSize }, signal),
+    initialPageParam: null as string | null,
+    // The server hands back the cursor of the next slice, and none on the last one.
+    getNextPageParam: (lastSlice: NotificationsSlice) => lastSlice.nextCursor,
     enabled: isAuthenticated,
   })
 }
 
 /**
- * Derived unread-count query backing the navbar badge. The backend exposes a
- * total count (`/notifications/number`) but no unread count, so — matching v1 —
- * this counts unread rows in the most recent page client-side via `select`.
+ * Unread-count query backing the navbar badge: the server counts the unread
+ * notifications, so the badge is exact however many there are and only a number
+ * crosses the wire.
  * Stored under {@link queryKeys.notifications.unreadCount} (outside the `list`
- * prefix) so the optimistic updater never touches it; the mark-read mutation's
- * `onSettled` invalidation refreshes it for the authoritative count.
+ * prefix) so the optimistic updater never touches it; notification hints and
+ * mark-read mutations invalidate it for the authoritative count. It polls every
+ * {@link UNREAD_POLL_INTERVAL_MS} while disconnected and every
+ * {@link UNREAD_CONNECTED_POLL_INTERVAL_MS} while connected, covering hints lost
+ * during a server-side channel gap.
  *
- * @param pageSize - How many recent notifications to inspect for unread rows.
  * @returns A TanStack Query result whose `data` is the unread count.
  */
-export function useUnreadNotificationsCount(pageSize: number = DEFAULT_PAGE_SIZE) {
+export function useUnreadNotificationsCount() {
   const { isAuthenticated } = storeToRefs(useAuthStore())
+  const { status } = useRealtime()
 
-  return useQuery<Notification[], Error, number>({
+  return useQuery<number>({
     queryKey: queryKeys.notifications.unreadCount(),
-    queryFn: ({ signal }) => fetchNotifications({ page: 1, numRecords: pageSize }, signal),
+    queryFn: ({ signal }) => fetchUnreadNotificationsCount(signal),
     enabled: isAuthenticated,
-    select: (list) => list.reduce((count, item) => (item.read ? count : count + 1), 0),
+    refetchInterval: computed(() =>
+      status.value === 'open' ? UNREAD_CONNECTED_POLL_INTERVAL_MS : UNREAD_POLL_INTERVAL_MS,
+    ),
   })
 }
 
 /**
- * Either shape the notifications list cache can hold: a flat page (from
- * {@link useNotificationsQuery}) or an infinite query's accumulated pages (from
+ * Either shape the notifications list cache can hold: a flat first slice (from
+ * {@link useNotificationsQuery}) or an infinite query's accumulated slices (from
  * {@link useInfiniteNotificationsQuery}). The optimistic helpers handle both so
  * one mutation keeps every list view consistent.
  */
-type CachedNotifications = Notification[] | InfiniteData<Notification[]>
+type CachedNotifications = Notification[] | InfiniteData<NotificationsSlice>
 
 /**
  * Returns a copy of a cached notifications value with the matching row marked
@@ -119,7 +136,7 @@ type CachedNotifications = Notification[] | InfiniteData<Notification[]>
  */
 function markNotificationReadInCache(
   data: CachedNotifications | undefined,
-  id: number,
+  id: string,
 ): CachedNotifications | undefined {
   if (!data) {
     return data
@@ -129,7 +146,7 @@ function markNotificationReadInCache(
   if (Array.isArray(data)) {
     return data.map(flip)
   }
-  return { ...data, pages: data.pages.map((page) => page.map(flip)) }
+  return { ...data, pages: data.pages.map((slice) => ({ ...slice, items: slice.items.map(flip) })) }
 }
 
 /**
@@ -150,7 +167,7 @@ function markAllNotificationsReadInCache(
   if (Array.isArray(data)) {
     return data.map(flip)
   }
-  return { ...data, pages: data.pages.map((page) => page.map(flip)) }
+  return { ...data, pages: data.pages.map((slice) => ({ ...slice, items: slice.items.map(flip) })) }
 }
 
 /**
@@ -170,7 +187,7 @@ export type NotificationsSnapshot = [readonly unknown[], CachedNotifications | u
  * @param id - The notification id being marked read.
  * @returns A snapshot of the lists as they were before the update.
  */
-export function applyOptimisticRead(client: QueryClient, id: number): NotificationsSnapshot {
+export function applyOptimisticRead(client: QueryClient, id: string): NotificationsSnapshot {
   const snapshot = client.getQueriesData<CachedNotifications>({
     queryKey: queryKeys.notifications.lists(),
   })
@@ -232,7 +249,7 @@ export function restoreNotifications(client: QueryClient, snapshot: Notification
 export function useMarkNotificationReadMutation() {
   const client = useQueryClient()
 
-  return useMutation<void, Error, number, NotificationsSnapshot>({
+  return useMutation<void, Error, string, NotificationsSnapshot>({
     mutationKey: queryKeys.notifications.all(),
     mutationFn: (id) => markNotificationRead(id),
     onMutate: async (id) => {
@@ -270,6 +287,78 @@ export function useMarkAllNotificationsReadMutation() {
       return applyOptimisticReadAll(client)
     },
     onError: (_error, _vars, snapshot) => {
+      if (snapshot) {
+        restoreNotifications(client, snapshot)
+      }
+    },
+    onSettled: () => {
+      void client.invalidateQueries({ queryKey: queryKeys.notifications.all() })
+    },
+  })
+}
+
+/**
+ * Returns a copy of a cached notifications value without the matching row,
+ * transparently handling both the flat-array and `InfiniteData` shapes. Pure
+ * and immutable so it never mutates cached state in place.
+ *
+ * @param data - The cached value, or `undefined` for an unpopulated query.
+ * @param id - The notification id to remove.
+ * @returns The updated value, or `undefined` when there was nothing cached.
+ */
+function removeNotificationFromCache(
+  data: CachedNotifications | undefined,
+  id: string,
+): CachedNotifications | undefined {
+  if (!data) {
+    return data
+  }
+  const keep = (item: Notification): boolean => item.id !== id
+  if (Array.isArray(data)) {
+    return data.filter(keep)
+  }
+  return {
+    ...data,
+    pages: data.pages.map((slice) => ({ ...slice, items: slice.items.filter(keep) })),
+  }
+}
+
+/**
+ * Dismisses (deletes) a notification, following the same optimistic
+ * snapshot/rollback/invalidate shape as {@link useMarkNotificationReadMutation}:
+ * the row leaves every cached list at once, and settling invalidates the whole
+ * notifications domain so the unread count is recounted by the server. A `404`
+ * means the notification is already gone, so it counts as deleted.
+ *
+ * @returns The TanStack Query mutation for deleting a notification.
+ */
+export function useDeleteNotificationMutation() {
+  const client = useQueryClient()
+
+  return useMutation<void, Error, string, NotificationsSnapshot>({
+    mutationKey: queryKeys.notifications.all(),
+    mutationFn: async (id) => {
+      try {
+        await deleteNotification(id)
+      } catch (error) {
+        if (!isProblem(error, 'not-found')) {
+          throw error
+        }
+      }
+    },
+    onMutate: async (id) => {
+      // Cancel outgoing refetches so they can't bring the row back.
+      await client.cancelQueries({ queryKey: queryKeys.notifications.lists() })
+      const snapshot = client.getQueriesData<CachedNotifications>({
+        queryKey: queryKeys.notifications.lists(),
+      })
+      client.setQueriesData<CachedNotifications>(
+        { queryKey: queryKeys.notifications.lists() },
+        (data) => removeNotificationFromCache(data, id),
+      )
+      return snapshot
+    },
+    onError: (_error, _id, snapshot) => {
       if (snapshot) {
         restoreNotifications(client, snapshot)
       }

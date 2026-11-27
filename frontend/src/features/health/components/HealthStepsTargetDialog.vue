@@ -8,7 +8,9 @@ import { FormDialog } from '@/components/ui/form-dialog'
 import { FormField } from '@/components/ui/form-field'
 import { inputFieldClass } from '@/components/ui/input/fieldClasses'
 import { useForm } from '@/composables/useForm'
+import { isStaleWrite } from '@/services/ifMatch'
 import { toNumberOrNull } from '@/utils/number'
+import { numberBetween } from '@/utils/validators'
 import { useUpdateStepsTargetMutation } from '@/features/health/composables/useHealth'
 
 const open = defineModel<boolean>('open', { required: true })
@@ -35,7 +37,7 @@ interface TargetFormValues {
 /** Converts the target string to a rounded whole-number count (or `null` to clear). */
 function targetToCount(raw: string): number | null {
   const value = toNumberOrNull(raw)
-  if (value === null || value <= 0) {
+  if (value === null) {
     return null
   }
   return Math.round(value)
@@ -50,19 +52,22 @@ function targetToCount(raw: string): number | null {
 async function submitForm(values: TargetFormValues): Promise<void> {
   try {
     await updateTargetMutation.mutateAsync({
-      id: props.targets.id,
-      userId: props.targets.userId,
+      version: props.targets.version,
       steps: targetToCount(values.steps),
     })
     emit('success', t('health.steps.target.saveSuccess'))
     open.value = false
-  } catch {
-    emit('error', t('health.steps.target.saveError'))
+  } catch (error) {
+    if (isStaleWrite(error)) {
+      open.value = false
+    }
+    emit('error', isStaleWrite(error) ? t('app.staleError') : t('health.steps.target.saveError'))
   }
 }
 
-const { values, isSubmitting, handleSubmit, reset } = useForm<TargetFormValues>({
+const { values, errors, isSubmitting, handleSubmit, reset } = useForm<TargetFormValues>({
   initialValues: { steps: '' },
+  validators: { steps: numberBetween(1, undefined, t('health.targetInvalid')) },
   onSubmit: submitForm,
 })
 
@@ -93,6 +98,7 @@ watch(open, (isOpen) => {
     <FormField
       :label="t('health.steps.target.steps')"
       :placeholder="t('health.steps.target.steps')"
+      :error="errors.steps"
       :hint="t('health.steps.target.hint')"
     >
       <template #default="{ fieldId, placeholder }">
@@ -102,7 +108,7 @@ watch(open, (isOpen) => {
           :class="inputFieldClass"
           :placeholder="placeholder"
           type="number"
-          min="0"
+          min="1"
           step="1"
           inputmode="numeric"
           :disabled="isSubmitting"

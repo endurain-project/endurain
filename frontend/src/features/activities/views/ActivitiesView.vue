@@ -37,9 +37,12 @@ import {
   sortByToExtraColumn,
 } from '@/features/activities/utils/activityListColumns'
 import { ACTIVITY_SORT_OPTIONS } from '@/features/activities/utils/activitySortOptions'
-import { presentActivityType } from '@/features/activities/utils/activityType'
+import {
+  presentActivityType,
+  sortActivityTypesByLabel,
+} from '@/features/activities/utils/activityType'
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const { data: currentUser } = useCurrentUser()
 const route = useRoute()
 
@@ -67,8 +70,7 @@ function parsePageParam(value: unknown): number {
 
 const page = ref(parsePageParam(route.query.page))
 
-// Filter state. `typeFilter` uses 0 as the "all types" sentinel (codes start at
-// 1); the dates are ISO `YYYY-MM-DD` strings straight from the native pickers.
+// Filter state. `typeFilter` uses the empty string as the "all types" sentinel; the dates are ISO `YYYY-MM-DD` strings straight from the native pickers.
 // Initial values are read from the URL query so that navigating to an activity
 // and back doesn't reset the list back to its defaults.
 const typeFilter = ref(parseActivityTypeFilterQuery(route.query.type))
@@ -120,7 +122,7 @@ function clearSearch(): void {
 
 /** The active server-side filters, recomputed whenever any input changes. */
 const filters = computed<ActivityListFilters>(() => ({
-  type: typeFilter.value > 0 ? typeFilter.value : null,
+  type: typeFilter.value || null,
   startDate: startDate.value || null,
   endDate: endDate.value || null,
   nameSearch: debouncedSearch.value.trim() || null,
@@ -128,7 +130,7 @@ const filters = computed<ActivityListFilters>(() => ({
 
 const hasActiveFilters = computed(
   () =>
-    typeFilter.value > 0 ||
+    typeFilter.value !== '' ||
     startDate.value !== '' ||
     endDate.value !== '' ||
     debouncedSearch.value.trim() !== '',
@@ -136,15 +138,17 @@ const hasActiveFilters = computed(
 
 /** Resets every filter and the search back to their defaults. */
 function clearFilters(): void {
-  typeFilter.value = 0
+  typeFilter.value = ''
   startDate.value = ''
   endDate.value = ''
   clearSearch()
 }
 
 const typesQuery = useUserActivityTypesQuery()
-/** Distinct activity-type codes the user owns, for the type filter. */
-const typeOptions = computed(() => typesQuery.data.value ?? [])
+/** Distinct activity types the user owns, ordered by label, for the type filter. */
+const typeOptions = computed(() =>
+  sortActivityTypesByLabel(typesQuery.data.value ?? [], t, locale.value),
+)
 
 const listQuery = useUserActivitiesQuery(userId, page, recordsPerPage, filters, sortBy, sortOrder)
 
@@ -181,8 +185,8 @@ const activitiesQueryState = computed<Record<string, string>>(() => {
     sortBy: sortBy.value,
     sortOrder: sortOrder.value,
   }
-  if (typeFilter.value > 0) {
-    params.type = String(typeFilter.value)
+  if (typeFilter.value) {
+    params.type = typeFilter.value
   }
   if (startDate.value) {
     params.startDate = startDate.value
@@ -249,7 +253,7 @@ useRouteQueryReplacement(activitiesQueryState)
               class="w-full"
               :aria-label="t('activities.list.filters.type')"
             >
-              <option :value="0">{{ t('activities.list.filters.allTypes') }}</option>
+              <option value="">{{ t('activities.list.filters.allTypes') }}</option>
               <option v-for="code in typeOptions" :key="code" :value="code">
                 {{ t(presentActivityType(code).labelKey) }}
               </option>

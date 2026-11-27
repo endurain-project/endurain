@@ -11,7 +11,7 @@
     "subtitle": "Pārlūkojiet, filtrējiet un kārtojiet visas savas aktivitātes.",
     "searchPlaceholder": "Meklēt pēc nosaukuma vai atrašanās vietas",
     "clearSearch": "Notīrīt meklēšanu",
-    "resultCount": "{count} aktivitātes",
+    "resultCount": "{count} aktivitātes | {count} aktivitāte | {count} aktivitātes",
     "filters": {
       "type": "Aktivitātes veids",
       "allTypes": "Visi veidi",
@@ -27,7 +27,7 @@
       "name": "Nosaukums",
       "type": "Veids",
       "location": "Atrašanās vieta",
-      "distance": "Distance",
+      "distance": "Attālums",
       "duration": "Ilgums",
       "pace": "Temps / Ātrums",
       "elevation": "Augstuma ieguvums",
@@ -36,7 +36,7 @@
     },
     "columns": {
       "activity": "Aktivitāte",
-      "distance": "Distance",
+      "distance": "Attālums",
       "duration": "Ilgums",
       "pace": "Temps",
       "paceSpeed": "Temps / Ātrums",
@@ -66,7 +66,7 @@
   },
   "metrics": {
     "time": "Laiks",
-    "distance": "Distance",
+    "distance": "Attālums",
     "movingTime": "Kustības laiks",
     "elapsedTime": "Pagājušais laiks",
     "avgPace": "Vid. temps",
@@ -101,7 +101,7 @@
     "title": "Apļi",
     "lap": "Aplis",
     "intensity": "Intensitāte",
-    "distance": "Distance",
+    "distance": "Attālums",
     "time": "Laiks",
     "tempo": "Temps / Ātrums",
     "elevation": "Augstuma ieguvums",
@@ -184,10 +184,13 @@
   },
   "edit": {
     "title": "Rediģēt aktivitāti",
+    "loading": "Notiek aktivitātes ielāde",
+    "loadError": "Neizdevās ielādēt aktivitāti",
     "save": "Saglabāt izmaiņas",
     "cancel": "Atcelt",
     "close": "Aizvērt",
     "name": "Nosaukums",
+    "nameRequired": "Ievadiet aktivitātes nosaukumu",
     "type": "Aktivitātes veids",
     "description": "Apraksts",
     "privateNotes": "Privātās piezīmes",
@@ -208,7 +211,7 @@
     "hideGear": "Slēpt inventāru",
     "success": "Aktivitāte atjaunināta",
     "error": "Neizdevās atjaunināt aktivitāti",
-    "staleError": "This activity was changed elsewhere while you were editing. Your changes were not saved. Reopen it to see the current version."
+    "staleError": "Šī aktivitāte tika mainīta citur, kamēr Jūs to rediģējāt. Jūsu izmaiņas netika saglabātas. Atveriet to vēlreiz, lai redzētu pašreizējo versiju."
   },
   "alerts": {
     "hidden": "Šī aktivitāte ir slēpta. Tikai jūs to varat redzēt.",

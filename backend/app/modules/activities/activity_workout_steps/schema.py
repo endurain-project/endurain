@@ -1,8 +1,11 @@
 """Activity workout steps schemas."""
 
+import uuid
+
 from pydantic import (
     BaseModel,
     ConfigDict,
+    Field,
     StrictFloat,
     StrictInt,
     StrictStr,
@@ -34,14 +37,20 @@ class ActivityWorkoutStepsBase(BaseModel):
 
     message_index: StrictInt
     duration_type: StrictStr
-    duration_value: StrictFloat | None = None
+    duration_value: StrictFloat | None = Field(
+        default=None,
+        description="Duration of the step, in the unit its duration_type names (seconds, meters and so on)",
+    )
     target_type: StrictStr | None = None
-    target_value: StrictInt | None = None
+    target_value: StrictInt | None = Field(
+        default=None,
+        description="Target of the step, in the unit its target_type names (beats per minute, watts and so on)",
+    )
     intensity: StrictStr | None = None
     notes: StrictStr | None = None
     exercise_category: StrictInt | None = None
     exercise_name: StrictInt | None = None
-    exercise_weight: StrictFloat | None = None
+    exercise_weight: StrictFloat | None = Field(default=None, description="Weight of the exercise in kilograms")
     weight_display_unit: StrictStr | None = None
     secondary_target_value: StrictStr | None = None
 
@@ -59,8 +68,8 @@ class ActivityWorkoutStepsRead(ActivityWorkoutStepsBase):
         activity_id: FK to activities table.
     """
 
-    id: StrictInt
-    activity_id: StrictInt
+    id: uuid.UUID
+    activity_id: uuid.UUID
 
 
 #: One page of an activity's planned workout steps. A structured workout's step

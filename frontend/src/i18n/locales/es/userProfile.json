@@ -82,5 +82,13 @@
       "ownTitle": "Todavía no tienes seguidores.",
       "otherTitle": "Todavía no tiene seguidores."
     }
+  },
+  "block": {
+    "block": "Bloquear",
+    "unblock": "Desbloquear",
+    "confirmTitle": "¿Bloquear a {name}?",
+    "confirmBody": "{name} no podrá solicitar seguirte y se eliminará cualquier seguimiento entre vosotros. No se le avisa.",
+    "blockError": "No se pudo bloquear a este usuario. Inténtalo de nuevo.",
+    "unblockError": "No se pudo desbloquear a este usuario. Inténtalo de nuevo."
   }
 }

@@ -4,8 +4,10 @@ import io
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import jasil.providers as platform_providers
 import pytest
 from jasil.backends.storage_local import LocalStorage
+from tests._helpers.auth import MOCK_USER_ID
 
 import core.exceptions as core_exceptions
 import modules.activities.activity_ingestion.upload_entry_service as upload_entry_service
@@ -153,14 +155,14 @@ class TestProcessStagedUpload:
             ) as store,
             patch.object(upload_entry_service.core_file_uploads, "remove_files"),
         ):
-            result = upload_entry_service.process_staged_upload(7, "abc.gpx", platform.storage, db)
+            result = upload_entry_service.process_staged_upload(MOCK_USER_ID, "abc.gpx", platform.storage, db)
 
         assert result == ["activity"]
         platform.storage.open_stream.assert_called_once_with(
             upload_entry_service.UPLOAD_STAGING_STORAGE_AREA,
             "upload_staging/abc.gpx",
         )
-        assert store.call_args.args[0] == 7
+        assert store.call_args.args[0] == MOCK_USER_ID
         assert store.call_args.args[3] == "abc.gpx"
         # Left for the caller, which removes it only once the outcome is committed.
         platform.storage.delete.assert_not_called()
@@ -172,7 +174,7 @@ class TestProcessStagedUpload:
         with (
             pytest.raises(core_exceptions.InvalidInputError),
         ):
-            upload_entry_service.process_staged_upload(7, "abc.gpx", platform.storage, db)
+            upload_entry_service.process_staged_upload(MOCK_USER_ID, "abc.gpx", platform.storage, db)
 
     def test_keeps_the_blob_when_nothing_parsed(self):
         db = MagicMock()
@@ -186,7 +188,7 @@ class TestProcessStagedUpload:
             ),
             patch.object(upload_entry_service.core_file_uploads, "remove_files"),
         ):
-            result = upload_entry_service.process_staged_upload(7, "abc.gpx", platform.storage, db)
+            result = upload_entry_service.process_staged_upload(MOCK_USER_ID, "abc.gpx", platform.storage, db)
 
         assert result is None
         platform.storage.delete.assert_not_called()
@@ -205,7 +207,7 @@ class TestProcessStagedUpload:
             patch.object(upload_entry_service.core_file_uploads, "remove_files"),
             pytest.raises(core_exceptions.ProcessingError),
         ):
-            upload_entry_service.process_staged_upload(7, "abc.gpx", platform.storage, db)
+            upload_entry_service.process_staged_upload(MOCK_USER_ID, "abc.gpx", platform.storage, db)
 
         platform.storage.delete.assert_not_called()
 
@@ -225,7 +227,7 @@ class TestProcessStagedUpload:
             patch.object(upload_entry_service.core_file_uploads, "remove_files"),
             pytest.raises(SQLAlchemyError),
         ):
-            upload_entry_service.process_staged_upload(7, "abc.gpx", platform.storage, db)
+            upload_entry_service.process_staged_upload(MOCK_USER_ID, "abc.gpx", platform.storage, db)
 
         platform.storage.delete.assert_not_called()
 
@@ -240,7 +242,7 @@ class TestProcessStagedUpload:
             patch.object(upload_entry_service.core_file_uploads, "remove_files"),
             pytest.raises(core_exceptions.InvalidInputError),
         ):
-            upload_entry_service.process_staged_upload(7, "abc.gz", platform.storage, db)
+            upload_entry_service.process_staged_upload(MOCK_USER_ID, "abc.gz", platform.storage, db)
 
     def test_removes_the_working_directory_on_every_path(self):
         db = MagicMock()
@@ -256,7 +258,7 @@ class TestProcessStagedUpload:
             patch.object(upload_entry_service.shutil, "rmtree") as rmtree,
             pytest.raises(core_exceptions.ProcessingError),
         ):
-            upload_entry_service.process_staged_upload(7, "abc.gpx", platform.storage, db)
+            upload_entry_service.process_staged_upload(MOCK_USER_ID, "abc.gpx", platform.storage, db)
 
         rmtree.assert_called_once()
 
@@ -273,7 +275,7 @@ class TestDiscardStagedUpload:
     def test_a_storage_failure_never_propagates(self):
         """Cleanup must not turn a finished import into a failed one."""
         platform = _platform()
-        platform.storage.delete.side_effect = RuntimeError("bucket down")
+        platform.storage.delete.side_effect = platform_providers.StorageBackendUnavailableError("bucket down")
         upload_entry_service.discard_staged_upload("abc.gpx", platform.storage)
 
 
@@ -302,7 +304,10 @@ class TestLocalStorageStaging:
                 "store_activities_from_file",
                 side_effect=store_materialized_file,
             ):
-                assert upload_entry_service.process_staged_upload(7, "abc.gpx", platform.storage, MagicMock()) == []
+                assert (
+                    upload_entry_service.process_staged_upload(MOCK_USER_ID, "abc.gpx", platform.storage, MagicMock())
+                    == []
+                )
 
             assert parsed_data == [b"<gpx/>"]
             # Processing leaves the blob; only the caller's explicit discard removes it.

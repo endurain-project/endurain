@@ -1,5 +1,4 @@
-"""
-User weekly activity streaks.
+"""User weekly activity streaks.
 
 A week "counts" toward the streak when the user records at
 least ``min_activities_per_week`` activities of the selected

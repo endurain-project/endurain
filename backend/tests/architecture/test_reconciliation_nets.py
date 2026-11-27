@@ -1,4 +1,4 @@
-"""The reconciliation-net invariant, enforced across every converted module.
+"""The reconciliation-net invariant, enforced across every module.
 
 A durable subscriber that derives state must either ship a scheduled backfill
 re-deriving what the create path missed, or say in writing why it does not need
@@ -65,11 +65,16 @@ def _registered_ids(module: _ModuleNets) -> frozenset[str]:
 
 
 def _scheduled_functions(recurring_jobs) -> set[object]:
-    """Return every callable a module's scheduled work would register."""
+    """Return every callable a module's scheduled work would register, including those a lock wrapper runs."""
     scheduled: set[object] = set()
     fake_scheduler = MagicMock()
     fake_scheduler.running = True  # skip scheduler.start()
-    fake_scheduler.add_job.side_effect = lambda func, *args, **kwargs: scheduled.add(func)
+
+    def record(func, *args, **kwargs):
+        scheduled.add(func)
+        scheduled.update(kwargs.get("args") or ())
+
+    fake_scheduler.add_job.side_effect = record
     with patch.object(core_scheduler, "scheduler", fake_scheduler):
         core_scheduler.start_scheduler(recurring_jobs())
     return scheduled

@@ -6,32 +6,23 @@
  */
 
 import type { Units } from '@/features/activities/utils/format'
+import type { UnitKey } from '@/i18n'
 
+import { formatFixed, formatNumber } from '@/utils/formatNumber'
 import { kmToMiles } from '@/utils/units'
 
 /** A formatted summary metric split into its value and unit. */
 export interface SummaryMetric {
   /** The formatted numeric value (no unit). */
   value: string
-  /** The unit suffix (may be empty, e.g. for the activity count). */
-  unit: string
+  /** The unit key, or `null` for a unitless value. */
+  unit: UnitKey | null
 }
 
 /** Metres in one kilometre. */
 const METERS_PER_KM = 1000
 /** Metres to feet, for imperial elevation. */
 const METERS_TO_FEET = 3.28084
-
-/**
- * Combines a {@link SummaryMetric} into a single `value unit` string for dense
- * contexts such as breakdown table cells.
- *
- * @param metric - The split metric.
- * @returns The combined string (just the value when there is no unit).
- */
-export function combineSummaryMetric(metric: SummaryMetric): string {
-  return metric.unit ? `${metric.value} ${metric.unit}` : metric.value
-}
 
 /**
  * Formats an aggregate distance in kilometres (metric) or miles (imperial),
@@ -44,7 +35,7 @@ export function combineSummaryMetric(metric: SummaryMetric): string {
 export function formatSummaryDistance(meters: number, units: Units): SummaryMetric {
   const km = meters / METERS_PER_KM
   const value = units === 'imperial' ? kmToMiles(km) : km
-  return { value: value.toFixed(2), unit: units === 'imperial' ? 'mi' : 'km' }
+  return { value: formatFixed(value, 2), unit: units === 'imperial' ? 'mi' : 'km' }
 }
 
 /**
@@ -57,33 +48,29 @@ export function formatSummaryDistance(meters: number, units: Units): SummaryMetr
  */
 export function formatSummaryElevation(meters: number, units: Units): SummaryMetric {
   const value = units === 'imperial' ? meters * METERS_TO_FEET : meters
-  return { value: Math.round(value).toString(), unit: units === 'imperial' ? 'ft' : 'm' }
+  return { value: formatNumber(value), unit: units === 'imperial' ? 'ft' : 'm' }
 }
 
 /**
  * Formats an aggregate duration as a compact `Hh Mm` clock (`Mm` under an hour),
- * suited to large rollups that can span hundreds of hours.
+ * suited to large rollups that can span hundreds of hours. Returns the parts so the
+ * view can render them with the localized duration format.
  *
  * @param seconds - Total duration in seconds.
- * @returns The formatted duration (the unit is embedded in the value).
+ * @returns The whole hours and the remaining whole minutes.
  */
-export function formatSummaryDuration(seconds: number): SummaryMetric {
+export function formatSummaryDuration(seconds: number): { hours: number; minutes: number } {
   const whole = Math.max(0, Math.floor(seconds))
-  const hours = Math.floor(whole / 3600)
-  const minutes = Math.floor((whole % 3600) / 60)
-  return { value: hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`, unit: '' }
+  return { hours: Math.floor(whole / 3600), minutes: Math.floor((whole % 3600) / 60) }
 }
 
 /**
- * Formats an aggregate calorie total, rounded and grouped into thousands with a
- * comma (deterministic, locale-independent).
+ * Formats an aggregate calorie total, rounded and grouped into thousands in the
+ * app language.
  *
  * @param calories - Total calories.
  * @returns The formatted calorie total and its unit.
  */
 export function formatSummaryCalories(calories: number): SummaryMetric {
-  const grouped = Math.round(calories)
-    .toString()
-    .replace(/\B(?=(\d{3})+(?!\d))/g, ',')
-  return { value: grouped, unit: 'kcal' }
+  return { value: formatNumber(calories), unit: 'kcal' }
 }

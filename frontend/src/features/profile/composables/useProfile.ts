@@ -4,11 +4,14 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import type {
   ActivityVisibility,
   PrivacySettings,
+  ProfileDetails,
   ProfileEditInput,
 } from '@/features/profile/types'
 import type { User } from '@/features/auth/types'
 
+import { useInvalidatingMutation } from '@/composables/useInvalidatingMutation'
 import { queryKeys } from '@/services/queryKeys'
+import { getLocaleForBackendLanguage, loadLocaleMessages, setI18nLocale } from '@/i18n'
 import { bumpAvatarCacheToken } from '@/lib/avatarCache'
 import { useAuthStore } from '@/features/auth/stores/auth'
 import { updateUserActivitiesVisibility } from '@/features/activities/services/activities'
@@ -36,15 +39,17 @@ export function useProfileQuery() {
 }
 
 /**
- * Invalidates the profile detail and the shell's current-user caches. Identity
- * and photo edits change the navbar name/avatar (read from `currentUser`), so a
- * write must refresh both.
+ * Invalidates the profile detail, the shell's current-user and the admin users
+ * caches. Identity and photo edits change the navbar name/avatar (read from
+ * `currentUser`) and bump the user row an admin may have cached, so a write
+ * must refresh all of them.
  *
  * @param client - The active query client.
  */
 function invalidateProfileAndShell(client: ReturnType<typeof useQueryClient>): void {
   void client.invalidateQueries({ queryKey: queryKeys.profile.all() })
   void client.invalidateQueries({ queryKey: queryKeys.currentUser() })
+  void client.invalidateQueries({ queryKey: queryKeys.users.all() })
 }
 
 /**
@@ -55,8 +60,11 @@ function invalidateProfileAndShell(client: ReturnType<typeof useQueryClient>): v
  */
 function invalidateWeekDependentQueries(
   client: ReturnType<typeof useQueryClient>,
-  firstDayOfWeek: ProfileEditInput['firstDayOfWeek'],
+  firstDayOfWeek: ProfileEditInput['firstDayOfWeek'] | undefined,
 ): void {
+  if (firstDayOfWeek === undefined) {
+    return
+  }
   const currentUser = client.getQueryData<User>(queryKeys.currentUser())
   if (currentUser?.firstDayOfWeek === firstDayOfWeek) {
     return
@@ -66,19 +74,87 @@ function invalidateWeekDependentQueries(
 }
 
 /**
- * Profile identity edit mutation. Invalidates the profile and shell caches.
+ * Invalidates health data when the height changed, since BMI derives from it.
+ *
+ * @param client - The active query client.
+ * @param height - Successfully persisted height in centimetres, or `null`.
+ */
+export function invalidateHeightDependentQueries(
+  client: ReturnType<typeof useQueryClient>,
+  height: ProfileEditInput['height'] | undefined,
+): void {
+  if (height === undefined) {
+    return
+  }
+  const profile = client.getQueryData<ProfileDetails>(queryKeys.profile.detail())
+  if (profile?.height === height) {
+    return
+  }
+  void client.invalidateQueries({ queryKey: queryKeys.health.all() })
+}
+
+/**
+ * Switches the interface to a newly saved preferred language, so a profile
+ * edit takes effect without a reload.
+ *
+ * @param client - The active query client.
+ * @param language - Successfully persisted language, if the edit sent one.
+ */
+async function applyChangedLanguage(
+  client: ReturnType<typeof useQueryClient>,
+  language: ProfileEditInput['preferredLanguage'] | undefined,
+): Promise<void> {
+  const profile = client.getQueryData<ProfileDetails>(queryKeys.profile.detail())
+  const locale = getLocaleForBackendLanguage(language)
+  if (!locale || profile?.preferredLanguage === language) {
+    return
+  }
+  await loadLocaleMessages(locale)
+  setI18nLocale(locale)
+}
+
+/**
+ * Profile identity edit mutation. Sends only the fields given, applies a changed
+ * language immediately, and invalidates the profile and shell caches.
  *
  * @returns The TanStack Query mutation for updating the profile.
  */
 export function useUpdateProfileMutation() {
   const client = useQueryClient()
 
-  return useMutation<void, Error, ProfileEditInput>({
+  return useMutation<void, Error, { input: Partial<ProfileEditInput>; version: number }>({
     mutationKey: queryKeys.profile.all(),
-    mutationFn: (input) => updateProfile(input),
-    onSuccess: (_data, input) => invalidateWeekDependentQueries(client, input.firstDayOfWeek),
+    mutationFn: ({ input, version }) => updateProfile(input, version),
+    onSuccess: async (_data, { input }) => {
+      invalidateWeekDependentQueries(client, input.firstDayOfWeek)
+      invalidateHeightDependentQueries(client, input.height)
+      await applyChangedLanguage(client, input.preferredLanguage)
+    },
     onSettled: () => invalidateProfileAndShell(client),
   })
+}
+
+/**
+ * Saves the preferred language to the profile, reading the profile fresh so the
+ * write carries its current version. Skips the write when it already matches.
+ *
+ * @returns An async function taking the language to save.
+ */
+export function useSavePreferredLanguage() {
+  const client = useQueryClient()
+  const mutation = useUpdateProfileMutation()
+
+  return async (language: ProfileEditInput['preferredLanguage']): Promise<void> => {
+    const profile = await client.fetchQuery({
+      queryKey: queryKeys.profile.detail(),
+      queryFn: ({ signal }) => fetchProfile(signal),
+      staleTime: 0,
+    })
+    if (profile.preferredLanguage === language) {
+      return
+    }
+    await mutation.mutateAsync({ input: { preferredLanguage: language }, version: profile.version })
+  }
 }
 
 /**
@@ -87,14 +163,9 @@ export function useUpdateProfileMutation() {
  * @returns The TanStack Query mutation for updating privacy settings.
  */
 export function useUpdatePrivacyMutation() {
-  const client = useQueryClient()
-
-  return useMutation<void, Error, PrivacySettings>({
+  return useInvalidatingMutation<void, PrivacySettings>({
     mutationKey: queryKeys.profile.all(),
     mutationFn: (privacy) => updatePrivacySettings(privacy),
-    onSettled: () => {
-      void client.invalidateQueries({ queryKey: queryKeys.profile.all() })
-    },
   })
 }
 
@@ -105,14 +176,9 @@ export function useUpdatePrivacyMutation() {
  * @returns The TanStack Query mutation for bulk-updating activity visibility.
  */
 export function useUpdateExistingActivitiesVisibilityMutation() {
-  const client = useQueryClient()
-
-  return useMutation<void, Error, ActivityVisibility>({
+  return useInvalidatingMutation<void, ActivityVisibility>({
     mutationKey: queryKeys.activities.all(),
     mutationFn: (visibility) => updateUserActivitiesVisibility(visibility),
-    onSettled: () => {
-      void client.invalidateQueries({ queryKey: queryKeys.activities.all() })
-    },
   })
 }
 

@@ -1,4 +1,4 @@
-import { computed, reactive, readonly, ref } from 'vue'
+import { computed, reactive, readonly, ref, shallowRef } from 'vue'
 
 import type { Validator } from '@/utils/validators'
 
@@ -46,6 +46,7 @@ export function useForm<Values extends object>(options: UseFormOptions<Values>) 
   const { initialValues, validators, onSubmit } = options
 
   const values = reactive({ ...initialValues }) as Values
+  const baseline = shallowRef<Values>({ ...initialValues })
   const errors = ref<FormErrors<Values>>({})
   const touched = ref<FormTouched<Values>>({})
   const isSubmitting = ref(false)
@@ -89,10 +90,10 @@ export function useForm<Values extends object>(options: UseFormOptions<Values>) 
     return (Object.keys(validators) as (keyof Values)[]).every((key) => runValidator(key) === null)
   })
 
-  /** Whether any field differs from its initial value. */
+  /** Whether any field differs from the baseline (the initial values, or the last `markPristine()`). */
   const isDirty = computed(() =>
     (Object.keys(initialValues) as (keyof Values)[]).some(
-      (key) => values[key] !== initialValues[key],
+      (key) => values[key] !== baseline.value[key],
     ),
   )
 
@@ -161,9 +162,18 @@ export function useForm<Values extends object>(options: UseFormOptions<Values>) 
     errors.value = { ...errors.value, ...serverErrors }
   }
 
+  /**
+   * Makes the current values the `isDirty` baseline. Call it after seeding an
+   * edit form from a record so an untouched form reads as clean.
+   */
+  function markPristine(): void {
+    baseline.value = { ...values }
+  }
+
   /** Restores initial values and clears all errors, touched, and submit state. */
   function reset(): void {
     Object.assign(values, { ...initialValues })
+    baseline.value = { ...initialValues }
     errors.value = {}
     touched.value = {}
     submitError.value = null
@@ -209,8 +219,9 @@ export function useForm<Values extends object>(options: UseFormOptions<Values>) 
     submitError: readonly(submitError),
     /** Whether all validated fields currently pass. */
     isValid,
-    /** Whether any field differs from its initial value. */
+    /** Whether any field differs from the baseline (initial values or last `markPristine()`). */
     isDirty,
+    markPristine,
     handleSubmit,
     handleBlur,
     validateField,

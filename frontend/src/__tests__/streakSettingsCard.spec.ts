@@ -25,7 +25,7 @@ function mountCard(settings: StreakSettings = stored) {
 /** Submits the form and returns the body of the resulting PUT. */
 async function submitAndReadBody(wrapper: ReturnType<typeof mountCard>) {
   vi.mocked(apiFetch).mockResolvedValue({
-    user_id: 1,
+    user_id: '3f2b8c1e-5a4d-4c6b-9e7f-1a2b3c4d5e6f',
     min_activities_per_week: 1,
     activity_types: null,
     show_on_profile: false,
@@ -49,7 +49,11 @@ describe('StreakSettingsCard', () => {
     await wrapper.setProps({ settings: { ...stored, showOnProfile: false } })
 
     const body = await submitAndReadBody(wrapper)
-    expect(body).toEqual({ min_activities_per_week: 3, activity_types: null, show_on_profile: false })
+    expect(body).toEqual({
+      min_activities_per_week: 3,
+      activity_types: null,
+      show_on_profile: false,
+    })
   })
 
   it('keeps an edit in progress when the same field is refreshed', async () => {

@@ -1,6 +1,6 @@
 """Activity exercise titles CRUD operations."""
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
@@ -23,6 +23,40 @@ def get_activity_exercise_titles(
     """
     stmt = select(activity_exercise_titles_models.ActivityExerciseTitles)
     return [activity_exercise_titles_serializers.to_read_schema(title) for title in db.execute(stmt).scalars().all()]
+
+
+def get_activity_exercise_titles_page(
+    db: Session, *, limit: int, offset: int
+) -> list[activity_exercise_titles_schema.ActivityExerciseTitlesRead]:
+    """Retrieve one window of the exercise titles, in id order.
+
+    Args:
+        db: Database session.
+        limit: The most titles to return.
+        offset: How many titles to skip.
+
+    Returns:
+        The titles in the window.
+    """
+    stmt = (
+        select(activity_exercise_titles_models.ActivityExerciseTitles)
+        .order_by(activity_exercise_titles_models.ActivityExerciseTitles.id)
+        .limit(limit)
+        .offset(offset)
+    )
+    return [activity_exercise_titles_serializers.to_read_schema(title) for title in db.execute(stmt).scalars().all()]
+
+
+def count_activity_exercise_titles(db: Session) -> int:
+    """Count the exercise titles.
+
+    Args:
+        db: Database session.
+
+    Returns:
+        The number of stored titles.
+    """
+    return db.execute(select(func.count(activity_exercise_titles_models.ActivityExerciseTitles.id))).scalar_one()
 
 
 def create_activity_exercise_titles(

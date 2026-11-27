@@ -5,10 +5,12 @@
   "unread": "Non lette",
   "markRead": "Segna come letta",
   "markAllRead": "Segna tutte come lette",
+  "dismiss": "Ignora notifica",
+  "dismissError": "Impossibile ignorare la notifica. Riprova.",
   "seeAll": "Vedi tutte",
   "loadMore": "Carica altre",
   "loading": "Caricamento…",
-  "badge": "{count} notifiche non lette",
+  "badge": "{count} notifica non letta | {count} notifiche non lette",
   "empty": {
     "title": "Sei in pari",
     "description": "Qui verranno mostrati gli aggiornamenti sulle tue attività, follower e integrazioni."
@@ -39,9 +41,122 @@
       "title": "Garmin Connect richiede attenzione",
       "body": "La tua sessione Garmin Connect è scaduta. Ricollegala per continuare la sincronizzazione."
     },
+    "stravaTokenExpired": {
+      "title": "Strava richiede la tua attenzione",
+      "body": "Strava ha rifiutato la tua connessione. Riconnettila per continuare a sincronizzare.",
+      "bodyRevoked": "L'accesso a Strava è terminato. Le tue attività e la tua attrezzatura sincronizzate con Strava verranno eliminate il {date} se non ti ricolleghi."
+    },
+    "stravaDataDeleted": {
+      "title": "Dati Strava eliminati",
+      "body": "Le tue attività e la tua attrezzatura sincronizzate con Strava sono state eliminate perché l'accesso a Strava è terminato e non ti sei ricollegato."
+    },
+    "idpLinked": {
+      "title": "Nuovo provider di accesso collegato",
+      "body": "{name} è stato collegato al tuo account. Se non sei stato tu, controlla le impostazioni di sicurezza.",
+      "bodyGeneric": "Un provider di accesso è stato collegato al tuo account. Se non sei stato tu, controlla le impostazioni di sicurezza."
+    },
+    "accountSecurityChanged": {
+      "passwordChanged": {
+        "title": "Password modificata",
+        "body": "La tua password è stata modificata. Se non sei stato tu, reimposta la password e controlla le impostazioni di sicurezza."
+      },
+      "passwordReset": {
+        "title": "Password reimpostata",
+        "body": "La tua password è stata reimpostata tramite un link di reimpostazione. Se non sei stato tu, reimpostala di nuovo e controlla le impostazioni di sicurezza. Any API keys were revoked and any pending email change was cancelled."
+      },
+      "passwordSetByAdmin": {
+        "title": "Password impostata da un amministratore",
+        "body": "Un amministratore ha impostato una nuova password per il tuo account. Se non te lo aspettavi, contatta il tuo amministratore. Any API keys were revoked and any pending email change was cancelled."
+      },
+      "mfaEnabled": {
+        "title": "Autenticazione a due fattori attivata",
+        "body": "L'autenticazione a due fattori è stata attivata per il tuo account. Se non sei stato tu, reimposta la password e controlla le impostazioni di sicurezza."
+      },
+      "mfaDisabled": {
+        "title": "Autenticazione a due fattori disattivata",
+        "body": "L'autenticazione a due fattori è stata disattivata per il tuo account. Se non sei stato tu, reimposta la password e controlla le impostazioni di sicurezza."
+      },
+      "mfaResetByAdmin": {
+        "title": "Autenticazione a due fattori reimpostata da un amministratore",
+        "body": "Un amministratore ha reimpostato l'autenticazione a due fattori per il tuo account e ti ha disconnesso da tutti i dispositivi. Configurala di nuovo dalle impostazioni di sicurezza. Se non te lo aspettavi, contatta il tuo amministratore."
+      },
+      "passwordChangeRequiredByAdmin": {
+        "title": "Cambio password richiesto da un amministratore",
+        "body": "Un amministratore ti ha richiesto di cambiare la password e ti ha disconnesso da tutti i dispositivi. Sceglierai una nuova password al prossimo accesso con la tua password. Se non te lo aspettavi, contatta il tuo amministratore."
+      },
+      "backupCodesGenerated": {
+        "title": "Nuovi codici di recupero generati",
+        "body": "Sono stati generati nuovi codici di recupero per il tuo account. Se non sei stato tu, reimposta la password e controlla le impostazioni di sicurezza."
+      },
+      "apiKeyCreated": {
+        "title": "Nuova chiave API creata",
+        "body": "È stata creata una nuova chiave API per il tuo account. Se non sei stato tu, reimposta la password e controlla le impostazioni di sicurezza."
+      },
+      "apiKeysRevokedByAdmin": {
+        "title": "Chiavi API revocate da un amministratore",
+        "body": "Un amministratore ha revocato una o più delle tue chiavi API, quindi nulla che le usi può più accedere al tuo account. Se non te lo aspettavi, contatta il tuo amministratore."
+      },
+      "identityProviderUnlinked": {
+        "title": "Provider di accesso scollegato",
+        "body": "{name} è stato scollegato dal tuo account. Se non sei stato tu, reimposta la password e controlla le impostazioni di sicurezza.",
+        "bodyGeneric": "Un provider di accesso è stato scollegato dal tuo account. Se non sei stato tu, reimposta la password e controlla le impostazioni di sicurezza."
+      },
+      "accountLocked": {
+        "title": "Account bloccato",
+        "body": "Il tuo account è stato bloccato dopo 100 tentativi di accesso falliti di fila. I browser e le app da cui hai effettuato l'accesso dall'ultima modifica di sicurezza possono ancora accedere. Se questi tentativi non erano tuoi, cambia o reimposta la password: anche questo toglie il blocco."
+      },
+      "mfaLocked": {
+        "title": "Verifica in due passaggi bloccata",
+        "body": "Il tuo account è stato bloccato dopo 100 codici di verifica in due passaggi errati di fila, quindi qualcuno conosce la tua password. I browser e le app da cui hai effettuato l'accesso dall'ultima modifica di sicurezza possono ancora accedere. Se questi tentativi non erano tuoi, cambia la password."
+      },
+      "stepUpSessionEnded": {
+        "title": "Sessione disconnessa",
+        "body": "Una sessione del tuo account è stata disconnessa dopo che sono state inserite 15 password o codici di autenticazione a due fattori errati di fila per confermare un'azione sensibile. Le tue altre sessioni non sono state interessate. Se non sei stato tu, cambia la password."
+      },
+      "stepUpLocked": {
+        "title": "Conferma delle azioni sensibili bloccata",
+        "body": "La conferma delle azioni sensibili, come cambiare la password o creare una chiave API, è stata bloccata per 30 giorni dopo 100 conferme errate nelle tue sessioni. Se non sei stato tu, reimposta la password: anche questo rimuove il blocco."
+      },
+      "backupCodeUsed": {
+        "title": "Codice di backup usato",
+        "body": "È stato usato un codice di backup per l'autenticazione a due fattori sul tuo account. Se non sei stato tu, cambia la password e genera nuovi codici di backup.",
+        "bodyRemaining": "È stato usato un codice di backup per l'autenticazione a due fattori sul tuo account. Codici di backup non usati rimasti: {count}. Se non sei stato tu, cambia la password e genera nuovi codici di backup.",
+        "bodyNone": "È stato usato un codice di backup per l'autenticazione a due fattori sul tuo account. Non ti restano codici di backup non usati, quindi generane di nuovi nelle impostazioni di sicurezza. Se non sei stato tu, cambia la password."
+      },
+      "refreshTokenReuseDetected": {
+        "title": "Sessione terminata",
+        "body": "Una sessione di accesso del tuo account è stata terminata perché un token già usato è stato presentato di nuovo, il che può indicare che la sessione è stata copiata. Le tue altre sessioni non sono state interessate. Se non te lo aspettavi, cambia la password."
+      },
+      "roleChangedByAdmin": {
+        "title": "Accesso cambiato da un amministratore",
+        "body": "Un amministratore ha cambiato il tipo di accesso del tuo account e ti ha disconnesso da tutti i dispositivi. Se non te lo aspettavi, contatta il tuo amministratore.",
+        "bodyAdmin": "Un amministratore ha cambiato il tipo di accesso del tuo account in amministratore e ti ha disconnesso da tutti i dispositivi. Se non te lo aspettavi, contatta il tuo amministratore.",
+        "bodyRegular": "Un amministratore ha cambiato il tipo di accesso del tuo account in utente normale e ti ha disconnesso da tutti i dispositivi. Se non te lo aspettavi, contatta il tuo amministratore."
+      },
+      "accountDeactivatedByAdmin": {
+        "title": "Account disattivato da un amministratore",
+        "body": "Un amministratore ha disattivato il tuo account e ti ha disconnesso da tutti i dispositivi. Non puoi accedere finché un amministratore non lo riattiva."
+      },
+      "unknown": {
+        "title": "Sicurezza dell'account modificata",
+        "body": "Un'impostazione di sicurezza del tuo account è stata modificata. Se non sei stato tu, reimposta la password e controlla le impostazioni di sicurezza."
+      },
+      "usernameChanged": {
+        "title": "Nome utente modificato",
+        "body": "Il tuo nome utente è stato modificato. Se non sei stato tu, reimposta la password e controlla le impostazioni di sicurezza."
+      }
+    },
+    "newDeviceSignIn": {
+      "title": "Nuovo accesso",
+      "body": "Nuovo accesso da {browser} su {os} ({ip}). Se non sei stato tu, cambia la password e disconnettiti dalle altre sessioni."
+    },
     "adminSignUpApproval": {
       "title": "Nuova registrazione in attesa di approvazione",
       "body": "{name} ({'@'}{username}) è in attesa di approvazione dell'account."
+    },
+    "adminUserPromoted": {
+      "title": "Utente promosso ad amministratore",
+      "body": "{name} ({'@'}{username}) ha ricevuto l'accesso come amministratore."
     },
     "unknown": {
       "title": "Notifica",

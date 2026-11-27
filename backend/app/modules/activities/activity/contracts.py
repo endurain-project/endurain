@@ -19,80 +19,82 @@ Neither group is ever serialized to a client, so keeping them out of
 
 from __future__ import annotations
 
+import uuid
 from dataclasses import dataclass, field
-from datetime import date, datetime
-from typing import Any
+from datetime import datetime
 
-from pydantic import Field, field_validator
+from pydantic import field_validator
 
 import core.timezone as core_timezone
 import modules.activities.activity.schema as activity_schema
 
 
 @dataclass(frozen=True)
-class ActivityThumbnailRef:
-    """Lightweight activity reference for thumbnail maintenance.
+class ActivityTypeTotals:
+    """What the activities of one activity type add up to over a timeframe.
 
-    Carries only the fields the thumbnail subsystem needs (the activity id and
-    the stored thumbnail key) so CRUD can hand out this DTO instead of leaking an
-    ORM ``Activity`` row.
-    """
-
-    id: int
-    map_thumbnail_path: str | None = None
-
-
-@dataclass(frozen=True)
-class ActivityLocationRef:
-    """Lightweight activity reference for the reverse-geocoding backfill.
-
-    Carries only the activity id so CRUD can hand out this DTO instead of leaking
-    an ORM ``Activity`` row when listing activities that still have no resolved
-    city/town/country.
-    """
-
-    id: int
-
-
-@dataclass(frozen=True)
-class ActivityFeedEntry:
-    """A masked feed item paired with its unmasked persistence cursor.
+    Summed by the database, so the per-sport stats never load the activities.
 
     Attributes:
-        activity: Client-facing activity with privacy masking applied.
-        cursor_start_time: Raw start time used by the feed ordering.
-        cursor_id: Raw activity id used to break start-time ties.
+        activity_type: The activity type the totals are for.
+        distance: Sum of their distance, in meters.
+        time: Sum of their active (timer) time, in seconds.
+        calories: Sum of their calories; activities without a value count as zero.
     """
 
-    activity: activity_schema.ActivityRead
-    cursor_start_time: datetime
-    cursor_id: int
+    activity_type: int
+    distance: float = 0
+    time: float = 0
+    calories: float = 0
 
 
 @dataclass(frozen=True)
-class ActivityMigrationRef:
-    """Lightweight activity projection for data-backfill migrations.
+class ActivityTotals:
+    """What a set of activities adds up to.
 
-    Carries only the identity, owner, provider ids, and time bounds the backfill
-    migrations read (they never mutate the row), so CRUD can hand out this DTO
-    instead of leaking an ORM ``Activity`` row when a migration iterates every
-    activity.
+    Summed by the database, so a reader that only needs totals (goal progress) never loads the rows.
 
     Attributes:
-        id: Activity id.
-        user_id: Owning user id.
-        start_time: Activity start (timezone-aware UTC).
-        end_time: Activity end (timezone-aware UTC).
-        strava_activity_id: Strava provider id, when imported from Strava.
-        garminconnect_activity_id: Garmin Connect provider id, when applicable.
+        count: How many activities matched.
+        calories: Sum of their calories; activities without a value count as zero.
+        distance: Sum of their distance, in meters.
+        elevation_gain: Sum of their elevation gain, in meters.
+        elapsed_time: Sum of their elapsed time, in seconds.
     """
 
-    id: int
-    user_id: int
-    start_time: datetime
-    end_time: datetime
-    strava_activity_id: int | None = None
-    garminconnect_activity_id: int | None = None
+    count: int = 0
+    calories: float = 0
+    distance: float = 0
+    elevation_gain: float = 0
+    elapsed_time: float = 0
+
+
+@dataclass(frozen=True)
+class UserProfileActivitySummary:
+    """Activity aggregates displayed on a user's profile.
+
+    Attributes:
+        week_stats: Visible per-sport totals for the current week.
+        month_stats: Visible per-sport totals for the current month.
+        month_activity_count: Visible activity count for the current month.
+    """
+
+    week_stats: activity_schema.ActivityStatsRead
+    month_stats: activity_schema.ActivityStatsRead
+    month_activity_count: int
+
+
+@dataclass(frozen=True)
+class ActivityGarminGearRef:
+    """Lightweight activity reference for assigning gear from Garmin Connect.
+
+    Attributes:
+        id: The activity id.
+        garminconnect_gear_id: The Garmin Connect gear UUID the activity carries.
+    """
+
+    id: uuid.UUID
+    garminconnect_gear_id: str
 
 
 @dataclass(frozen=True)
@@ -113,48 +115,52 @@ class ActivityStartRef:
 
 
 @dataclass(frozen=True)
-class ActivityUsageTotals:
-    """Distance and moving time accumulated by a set of activities.
+class ActivityThumbnailRef:
+    """Lightweight activity reference for thumbnail maintenance.
 
-    Returned to the gears module so it can report how much a gear (or one of its
-    components) has been used without querying the activities table itself.
-
-    Attributes:
-        distance: Total distance in meters.
-        time: Total moving time in seconds.
+    Carries only the fields the thumbnail subsystem needs (the activity id and
+    the stored thumbnail key) so CRUD can hand out this DTO instead of leaking an
+    ORM ``Activity`` row.
     """
 
-    distance: float = 0.0
-    time: float = 0.0
+    id: uuid.UUID
+    map_thumbnail_path: str | None = None
 
 
 @dataclass(frozen=True)
-class GearUsageWindow:
-    """A date window to accumulate gear usage over.
+class ActivityLocationRef:
+    """Lightweight activity reference for the reverse-geocoding backfill.
 
-    Both bounds are **calendar dates**, matched against each activity's date in
-    its own timezone rather than against the raw UTC instant — comparing the
-    instant put the boundary at UTC midnight, so at UTC-8 an evening ride the day
-    before a component was fitted counted towards it, and at UTC+13 a morning ride
-    on the fitting day did not count at all.
-
-    Attributes:
-        key: Caller-defined identifier echoed back in the results (the gear
-            component id, in practice).
-        start_date: Inclusive first local day the window covers.
-        end_date: Inclusive last local day, or ``None`` while still in use.
+    Carries only the activity id so CRUD can hand out this DTO instead of leaking
+    an ORM ``Activity`` row when listing activities that still have no resolved
+    city/town/country.
     """
 
-    key: int
-    start_date: date
-    end_date: date | None = None
+    id: uuid.UUID
 
 
-class ActivityCore(activity_schema.ActivityBase):
+@dataclass(frozen=True)
+class ActivityFeedEntry:
+    """A masked feed item paired with its unmasked persistence cursor.
+
+    Attributes:
+        activity: Client-facing activity with privacy masking applied.
+        cursor_sort_value: Unmasked value the feed orders by: the start time, or the creation time
+            where the owner hid the start.
+        cursor_id: Raw activity id used to break sort-value ties.
+    """
+
+    activity: activity_schema.ActivityRead
+    cursor_sort_value: datetime
+    cursor_id: uuid.UUID
+
+
+class ActivityCore(activity_schema.ActivityFields, activity_schema.ActivityHeavyFields):
     """Strict ingestion *input* schema.
 
-    Extends :class:`~modules.activities.activity.schema.ActivityBase` — the
-    fields that describe an activity — **not** the read
+    Extends the fields that describe an activity
+    (:class:`~modules.activities.activity.schema.ActivityFields` and
+    :class:`~modules.activities.activity.schema.ActivityHeavyFields`) — **not** the read
     :class:`~modules.activities.activity.schema.ActivityRead`. That distinction is
     the point: the read model adds the server-owned ``id`` and
     ``map_thumbnail_path``, which a producer must never supply, as would any future
@@ -176,7 +182,7 @@ class ActivityCore(activity_schema.ActivityBase):
       allowed through.
     """
 
-    user_id: int = Field(ge=1)
+    user_id: uuid.UUID
     # Required (no default): ingestion must provide a start/end time; the validator
     # rejects a null/unparseable value and coerces the rest to aware UTC.
     start_time: datetime
@@ -184,19 +190,21 @@ class ActivityCore(activity_schema.ActivityBase):
 
     @field_validator("start_time", "end_time", mode="before")
     @classmethod
-    def _require_utc_aware(cls, value: Any) -> datetime:
+    def _require_utc_aware(cls, value: object) -> datetime:
         """Coerce parser/provider datetime output to aware UTC; reject null values.
 
         Args:
-            value: The datetime to coerce, or None.
+            value: The datetime or ISO string to coerce.
 
         Returns:
             The aware UTC datetime.
+
+        Raises:
+            ValueError: When the value is neither a datetime nor an ISO string.
         """
-        aware = core_timezone.to_utc_aware(value)
-        if aware is None:
+        if not isinstance(value, datetime | str):
             raise ValueError("must be a valid, non-null datetime")
-        return aware
+        return core_timezone.to_utc_aware(value)
 
 
 @dataclass(frozen=True)
@@ -241,7 +249,7 @@ class ParsedActivity:
     """
 
     activity: ActivityCore
-    components: dict[str, Any] = field(default_factory=dict)
+    components: dict[str, object] = field(default_factory=dict)
     source: ImportSource | None = None
 
 
@@ -263,4 +271,4 @@ class ParsedFile:
     """
 
     activities: list[ParsedActivity] = field(default_factory=list)
-    components: dict[str, Any] = field(default_factory=dict)
+    components: dict[str, object] = field(default_factory=dict)

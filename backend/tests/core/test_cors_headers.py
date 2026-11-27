@@ -17,8 +17,10 @@ from scripts.export_openapi import build_openapi
 import core.middleware as core_middleware
 
 # Headers supplied by the transport or by a security scheme rather than declared
-# as a route parameter, so they never appear as an OpenAPI header parameter.
-_NON_PARAMETER_HEADERS = {"authorization", "content-type"}
+# as a route parameter, so they never appear as an OpenAPI header parameter, and
+# the header only the native app sends: it is no browser, so it has no preflight
+# (a browser keeps its device id in a cookie).
+_NON_PARAMETER_HEADERS = {"authorization", "content-type", "x-device-id"}
 
 
 def _declared_header_parameters() -> set[str]:
@@ -49,3 +51,20 @@ class TestCorsAllowHeaders:
     def test_etag_is_exposed(self):
         """The client cannot echo back a tag it is not permitted to read."""
         assert "ETag" in core_middleware.CORS_EXPOSE_HEADERS
+
+
+class TestCorsExposeHeaders:
+    def test_every_header_a_429_declares_is_exposed(self):
+        """A browser client reads the rate-limit numbers only if CORS exposes each header the 429 declares."""
+        schema = build_openapi()
+        declared = {
+            header.lower()
+            for path in schema["paths"].values()
+            for operation in path.values()
+            if isinstance(operation, dict)
+            for header in operation.get("responses", {}).get("429", {}).get("headers", {})
+        }
+        exposed = {header.lower() for header in core_middleware.CORS_EXPOSE_HEADERS}
+
+        assert {"retry-after", "x-ratelimit-limit", "x-ratelimit-remaining"} <= declared
+        assert declared - exposed == set()

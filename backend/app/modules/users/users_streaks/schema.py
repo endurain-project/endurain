@@ -12,8 +12,7 @@ from pydantic import (
 
 
 class StreakWeek(BaseModel):
-    """
-    Activity count for one week of the streak history.
+    """Activity count for one week of the streak history.
 
     Attributes:
         week_start: First day of the week.
@@ -29,8 +28,7 @@ class StreakWeek(BaseModel):
 
 
 class WeeklyStreakResponse(BaseModel):
-    """
-    Weekly streak status for a user.
+    """Weekly streak status for a user.
 
     Attributes:
         current_streak: Consecutive weeks meeting the target,

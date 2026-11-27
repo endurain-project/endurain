@@ -29,16 +29,17 @@ describe('getScalarQueryString', () => {
 })
 
 describe('parseActivityTypeFilterQuery', () => {
-  it('accepts non-negative integer type codes', () => {
-    expect(parseActivityTypeFilterQuery('0')).toBe(0)
-    expect(parseActivityTypeFilterQuery('42')).toBe(42)
+  it('accepts an activity type key', () => {
+    expect(parseActivityTypeFilterQuery('run')).toBe('run')
+    expect(parseActivityTypeFilterQuery('trail_run')).toBe('trail_run')
   })
 
-  it('falls back to all types for invalid values', () => {
-    expect(parseActivityTypeFilterQuery('-1')).toBe(0)
-    expect(parseActivityTypeFilterQuery('1.5')).toBe(0)
-    expect(parseActivityTypeFilterQuery('invalid')).toBe(0)
-    expect(parseActivityTypeFilterQuery(['42', '0'])).toBe(0)
+  it('falls back to all types for an unknown value or the stored number', () => {
+    expect(parseActivityTypeFilterQuery('')).toBe('')
+    expect(parseActivityTypeFilterQuery('1')).toBe('')
+    expect(parseActivityTypeFilterQuery('toString')).toBe('')
+    expect(parseActivityTypeFilterQuery('invalid')).toBe('')
+    expect(parseActivityTypeFilterQuery(['run', 'walk'])).toBe('')
   })
 })
 

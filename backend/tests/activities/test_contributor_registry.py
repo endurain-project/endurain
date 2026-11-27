@@ -55,6 +55,7 @@ def test_all_contributor_kinds_have_ordered_accessors() -> None:
     contributor_registry.register_file_ingestion(file)
     contributor_registry.register_profile_activity(profile_activity)
     contributor_registry.register_profile_global(profile_global)
+    contributor_registry.mark_profile_installed()
 
     assert contributor_registry.activity_ingestion_contributors() == (activity,)
     assert contributor_registry.file_ingestion_contributors() == (file,)
@@ -68,9 +69,28 @@ def test_clear_removes_every_contributor_kind() -> None:
     contributor_registry.register_activity_ingestion(contributors.ActivityIngestionContributor("laps", MagicMock()))
     contributor_registry.register_file_ingestion(contributors.FileIngestionContributor("exercise_titles", MagicMock()))
 
+    contributor_registry.mark_profile_installed()
+
     contributor_registry.clear()
 
     assert contributor_registry.activity_ingestion_contributors() == ()
     assert contributor_registry.file_ingestion_contributors() == ()
-    assert contributor_registry.profile_activity_contributors() == ()
-    assert contributor_registry.profile_global_contributors() == ()
+    with pytest.raises(RuntimeError, match="configure_activity_contributors"):
+        contributor_registry.profile_activity_contributors()
+    with pytest.raises(RuntimeError, match="configure_activity_contributors"):
+        contributor_registry.profile_global_contributors()
+
+
+def test_profile_accessors_fail_until_composition_installs_them() -> None:
+    """A profile export or import must not silently drop the activity sections."""
+    with pytest.raises(RuntimeError, match="configure_activity_contributors"):
+        contributor_registry.profile_activity_contributors()
+    with pytest.raises(RuntimeError, match="configure_activity_contributors"):
+        contributor_registry.profile_global_contributors()
+
+
+def test_composition_installs_the_profile_contributors() -> None:
+    module_registry.configure_activity_contributors()
+
+    assert contributor_registry.profile_activity_contributors()
+    assert contributor_registry.profile_global_contributors()

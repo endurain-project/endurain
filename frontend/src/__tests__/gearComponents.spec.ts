@@ -30,25 +30,27 @@ vi.mock('@/services/http', () => ({
 }))
 
 const componentDto: GearComponentDto = {
-  id: 7,
-  user_id: 1,
-  gear_id: 5,
+  id: '00000000-0000-4000-8000-0000000000c7',
+  user_id: '00000000-0000-4000-8000-000000000001',
+  gear_id: '00000000-0000-4000-8000-000000000005',
   type: 'chain',
   brand: 'Shimano',
   model: 'XT',
   purchase_date: '2024-01-10',
   retired_date: null,
   active: true,
-  expected_kms: 5_000_000,
-  purchase_value: 45,
+  expected_usage: 5_000_000,
+  purchase_value: '45.00',
   current_distance: 1_200_000,
   current_time: 360_000,
+  version: 2,
+  updated_at: '2024-06-01T10:00:00Z',
 }
 
 const mappedComponent: GearComponent = {
-  id: 7,
-  userId: 1,
-  gearId: 5,
+  id: '00000000-0000-4000-8000-0000000000c7',
+  userId: '00000000-0000-4000-8000-000000000001',
+  gearId: '00000000-0000-4000-8000-000000000005',
   type: 'chain',
   brand: 'Shimano',
   model: 'XT',
@@ -59,10 +61,11 @@ const mappedComponent: GearComponent = {
   purchaseValue: 45,
   currentDistance: 1_200_000,
   currentTime: 360_000,
+  version: 2,
 }
 
 const componentInput: GearComponentInput = {
-  gearId: 5,
+  gearId: '00000000-0000-4000-8000-000000000005',
   type: 'chain',
   brand: 'Shimano',
   model: 'XT',
@@ -74,15 +77,15 @@ const componentInput: GearComponentInput = {
 }
 
 const expectedComponentWire = {
-  gear_id: 5,
+  gear_id: '00000000-0000-4000-8000-000000000005',
   type: 'chain',
   brand: 'Shimano',
   model: 'XT',
   purchase_date: '2024-01-10',
   retired_date: null,
   active: true,
-  expected_kms: 5_000_000,
-  purchase_value: 45,
+  expected_usage: 5_000_000,
+  purchase_value: '45.00',
 }
 
 describe('mapGearComponent', () => {
@@ -93,19 +96,19 @@ describe('mapGearComponent', () => {
   it('defaults active to true, absent optionals to null, and usage to zero', () => {
     expect(
       mapGearComponent({
-        id: 9,
-        user_id: 2,
-        gear_id: 3,
+        id: '00000000-0000-4000-8000-0000000000c9',
+        user_id: '00000000-0000-4000-8000-000000000002',
+        gear_id: '00000000-0000-4000-8000-000000000003',
         type: 'cleats',
         brand: 'Look',
         model: 'Keo',
-        current_distance: 0,
-        current_time: 0,
+        version: 1,
+        updated_at: componentDto.updated_at,
       }),
     ).toEqual({
-      id: 9,
-      userId: 2,
-      gearId: 3,
+      id: '00000000-0000-4000-8000-0000000000c9',
+      userId: '00000000-0000-4000-8000-000000000002',
+      gearId: '00000000-0000-4000-8000-000000000003',
       type: 'cleats',
       brand: 'Look',
       model: 'Keo',
@@ -116,7 +119,16 @@ describe('mapGearComponent', () => {
       purchaseValue: null,
       currentDistance: 0,
       currentTime: 0,
+      version: 1,
     })
+  })
+})
+
+describe('mapGearComponent version', () => {
+  it('maps a missing version to 0, so the write is refused instead of overwriting', () => {
+    expect(
+      mapGearComponent({ ...componentDto, version: undefined as unknown as number }).version,
+    ).toBe(0)
   })
 })
 
@@ -126,20 +138,26 @@ describe('gear-component service requests', () => {
   })
 
   it('requests the components-by-gear path and maps the records', async () => {
-    vi.mocked(apiFetch).mockResolvedValue([componentDto])
+    vi.mocked(apiFetch).mockResolvedValue({
+      items: [componentDto],
+      total: 1,
+      page: 1,
+      num_records: 200,
+      next: null,
+    })
 
-    const result = await fetchGearComponents(5)
+    const result = await fetchGearComponents('00000000-0000-4000-8000-000000000005')
 
     expect(apiFetch).toHaveBeenCalledWith(
-      '/gear_components/gear_id/5',
+      '/gears/00000000-0000-4000-8000-000000000005/components',
       expect.objectContaining({ signal: undefined }),
     )
     expect(result).toEqual([mappedComponent])
   })
 
-  it('treats a null components body as an empty list', async () => {
-    vi.mocked(apiFetch).mockResolvedValue(null)
-    await expect(fetchGearComponents(5)).resolves.toEqual([])
+  it('returns an empty list for an empty page', async () => {
+    vi.mocked(apiFetch).mockResolvedValue({ items: [], total: 0, page: 1, num_records: 200 })
+    await expect(fetchGearComponents('00000000-0000-4000-8000-000000000005')).resolves.toEqual([])
   })
 
   it('requests the component-type catalogues', async () => {
@@ -154,7 +172,7 @@ describe('gear-component service requests', () => {
     const result = await fetchGearComponentTypes()
 
     expect(apiFetch).toHaveBeenCalledWith(
-      '/gear_components/types',
+      '/gear-components/types',
       expect.objectContaining({ signal: undefined }),
     )
     expect(result).toEqual(types)
@@ -165,30 +183,32 @@ describe('gear-component service requests', () => {
 
     await createGearComponent(componentInput)
 
-    expect(apiFetch).toHaveBeenCalledWith('/gear_components', {
+    expect(apiFetch).toHaveBeenCalledWith('/gear-components', {
       method: 'POST',
       body: JSON.stringify(expectedComponentWire),
     })
   })
 
-  it('updates a component via a PUT that includes the id', async () => {
+  it('updates a component via a PATCH guarded by If-Match, without the gear id', async () => {
     vi.mocked(apiFetch).mockResolvedValue(componentDto)
 
-    await updateGearComponent(7, componentInput)
+    await updateGearComponent('00000000-0000-4000-8000-0000000000c7', componentInput, 2)
 
-    expect(apiFetch).toHaveBeenCalledWith('/gear_components', {
-      method: 'PUT',
-      body: JSON.stringify({ ...expectedComponentWire, id: 7 }),
-    })
+    const [path, init] = vi.mocked(apiFetch).mock.calls[0]!
+    expect(path).toBe('/gear-components/00000000-0000-4000-8000-0000000000c7')
+    expect(init).toMatchObject({ method: 'PATCH', headers: { 'If-Match': '"2"' } })
+    const { gear_id: _gearId, ...expected } = expectedComponentWire
+    expect(JSON.parse(init!.body as string)).toEqual(expected)
   })
 
   it('deletes a component via a void DELETE', async () => {
     vi.mocked(apiFetch).mockResolvedValue(undefined)
 
-    await deleteGearComponent(7)
+    await deleteGearComponent('00000000-0000-4000-8000-0000000000c7', 2)
 
-    expect(apiFetch).toHaveBeenCalledWith('/gear_components/7', {
+    expect(apiFetch).toHaveBeenCalledWith('/gear-components/00000000-0000-4000-8000-0000000000c7', {
       method: 'DELETE',
+      headers: { 'If-Match': '"2"' },
       responseType: 'void',
     })
   })

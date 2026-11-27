@@ -3,7 +3,7 @@
 import functools
 from datetime import date, datetime, timedelta
 from typing import overload
-from zoneinfo import ZoneInfo
+from zoneinfo import ZoneInfo, available_timezones
 
 from timezonefinder import TimezoneFinder
 
@@ -116,6 +116,28 @@ _LEGACY_ALIASES: dict[str, str] = {
 }
 
 
+@functools.cache
+def known_names() -> frozenset[str]:
+    """Return every IANA timezone name the platform's tz database knows.
+
+    ``available_timezones()`` scans the tz database on each call, so the set is built once.
+
+    Returns:
+        The IANA timezone names.
+    """
+    return frozenset(available_timezones())
+
+
+@functools.cache
+def known_names_sorted() -> tuple[str, ...]:
+    """Return the known IANA timezone names in alphabetical order.
+
+    Returns:
+        The IANA timezone names, sorted.
+    """
+    return tuple(sorted(known_names()))
+
+
 def canonical(tz_name: str | None) -> str | None:
     """Return the canonical IANA name for a possibly legacy timezone alias.
 
@@ -163,10 +185,9 @@ def from_lat_lon(latitude: float, longitude: float, fallback_tz: str | None = No
     """Return the IANA timezone a coordinate falls in, or a fallback.
 
     ``timezone_at`` answers ``None`` over open ocean and in the gaps between
-    timezone polygons, so the fallback is not optional decoration: the Strava
-    adapter used to assign the raw result straight onto the activity, discarding
-    the athlete's own timezone it had just resolved whenever the lookup missed.
-    Every caller resolves the same way now.
+    timezone polygons, so the fallback is not optional decoration: assigning the raw
+    result onto an activity would discard the timezone already resolved for the
+    athlete whenever the lookup missed. Every caller resolves the same way.
 
     Args:
         latitude: WGS-84 latitude in decimal degrees.

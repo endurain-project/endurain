@@ -222,6 +222,33 @@ class TestDeploymentProfileEnforcement:
         assert settings.resolved_state_uri == "redis://localhost:6379/0"
         assert settings.resolved_events_uri == "redis://localhost:6379/0"
 
+    def test_log_viewer_enabled_for_single_local_process(self):
+        settings = core_config.Settings(_env_file=None, ENVIRONMENT="production")
+        assert settings.single_log_writer is True
+        assert settings.logs_viewer_enabled is True
+
+    def test_log_viewer_disabled_in_demo(self):
+        assert core_config.Settings(_env_file=None, ENVIRONMENT="demo").logs_viewer_enabled is False
+
+    def test_log_viewer_disabled_with_several_web_workers(self):
+        settings = core_config.Settings(
+            _env_file=None, ENVIRONMENT="production", WEB_WORKERS=2, REDIS_URL="redis://localhost:6379/0"
+        )
+        assert settings.single_log_writer is False
+        assert settings.logs_viewer_enabled is False
+
+    def test_log_viewer_disabled_for_distributed_profile(self):
+        settings = core_config.Settings(
+            _env_file=None,
+            ENVIRONMENT="production",
+            DEPLOYMENT_PROFILE="distributed",
+            JOBS_ENABLED=True,
+            REDIS_URL="redis://localhost:6379/0",
+            STORAGE_URI="s3://bucket/thumbs",
+            LOCK_URI="postgres-advisory://",
+        )
+        assert settings.logs_viewer_enabled is False
+
     def test_distributed_noop_lock_fails_fast(self):
         # State, events, and storage are all shared; an explicit noop lock is the
         # remaining misconfiguration — fatal because replicas would each run jobs.
@@ -306,20 +333,35 @@ class TestDeploymentProfileEnforcement:
 
         mock_logger.warning.assert_not_called()
 
-    def test_custom_profile_memory_not_fatal(self):
-        # 'custom' promises no defaults, so nothing can contradict one and the
-        # consistency rules are waived - but it must still name every capability.
+    def test_custom_profile_single_process_memory_not_fatal(self):
         settings = core_config.Settings(
             _env_file=None,
             ENVIRONMENT="production",
             DEPLOYMENT_PROFILE="custom",
-            WEB_WORKERS=4,
             STATE_URI="memory://",
             EVENTS_URI="memory://",
             STORAGE_URI="local://",
             LOCK_URI="noop://",
         )
-        assert settings.WEB_WORKERS == 4
+        assert settings.WEB_WORKERS == 1
+
+    def test_custom_profile_multi_process_memory_is_fatal(self):
+        # 'custom' promises no defaults, but process-local backends still contradict the processes it declares.
+        with pytest.raises(ValidationError) as exc_info:
+            core_config.Settings(
+                _env_file=None,
+                ENVIRONMENT="production",
+                DEPLOYMENT_PROFILE="custom",
+                WEB_WORKERS=4,
+                STATE_URI="memory://",
+                EVENTS_URI="memory://",
+                STORAGE_URI="local://",
+                LOCK_URI="noop://",
+            )
+        message = str(exc_info.value)
+        assert "STATE_URI resolves to process-local memory" in message
+        assert "EVENTS_URI resolves to process-local memory" in message
+        assert "LOCK_URI resolves to an in-process no-op lock" in message
 
     def test_custom_profile_must_name_every_capability(self):
         # Only 'local' carries capability defaults; the substrate refuses to
@@ -333,6 +375,15 @@ class TestDeploymentProfileEnforcement:
             )
         assert "STORAGE_URI must be set explicitly" in str(exc_info.value)
 
+    def test_audit_retention_is_not_read_from_the_environment(self, monkeypatch):
+        """Retention is an administrator setting in the database; a leftover variable is ignored, not validated."""
+        monkeypatch.setenv("AUDIT_RETENTION_DAYS", "1")
+
+        settings = core_config.Settings(_env_file=None)
+
+        assert "AUDIT_RETENTION_DAYS" not in core_config.Settings.model_fields
+        assert not hasattr(settings, "AUDIT_RETENTION_DAYS")
+
     def test_web_workers_invalid_defaults_to_one(self):
         settings = core_config.Settings(_env_file=None, WEB_WORKERS="not-a-number")
         assert settings.WEB_WORKERS == 1
@@ -340,3 +391,95 @@ class TestDeploymentProfileEnforcement:
     def test_web_workers_clamped_to_at_least_one(self):
         settings = core_config.Settings(_env_file=None, WEB_WORKERS=0)
         assert settings.WEB_WORKERS == 1
+
+
+class TestEndurainHostValidation:
+    """ENDURAIN_HOST is the token issuer and the base of every link, so only an origin is accepted."""
+
+    @pytest.mark.parametrize(
+        "host",
+        [
+            "endurain.example.com",
+            "localhost:8080",
+            "ftp://endurain.example.com",
+            "https://",
+            "http://",
+            "https://user@endurain.example.com",
+            "https://user:pass@endurain.example.com",
+            "https://endurain.example.com/",
+            "https://endurain.example.com/endurain",
+            "https://endurain.example.com?x=1",
+            "https://endurain.example.com#top",
+            "https://endurain.example.com:notaport",
+        ],
+    )
+    def test_refuses_a_value_that_is_not_an_origin(self, host):
+        with pytest.raises(ValidationError, match="ENDURAIN_HOST"):
+            core_config.Settings(_env_file=None, ENDURAIN_HOST=host)
+
+    @pytest.mark.parametrize(
+        "host",
+        ["https://endurain.example.com", "https://endurain.example.com:8443", "http://192.168.1.10:8080"],
+    )
+    def test_accepts_an_origin(self, host):
+        assert host == core_config.Settings(_env_file=None, ENDURAIN_HOST=host).ENDURAIN_HOST
+
+    def test_the_default_is_accepted(self):
+        assert core_config.Settings(_env_file=None).ENDURAIN_HOST == "http://localhost:8080"
+
+    @pytest.mark.parametrize(
+        ("host", "canonical"),
+        [
+            ("HTTPS://Host:443", "https://host"),
+            ("https://host", "https://host"),
+            ("https://Endurain.Example.COM:443", "https://endurain.example.com"),
+            ("HTTP://Host:80", "http://host"),
+            ("http://Host:8080", "http://host:8080"),
+            ("https://host:80", "https://host:80"),
+            ("http://host:443", "http://host:443"),
+            ("https://host:", "https://host"),
+            ("http://192.168.1.10:8080", "http://192.168.1.10:8080"),
+            ("http://[::1]:8080", "http://[::1]:8080"),
+            ("HTTPS://[2001:DB8::1]:443", "https://[2001:db8::1]"),
+        ],
+    )
+    def test_returns_the_origin_in_canonical_form(self, host, canonical):
+        """Browsers send ``Origin`` in this form, and the issuer is one stable string."""
+        assert canonical == core_config.Settings(_env_file=None, ENDURAIN_HOST=host).ENDURAIN_HOST
+
+
+class TestStartupWarnings:
+    """warn_unsafe_settings logs what is allowed but unwise, or ignored."""
+
+    @staticmethod
+    def _messages(host: str, environ: dict[str, str] | None = None) -> list[str]:
+        with (
+            patch.dict("os.environ", environ or {}, clear=True),
+            patch.object(core_config.settings, "ENDURAIN_HOST", host),
+            patch("core.config.logger") as logger,
+        ):
+            core_config.warn_unsafe_settings()
+        return [call.args[0] for call in logger.warning.call_args_list]
+
+    def test_plain_http_warns(self):
+        messages = self._messages("http://endurain.example.com")
+        assert len(messages) == 1
+        assert "ENDURAIN_HOST" in messages[0]
+
+    @pytest.mark.parametrize("host", ["http://localhost:8080", "http://127.0.0.1:8080", "http://[::1]:8080"])
+    def test_plain_http_on_loopback_is_silent(self, host):
+        assert self._messages(host) == []
+
+    def test_https_is_silent(self):
+        assert self._messages("https://endurain.example.com") == []
+
+    def test_algorithm_variable_warns_that_it_is_ignored(self):
+        messages = self._messages("https://endurain.example.com", {"ALGORITHM": "HS256"})
+        assert len(messages) == 1
+        assert "ALGORITHM" in messages[0]
+        assert "ignored" in messages[0]
+
+    def test_algorithm_file_variable_warns_that_it_is_ignored(self):
+        messages = self._messages("https://endurain.example.com", {"ALGORITHM_FILE": "/run/secrets/algorithm"})
+        assert len(messages) == 1
+        assert "ALGORITHM_FILE" in messages[0]

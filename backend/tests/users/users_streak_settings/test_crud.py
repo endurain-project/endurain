@@ -4,6 +4,7 @@ import pytest
 
 import modules.users.users_streak_settings.crud as streak_settings_crud
 import modules.users.users_streak_settings.schema as streak_settings_schema
+from tests._helpers.auth import MOCK_USER_ID, OTHER_USER_ID
 from tests._helpers.db import create_sqlite_session
 
 
@@ -21,16 +22,16 @@ def sqlite_session():
 class TestStreakSettingsCrud:
     def test_defaults_when_missing(self, sqlite_session):
         """Returns defaults without creating a row when nothing is stored."""
-        settings = streak_settings_crud.get_streak_settings_by_user_id(1, sqlite_session)
-        assert settings.user_id == 1
+        settings = streak_settings_crud.get_streak_settings_by_user_id(MOCK_USER_ID, sqlite_session)
+        assert settings.user_id == MOCK_USER_ID
         assert settings.min_activities_per_week == 1
         assert settings.activity_types is None
         assert settings.show_on_profile is False
 
-    def test_upsert_creates_then_updates(self, sqlite_session):
+    def test_stage_creates_then_updates(self, sqlite_session):
         """Creates the row on first save and replaces it on the next."""
-        created = streak_settings_crud.upsert_streak_settings(
-            1,
+        created = streak_settings_crud.stage_streak_settings(
+            MOCK_USER_ID,
             streak_settings_schema.UsersStreakSettingsUpdate(
                 min_activities_per_week=3, activity_types=[1, 2], show_on_profile=True
             ),
@@ -40,8 +41,8 @@ class TestStreakSettingsCrud:
         assert created.activity_types == [1, 2]
         assert created.show_on_profile is True
 
-        updated = streak_settings_crud.upsert_streak_settings(
-            1,
+        updated = streak_settings_crud.stage_streak_settings(
+            MOCK_USER_ID,
             streak_settings_schema.UsersStreakSettingsUpdate(min_activities_per_week=2),
             sqlite_session,
         )
@@ -49,7 +50,10 @@ class TestStreakSettingsCrud:
         assert updated.activity_types is None
         assert updated.show_on_profile is False
 
-        stored = streak_settings_crud.get_streak_settings_by_user_id(1, sqlite_session)
+        stored = streak_settings_crud.get_streak_settings_by_user_id(MOCK_USER_ID, sqlite_session)
         assert stored == updated
         # Other users keep defaults
-        assert streak_settings_crud.get_streak_settings_by_user_id(2, sqlite_session).min_activities_per_week == 1
+        assert (
+            streak_settings_crud.get_streak_settings_by_user_id(OTHER_USER_ID, sqlite_session).min_activities_per_week
+            == 1
+        )

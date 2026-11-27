@@ -13,8 +13,8 @@ BRAND_BACKGROUND = "#f1efe8"  # --background        (page backdrop)
 BRAND_MUTED_FOREGROUND = "#888780"  # --muted-foreground  (footer text)
 BRAND_BORDER = "#e2e0d8"  # subtle hairline border
 
-# The new Endurain brand is green throughout, so every transactional email
-# shares one accent colour (previously Bootstrap blue/green per flow).
+# The Endurain brand is green throughout, so every transactional email
+# shares one accent colour.
 LINK_COLOR_PRIMARY = BRAND_PRIMARY  # password reset
 LINK_COLOR_SUCCESS = BRAND_PRIMARY  # sign-up flows
 

@@ -11,7 +11,7 @@
     "subtitle": "Parcourez, filtrez et triez toutes vos activités.",
     "searchPlaceholder": "Rechercher par nom ou lieu",
     "clearSearch": "Effacer la recherche",
-    "resultCount": "{count} activités",
+    "resultCount": "{count} activité | {count} activités",
     "filters": {
       "type": "Type d'activité",
       "allTypes": "Tous les types",
@@ -184,10 +184,13 @@
   },
   "edit": {
     "title": "Modifier l'activité",
+    "loading": "Chargement de l'activité",
+    "loadError": "Impossible de charger l'activité",
     "save": "Enregistrer les modifications",
     "cancel": "Annuler",
     "close": "Fermer",
     "name": "Nom",
+    "nameRequired": "Saisissez un nom pour l'activité",
     "type": "Type d'activité",
     "description": "Description",
     "privateNotes": "Notes privées",
@@ -208,7 +211,7 @@
     "hideGear": "Masquer l'équipement",
     "success": "Activité mise à jour",
     "error": "Impossible de mettre à jour l'activité",
-    "staleError": "This activity was changed elsewhere while you were editing. Your changes were not saved. Reopen it to see the current version."
+    "staleError": "Cette activité a été modifiée ailleurs pendant que vous la modifiiez. Vos modifications n'ont pas été enregistrées. Rouvrez-la pour voir la version actuelle."
   },
   "alerts": {
     "hidden": "Cette activité est masquée. Seul vous pouvez la voir.",

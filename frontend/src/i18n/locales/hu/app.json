@@ -18,6 +18,17 @@
     "help": "Ellenőrizd, hogy az ENDURAIN_HOST arra az URL-re mutat-e, ahol az Endurain példányod elérhető (például https://endurain.example.com), és hogy a háttérrendszer fut-e, majd töltsd újra az oldalt.",
     "reload": "Újratöltés"
   },
+  "staleError": "Ezt máshol módosították, miközben nézted, ezért semmi sem lett mentve. A jelenlegi verzió betöltődött. Nézd át, és próbáld újra.",
+  "sessionRestoreError": "Nem sikerült ellenőrizni, hogy be vagy-e jelentkezve. A szerver vagy a kapcsolatod lehet, hogy nem érhető el.",
+  "fieldError": {
+    "required": "Ez a mező kötelező",
+    "tooShort": "Ez az érték túl rövid",
+    "tooLong": "Ez az érték túl hosszú",
+    "tooLarge": "Ez az érték túl nagy",
+    "tooSmall": "Ez az érték túl kicsi",
+    "invalidFormat": "Ez az érték formátuma érvénytelen",
+    "invalid": "Ez az érték érvénytelen"
+  },
   "dismiss": "Bezárás",
   "language": "Nyelv",
   "theme": {
@@ -35,5 +46,28 @@
     "edit": "Szerkesztés",
     "supported": "Markdown támogatott",
     "empty": "Nincs mit megjeleníteni"
+  },
+  "password": {
+    "hintLength": "Legalább {min} karakter.",
+    "invalid": "A jelszó nem felel meg a követelményeknek",
+    "mismatch": "A jelszavak nem egyeznek",
+    "tooShort": "Ez a jelszó túl rövid. Legalább {min} karaktert használj.",
+    "tooCommon": "Ez a jelszó túl gyakori. Válassz egy nehezebben kitalálhatót.",
+    "breached": "Ez a jelszó szerepelt egy ismert adatszivárgásban. Válassz másikat.",
+    "matchesAccount": "Ne használd jelszóként a felhasználónevedet vagy az e-mail-címedet.",
+    "blank": "A jelszó nem állhat csupa szóközből.",
+    "unchanged": "Válassz a jelenlegitől eltérő jelszót.",
+    "strength": {
+      "label": "Jelszó erőssége: {level}",
+      "tooWeak": "Túl gyenge",
+      "weak": "Gyenge",
+      "fair": "Közepes",
+      "good": "Jó",
+      "strong": "Erős"
+    }
+  },
+  "retryAfter": {
+    "tooManyAttempts": "Túl sok próbálkozás. Próbáld újra {seconds} másodperc múlva.",
+    "unavailable": "A hitelesítés átmenetileg nem érhető el. Próbáld újra {seconds} másodperc múlva."
   }
 }

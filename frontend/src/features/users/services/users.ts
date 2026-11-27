@@ -2,18 +2,26 @@ import type {
   CreateUserInput,
   EditUserFields,
   ManagedUser,
+  UserDeletionStatus,
   UserDto,
+  UserEditDto,
   UsersListParams,
   UsersListResponseDto,
   UsersPage,
 } from '@/features/users/types'
+import type { StepUpInput, StepUpRequestDto } from '@/features/security/types'
 import type { Schemas } from '@/types'
 
 import { resolveAvatarUrl } from '@/features/auth/services/mappers'
 import { apiFetch } from '@/services/http'
+import { ifMatchHeaders, rowVersion } from '@/services/ifMatch'
+import { toStepUpWire } from '@/features/security/services/security'
+
+/** Problem type of an edit refused because it would activate a user who awaits approval. */
+export const APPROVAL_PENDING_TYPE = 'urn:endurain:error:approval-pending'
 
 /**
- * Maps a raw `UsersRead` payload to the clean {@link ManagedUser} model — the
+ * Maps a raw `UserRead` payload to the clean {@link ManagedUser} model — the
  * single boundary where the backend wire format (snake_case, optional-with-
  * defaults fields) is normalized so components never see the raw DTO.
  *
@@ -23,18 +31,23 @@ import { apiFetch } from '@/services/http'
 export function mapManagedUser(dto: UserDto): ManagedUser {
   return {
     id: dto.id,
+    version: rowVersion(dto.version),
     name: dto.name,
     username: dto.username,
     email: dto.email,
     accessType: dto.access_type,
     active: dto.active,
     emailVerified: dto.email_verified ?? false,
+    pendingEmail: dto.pending_email ?? null,
+    pendingEmailExpiresAt: dto.pending_email_expires_at ?? null,
+    deletionRequestedAt: dto.deletion_requested_at ?? null,
     pendingAdminApproval: dto.pending_admin_approval ?? false,
     mfaEnabled: dto.mfa_enabled ?? false,
     externalAuthCount: dto.external_auth_count ?? 0,
     preferredLanguage: dto.preferred_language ?? 'en',
     gender: dto.gender ?? 'unspecified',
     units: dto.units ?? 'metric',
+    weightUnits: dto.weight_units ?? null,
     currency: dto.currency ?? 'euro',
     firstDayOfWeek: dto.first_day_of_week ?? 'monday',
     city: dto.city ?? null,
@@ -47,44 +60,40 @@ export function mapManagedUser(dto: UserDto): ManagedUser {
 }
 
 /**
- * Rebuilds the editable `UsersRead` wire payload from a {@link ManagedUser}.
- * Every stored column is sent so fields the admin form doesn't expose round-trip
- * untouched, but the derived, read-only fields are omitted: `mfa_enabled` is a
- * model property with no setter and `external_auth_count` is computed per
- * request. The edit endpoint mass-assigns whatever it receives, so sending them
- * would raise `AttributeError` server-side.
+ * Rebuilds the `UserEdit` wire payload from a {@link ManagedUser}.
+ * Every editable stored column is listed; the derived, read-only fields are omitted: `id` is the path,
+ * `mfa_enabled`, `pending_admin_approval` and `external_auth_count` are not editable, and the edit body rejects them.
  *
  * @param user - The managed user (already merged with any edits).
  * @returns The snake-cased editable body (without the read-only fields).
  */
-function toUserWire(user: ManagedUser): Omit<UserDto, 'mfa_enabled' | 'external_auth_count'> {
+function toUserWire(user: ManagedUser): UserEditDto {
   return {
-    id: user.id,
     name: user.name,
     username: user.username,
     email: user.email,
     access_type: user.accessType,
     active: user.active,
     email_verified: user.emailVerified,
-    pending_admin_approval: user.pendingAdminApproval,
     preferred_language: user.preferredLanguage,
     gender: user.gender,
     units: user.units,
+    weight_units: user.weightUnits,
     currency: user.currency,
     first_day_of_week: user.firstDayOfWeek,
     city: user.city,
     birthdate: user.birthdate,
     height: user.height,
     max_heart_rate: user.maxHeartRate,
-    // photo_path is deliberately not sent: it is a server-issued, signed URL
-    // derived from a storage key, and the backend ignores it on write.
+    // photo_path is not sent: the photo is owned by the upload and delete endpoints,
+    // and the backend refuses it on write.
   }
 }
 
 /**
- * Fetches one page of all users (admin scope `users:read`).
+ * Fetches one page of all users (admin scope `users:read-all`).
  *
- * @param params - Page number, size, and the five list filters.
+ * @param params - Page number, size, the five list filters and an optional username search.
  * @param signal - Optional abort signal for cancellation.
  * @returns The page's users (mapped) plus the total record count.
  * @throws {HttpError} When the request fails.
@@ -98,44 +107,40 @@ export async function fetchUsers(
     showPendingApproval,
     showExternalAuth,
     showLocalAuth,
+    username,
   }: UsersListParams,
   signal?: AbortSignal,
 ): Promise<UsersPage> {
-  // Each `show_*` flag is sent explicitly; the backend only excludes a category
-  // when its flag is `false`, so `true` acts as a harmless "include all" no-op.
+  // A `show*` flag that is `true` adds no filter; one that is `false` asks the server for the
+  // users outside that category (`active=true`, `external_auth=false`, ...).
+  if (!showExternalAuth && !showLocalAuth) {
+    return { records: [], total: 0 }
+  }
   const params = new URLSearchParams({
     page_number: String(page),
     num_records: String(numRecords),
-    show_inactive: String(showInactive),
-    show_email_unverified: String(showEmailUnverified),
-    show_pending_approval: String(showPendingApproval),
-    show_external_auth: String(showExternalAuth),
-    show_local_auth: String(showLocalAuth),
   })
+  if (!showInactive) {
+    params.set('active', 'true')
+  }
+  if (!showEmailUnverified) {
+    params.set('email_verified', 'true')
+  }
+  if (!showPendingApproval) {
+    params.set('pending_approval', 'false')
+  }
+  // The two switches are one tri-state filter: both on adds none, one off keeps the other kind.
+  if (showExternalAuth !== showLocalAuth) {
+    params.set('external_auth', String(showExternalAuth))
+  }
+  if (username) {
+    params.set('username_contains', username)
+  }
   const response = await apiFetch<UsersListResponseDto>(`/users?${params.toString()}`, { signal })
   return {
-    records: (response.records ?? []).map(mapManagedUser),
+    records: response.items.map(mapManagedUser),
     total: response.total,
   }
-}
-
-/**
- * Searches users whose username contains the given term (admin scope).
- *
- * @param username - The search term.
- * @param signal - Optional abort signal for cancellation.
- * @returns The matching users, mapped to the clean model.
- * @throws {HttpError} When the request fails.
- */
-export async function searchUsersByUsername(
-  username: string,
-  signal?: AbortSignal,
-): Promise<ManagedUser[]> {
-  const dtos = await apiFetch<UserDto[] | null>(
-    `/users/username/contains/${encodeURIComponent(username)}`,
-    { signal },
-  )
-  return (dtos ?? []).map(mapManagedUser)
 }
 
 /**
@@ -143,12 +148,18 @@ export async function searchUsersByUsername(
  * profile and access fields via the form; only MFA and the photo are seeded
  * here (MFA off, no photo) — the user can enrol MFA and upload a photo later.
  *
+ * Creating an administrator carries the creating administrator's own step-up; any other account sends none.
+ *
  * @param input - The clean create input.
+ * @param stepUp - The administrator's step-up, for the creation of an administrator.
  * @returns The created user, mapped to the clean model.
- * @throws {HttpError} When the request fails (e.g. duplicate username/email).
+ * @throws {HttpError} When the request fails (e.g. duplicate username/email, or a refused step-up).
  */
-export async function createUser(input: CreateUserInput): Promise<ManagedUser> {
-  const payload: Schemas['UsersCreate'] = {
+export async function createUser(
+  input: CreateUserInput,
+  stepUp: StepUpInput | null = null,
+): Promise<ManagedUser> {
+  const payload: Schemas['UserAdminCreate'] = {
     name: input.name,
     username: input.username,
     email: input.email,
@@ -156,9 +167,8 @@ export async function createUser(input: CreateUserInput): Promise<ManagedUser> {
     access_type: input.accessType,
     active: input.active,
     email_verified: input.emailVerified,
-    pending_admin_approval: input.pendingAdminApproval,
-    mfa_enabled: false,
     units: input.units,
+    weight_units: input.weightUnits,
     currency: input.currency,
     preferred_language: input.preferredLanguage,
     gender: input.gender,
@@ -167,7 +177,7 @@ export async function createUser(input: CreateUserInput): Promise<ManagedUser> {
     birthdate: input.birthdate,
     height: input.height,
     max_heart_rate: input.maxHeartRate,
-    photo_path: null,
+    ...(stepUp ? { step_up: toStepUpWire(stepUp) } : {}),
   }
   const dto = await apiFetch<UserDto>('/users', {
     method: 'POST',
@@ -178,49 +188,109 @@ export async function createUser(input: CreateUserInput): Promise<ManagedUser> {
 
 /**
  * Updates a user's admin-editable fields (scope `users:write`). The edits are
- * merged onto the existing record and the editable columns are sent; the
- * derived read-only fields (`mfa_enabled`, `external_auth_count`) are omitted so
- * the endpoint's mass-assignment never tries to write a non-writable attribute.
+ * merged onto the existing record and only the fields whose value differs from
+ * the stored one are sent, because the edit is a partial one that keeps every
+ * omitted field. A changed email always carries `email_verified`, which decides
+ * whether the address is applied at once or confirmed through a link.
+ * An edit that changes the email, access type or active flag carries the
+ * administrator's own step-up; any other edit sends none.
  *
  * @param user - The existing managed user.
  * @param edits - The admin-editable field values.
+ * @param stepUp - The administrator's step-up, for an edit of email, access type or active flag.
  * @returns The updated user, mapped to the clean model.
- * @throws {HttpError} When the request fails (e.g. duplicate username/email).
+ * @throws {HttpError} When the request fails (e.g. duplicate username/email, or a refused step-up).
  */
-export async function updateUser(user: ManagedUser, edits: EditUserFields): Promise<ManagedUser> {
-  const merged: ManagedUser = { ...user, ...edits }
+export async function updateUser(
+  user: ManagedUser,
+  edits: EditUserFields,
+  stepUp: StepUpInput | null = null,
+): Promise<ManagedUser> {
+  const stored = toUserWire(user)
+  const merged = toUserWire({ ...user, ...edits })
+  const changed = Object.fromEntries(
+    Object.entries(merged).filter(([key, value]) => value !== stored[key as keyof UserEditDto]),
+  ) as UserEditDto
+  // A changed address is applied at once only when the same body marks it verified, so the flag travels with it.
+  const wire: UserEditDto =
+    'email' in changed ? { ...changed, email_verified: merged.email_verified } : changed
   const dto = await apiFetch<UserDto>(`/users/${user.id}`, {
-    method: 'PUT',
-    body: JSON.stringify(toUserWire(merged)),
+    method: 'PATCH',
+    headers: ifMatchHeaders(user.version),
+    body: JSON.stringify(stepUp ? { ...wire, step_up: toStepUpWire(stepUp) } : wire),
   })
   return mapManagedUser(dto)
 }
 
 /**
- * Fetches a single user by id (admin scope `users:read`).
+ * Fetches a single user by id (admin scope `users:read-all`).
  *
  * @param id - The user id.
  * @param signal - Optional abort signal for cancellation.
  * @returns The user mapped to the clean model, or `null` when not found.
  * @throws {HttpError} When the request fails.
  */
-export async function fetchUserById(id: number, signal?: AbortSignal): Promise<ManagedUser | null> {
-  const dto = await apiFetch<UserDto | null>(`/users/id/${id}`, { signal })
+export async function fetchUserById(id: string, signal?: AbortSignal): Promise<ManagedUser | null> {
+  const dto = await apiFetch<UserDto | null>(`/users/${id}`, { signal })
   return dto ? mapManagedUser(dto) : null
 }
 
 /**
  * Sets a new password for a user (admin scope `users:write`). Authorised by the
- * caller's admin scope, not by the target user's current password.
+ * administrator's own step-up, not by the target user's current password.
  *
  * @param userId - The target user id.
  * @param password - The new password.
- * @throws {HttpError} When the request fails (e.g. password too short).
+ * @param stepUp - The administrator's step-up credentials.
+ * @throws {HttpError} When the request fails (e.g. password too short, or a refused step-up).
  */
-export async function changeUserPassword(userId: number, password: string): Promise<void> {
-  await apiFetch<{ message: string }>(`/users/${userId}/password`, {
-    method: 'PUT',
-    body: JSON.stringify({ password } satisfies Schemas['UsersAdminEditPassword']),
+export async function changeUserPassword(
+  userId: string,
+  password: string,
+  stepUp: StepUpInput,
+): Promise<void> {
+  await apiFetch<void>(`/users/${userId}/password/change`, {
+    method: 'POST',
+    body: JSON.stringify({
+      password,
+      step_up: toStepUpWire(stepUp),
+    } satisfies Schemas['UserAdminEditPassword']),
+    responseType: 'void',
+  })
+}
+
+/**
+ * Resets a user's two-factor authentication (admin scope `users:write`). The backend removes the user's MFA
+ * secret and backup codes, ends all of their sessions and notifies them.
+ *
+ * @param userId - The target user id.
+ * @param stepUp - The administrator's step-up credentials.
+ * @throws {HttpError} When the request fails (`409` when the user has no MFA, `403` for a refused step-up).
+ */
+export async function resetUserMfa(userId: string, stepUp: StepUpInput): Promise<void> {
+  await apiFetch<void>(`/users/${userId}/mfa/reset`, {
+    method: 'POST',
+    body: JSON.stringify({ step_up: toStepUpWire(stepUp) } satisfies StepUpRequestDto),
+    responseType: 'void',
+  })
+}
+
+/**
+ * Requires a user to choose a new password at their next password sign-in (admin scope `users:write`). The
+ * backend keeps the current password, ends all of the user's sessions and notifies them.
+ *
+ * @param userId - The target user id.
+ * @param stepUp - The administrator's step-up credentials.
+ * @throws {HttpError} When the request fails (`409` when the user has no local password, or a refused step-up).
+ */
+export async function requireUserPasswordChange(
+  userId: string,
+  stepUp: StepUpInput,
+): Promise<void> {
+  await apiFetch<void>(`/users/${userId}/password/require-change`, {
+    method: 'POST',
+    body: JSON.stringify({ step_up: toStepUpWire(stepUp) } satisfies StepUpRequestDto),
+    responseType: 'void',
   })
 }
 
@@ -234,17 +304,17 @@ export async function changeUserPassword(userId: number, password: string): Prom
  * @returns The new photo path, or `null` when none was stored.
  * @throws {HttpError} When the upload is rejected (e.g. an invalid image).
  */
-export async function uploadUserPhoto(userId: number, file: File): Promise<string | null> {
+export async function uploadUserPhoto(userId: string, file: File): Promise<string | null> {
   const formData = new FormData()
   // The third arg is the multipart part filename only; the backend sanitizes it
   // and generates its own storage filename, so it never reaches a path/URL.
   formData.append('file', file, file.name)
-  const photoPath = await apiFetch<string | null>(`/users/${userId}/image`, {
-    method: 'POST',
+  const photo = await apiFetch<Schemas['UserPhotoRead']>(`/users/${userId}/photo`, {
+    method: 'PUT',
     body: formData,
     timeoutMs: 0,
   })
-  return photoPath ?? null
+  return photo.photo_path ?? null
 }
 
 /**
@@ -253,18 +323,29 @@ export async function uploadUserPhoto(userId: number, file: File): Promise<strin
  * @param userId - The target user id.
  * @throws {HttpError} When the request fails.
  */
-export async function deleteUserPhoto(userId: number): Promise<void> {
+export async function deleteUserPhoto(userId: string): Promise<void> {
   await apiFetch<void>(`/users/${userId}/photo`, { method: 'DELETE', responseType: 'void' })
 }
 
 /**
- * Deletes a user (admin scope `users:write`).
+ * Queues the deletion of a user (admin scope `users:write`): the user is signed out and deactivated at once (202) and a background job erases their data.
  *
  * @param id - The user id to delete.
- * @throws {HttpError} When the request fails.
+ * @param version - The user version the caller read, for `If-Match`.
+ * @param stepUp - The administrator's step-up credentials.
+ * @returns The deletion job; follow it with `useUserDeletionQuery`.
+ * @throws {HttpError} When the request fails (`412` when the user changed since it was read).
  */
-export async function deleteUser(id: number): Promise<void> {
-  await apiFetch<void>(`/users/${id}`, { method: 'DELETE', responseType: 'void' })
+export async function deleteUser(
+  id: string,
+  version: number,
+  stepUp: StepUpInput,
+): Promise<UserDeletionStatus> {
+  return apiFetch<UserDeletionStatus>(`/users/${id}/delete`, {
+    method: 'POST',
+    headers: ifMatchHeaders(version),
+    body: JSON.stringify({ step_up: toStepUpWire(stepUp) } satisfies StepUpRequestDto),
+  })
 }
 
 /**
@@ -274,6 +355,6 @@ export async function deleteUser(id: number): Promise<void> {
  * @param id - The user id to approve.
  * @throws {HttpError} When the request fails.
  */
-export async function approveUser(id: number): Promise<void> {
-  await apiFetch<{ message: string }>(`/users/${id}/approve`, { method: 'PUT' })
+export async function approveUser(id: string): Promise<void> {
+  await apiFetch<void>(`/users/${id}/approve`, { method: 'POST', responseType: 'void' })
 }

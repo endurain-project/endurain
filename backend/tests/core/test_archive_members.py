@@ -31,6 +31,17 @@ class TestListZipMembers:
 
         assert [(m.name, m.size) for m in members] == [("a.fit", 3), ("dir/b.gpx", 2)]
 
+    def test_a_backslash_name_is_matched_normalised_and_opened_by_its_stored_name(self, tmp_path):
+        archive = _zip(tmp_path, {"a\\b.fit": b"data"})
+
+        (member,) = file_uploads.list_zip_members(archive)
+        destination = tmp_path / "out.bin"
+        with zipfile.ZipFile(archive) as zf:
+            written = file_uploads.copy_zip_member(zf, member.stored_name, destination)
+
+        assert (member.name, member.stored_name) == ("a/b.fit", "a\\b.fit")
+        assert (written, destination.read_bytes()) == (4, b"data")
+
     @pytest.mark.parametrize("name", ["../evil.fit", "/abs.fit", "a/../../b.fit", "C:/win.fit"])
     def test_an_entry_that_could_escape_is_refused(self, tmp_path, name):
         archive = _zip(tmp_path, {name: b"x"})

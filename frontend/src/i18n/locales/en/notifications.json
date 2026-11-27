@@ -5,10 +5,12 @@
   "unread": "Unread",
   "markRead": "Mark as read",
   "markAllRead": "Mark all as read",
+  "dismiss": "Dismiss notification",
+  "dismissError": "Couldn't dismiss the notification. Please try again.",
   "seeAll": "See all",
   "loadMore": "Load more",
   "loading": "Loading…",
-  "badge": "{count} unread notifications",
+  "badge": "{count} unread notification | {count} unread notifications",
   "empty": {
     "title": "You're all caught up",
     "description": "Updates about your activities, followers and integrations will show up here."
@@ -39,9 +41,122 @@
       "title": "Garmin Connect needs attention",
       "body": "Your Garmin Connect session expired. Reconnect it to keep syncing."
     },
+    "stravaTokenExpired": {
+      "title": "Strava needs attention",
+      "body": "Strava rejected your connection. Reconnect it to keep syncing.",
+      "bodyRevoked": "Strava access ended. Your Strava-synced activities and gear will be deleted on {date} unless you reconnect."
+    },
+    "stravaDataDeleted": {
+      "title": "Strava data deleted",
+      "body": "Your Strava-synced activities and gear were deleted because Strava access ended and you did not reconnect."
+    },
+    "idpLinked": {
+      "title": "New sign-in provider linked",
+      "body": "{name} was linked to your account. If this wasn't you, review your security settings.",
+      "bodyGeneric": "A sign-in provider was linked to your account. If this wasn't you, review your security settings."
+    },
+    "accountSecurityChanged": {
+      "passwordChanged": {
+        "title": "Password changed",
+        "body": "Your password was changed. If this wasn't you, reset your password and review your security settings."
+      },
+      "passwordReset": {
+        "title": "Password reset",
+        "body": "Your password was reset using a reset link. If this wasn't you, reset your password again and review your security settings. Any API keys were revoked and any pending email change was cancelled."
+      },
+      "passwordSetByAdmin": {
+        "title": "Password set by an administrator",
+        "body": "An administrator set a new password for your account. If you didn't expect this, contact your administrator. Any API keys were revoked and any pending email change was cancelled."
+      },
+      "mfaEnabled": {
+        "title": "Two-factor authentication turned on",
+        "body": "Two-factor authentication was turned on for your account. If this wasn't you, reset your password and review your security settings."
+      },
+      "mfaDisabled": {
+        "title": "Two-factor authentication turned off",
+        "body": "Two-factor authentication was turned off for your account. If this wasn't you, reset your password and review your security settings."
+      },
+      "mfaResetByAdmin": {
+        "title": "Two-factor authentication reset by an administrator",
+        "body": "An administrator reset two-factor authentication for your account and signed you out of all devices. Set it up again from your security settings. If you didn't expect this, contact your administrator."
+      },
+      "passwordChangeRequiredByAdmin": {
+        "title": "Password change required by an administrator",
+        "body": "An administrator required you to change your password and signed you out of all devices. You will choose a new password the next time you sign in with your password. If you didn't expect this, contact your administrator."
+      },
+      "backupCodesGenerated": {
+        "title": "New backup codes generated",
+        "body": "New backup codes were generated for your account. If this wasn't you, reset your password and review your security settings."
+      },
+      "apiKeyCreated": {
+        "title": "New API key created",
+        "body": "A new API key was created for your account. If this wasn't you, reset your password and review your security settings."
+      },
+      "apiKeysRevokedByAdmin": {
+        "title": "API keys revoked by an administrator",
+        "body": "An administrator revoked one or more of your API keys, so anything using them can no longer access your account. If you didn't expect this, contact your administrator."
+      },
+      "identityProviderUnlinked": {
+        "title": "Sign-in provider unlinked",
+        "body": "{name} was unlinked from your account. If this wasn't you, reset your password and review your security settings.",
+        "bodyGeneric": "A sign-in provider was unlinked from your account. If this wasn't you, reset your password and review your security settings."
+      },
+      "accountLocked": {
+        "title": "Account locked",
+        "body": "Your account was locked after 100 failed sign-in attempts in a row. Browsers and apps you have signed in from since your last security change can still sign in. If these attempts weren't yours, change or reset your password, which also lifts the lock."
+      },
+      "mfaLocked": {
+        "title": "Two-step verification locked",
+        "body": "Your account was locked after 100 wrong two-step verification codes in a row, so someone knows your password. Browsers and apps you have signed in from since your last security change can still sign in. If these attempts weren't yours, change your password."
+      },
+      "stepUpSessionEnded": {
+        "title": "Session signed out",
+        "body": "A session of your account was signed out after 15 wrong passwords or two-step verification codes in a row were entered to confirm a sensitive action. Your other sessions were not affected. If these attempts weren't yours, change your password."
+      },
+      "stepUpLocked": {
+        "title": "Confirming sensitive actions locked",
+        "body": "Confirming sensitive actions, such as changing your password or creating an API key, was locked for 30 days after 100 wrong confirmations across your sessions. If these attempts weren't yours, reset your password, which also lifts the lock."
+      },
+      "backupCodeUsed": {
+        "title": "Backup code used",
+        "body": "A backup code was used for two-step verification on your account. If this wasn't you, change your password and generate new backup codes.",
+        "bodyRemaining": "A backup code was used for two-step verification on your account. Unused backup codes left: {count}. If this wasn't you, change your password and generate new backup codes.",
+        "bodyNone": "A backup code was used for two-step verification on your account. You have no unused backup codes left, so generate new ones in your security settings. If this wasn't you, change your password."
+      },
+      "refreshTokenReuseDetected": {
+        "title": "Session ended",
+        "body": "A sign-in session of your account was ended because a token that had already been used was presented again, which can mean the session was copied. Your other sessions were not affected. If you didn't expect this, change your password."
+      },
+      "roleChangedByAdmin": {
+        "title": "Access changed by an administrator",
+        "body": "An administrator changed the access of your account and signed you out of all devices. If you didn't expect this, contact your administrator.",
+        "bodyAdmin": "An administrator changed the access of your account to administrator and signed you out of all devices. If you didn't expect this, contact your administrator.",
+        "bodyRegular": "An administrator changed the access of your account to regular user and signed you out of all devices. If you didn't expect this, contact your administrator."
+      },
+      "accountDeactivatedByAdmin": {
+        "title": "Account deactivated by an administrator",
+        "body": "An administrator deactivated your account and signed you out of all devices. You can't sign in until an administrator reactivates it."
+      },
+      "unknown": {
+        "title": "Account security changed",
+        "body": "A security setting of your account changed. If this wasn't you, reset your password and review your security settings."
+      },
+      "usernameChanged": {
+        "title": "Username changed",
+        "body": "Your username was changed. If this wasn't you, reset your password and review your security settings."
+      }
+    },
+    "newDeviceSignIn": {
+      "title": "New sign-in",
+      "body": "New sign-in from {browser} on {os} ({ip}). If this wasn't you, change your password and sign out of your other sessions."
+    },
     "adminSignUpApproval": {
       "title": "New sign-up needs approval",
       "body": "{name} ({'@'}{username}) is waiting for account approval."
+    },
+    "adminUserPromoted": {
+      "title": "User promoted to administrator",
+      "body": "{name} ({'@'}{username}) was given administrator access."
     },
     "unknown": {
       "title": "Notification",

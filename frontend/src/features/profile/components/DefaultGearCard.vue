@@ -62,7 +62,13 @@ function retry(): void {
       </template>
     </ErrorState>
 
-    <DefaultGearForm v-else-if="defaultGear" :default-gear="defaultGear" :options="options" />
+    <!-- Keyed on the version: a refetch that changes it rebuilds the form, so its If-Match is the one it shows. -->
+    <DefaultGearForm
+      v-else-if="defaultGear"
+      :key="defaultGear.version"
+      :default-gear="defaultGear"
+      :options="options"
+    />
 
     <p v-else class="text-body">{{ t('settings.profile.defaultGear.unavailable') }}</p>
   </Card>

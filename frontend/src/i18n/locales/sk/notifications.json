@@ -5,10 +5,12 @@
   "unread": "Neprečítané",
   "markRead": "Označiť ako prečítané",
   "markAllRead": "Označiť všetky ako prečítané",
+  "dismiss": "Zavrieť oznámenie",
+  "dismissError": "Oznámenie sa nepodarilo zavrieť. Skúste to znova.",
   "seeAll": "Zobraziť všetky",
   "loadMore": "Načítať viac",
   "loading": "Načítavanie…",
-  "badge": "{count} neprečítaných upozornení",
+  "badge": "{count} neprečítané upozornenie | {count} neprečítané upozornenia | {count} neprečítaných upozornení",
   "empty": {
     "title": "Máte všetko prečítané",
     "description": "Aktualizácie o vašich aktivitách, sledovateľoch a integráciách sa zobrazia tu."
@@ -39,9 +41,122 @@
       "title": "Garmin Connect vyžaduje pozornosť",
       "body": "Vaša relácia Garmin Connect vypršala. Pre pokračovanie synchronizácie ju znova pripojte."
     },
+    "stravaTokenExpired": {
+      "title": "Strava vyžaduje pozornosť",
+      "body": "Strava odmietla vaše pripojenie. Pripojte ju znova, aby synchronizácia pokračovala.",
+      "bodyRevoked": "Prístup k Strava skončil. Vaše aktivity a vybavenie synchronizované so Strava budú odstránené {date}, ak sa znova nepripojíte."
+    },
+    "stravaDataDeleted": {
+      "title": "Údaje zo Strava odstránené",
+      "body": "Vaše aktivity a vybavenie synchronizované so Strava boli odstránené, pretože prístup k Strava skončil a nepripojili ste sa znova."
+    },
+    "idpLinked": {
+      "title": "Pripojený nový poskytovateľ prihlásenia",
+      "body": "{name} bol pripojený k vášmu účtu. Ak ste to neboli vy, skontrolujte nastavenia zabezpečenia.",
+      "bodyGeneric": "K vášmu účtu bol pripojený poskytovateľ prihlásenia. Ak ste to neboli vy, skontrolujte nastavenia zabezpečenia."
+    },
+    "accountSecurityChanged": {
+      "passwordChanged": {
+        "title": "Heslo zmenené",
+        "body": "Vaše heslo bolo zmenené. Ak ste to neboli vy, obnovte heslo a skontrolujte nastavenia zabezpečenia."
+      },
+      "passwordReset": {
+        "title": "Heslo obnovené",
+        "body": "Vaše heslo bolo obnovené pomocou odkazu na obnovenie. Ak ste to neboli vy, obnovte heslo znova a skontrolujte nastavenia zabezpečenia. Any API keys were revoked and any pending email change was cancelled."
+      },
+      "passwordSetByAdmin": {
+        "title": "Heslo nastavil správca",
+        "body": "Správca nastavil pre váš účet nové heslo. Ak ste to nečakali, kontaktujte správcu. Any API keys were revoked and any pending email change was cancelled."
+      },
+      "mfaEnabled": {
+        "title": "Dvojfaktorové overovanie zapnuté",
+        "body": "Pre váš účet bolo zapnuté dvojfaktorové overovanie. Ak ste to neboli vy, obnovte heslo a skontrolujte nastavenia zabezpečenia."
+      },
+      "mfaDisabled": {
+        "title": "Dvojfaktorové overovanie vypnuté",
+        "body": "Pre váš účet bolo vypnuté dvojfaktorové overovanie. Ak ste to neboli vy, obnovte heslo a skontrolujte nastavenia zabezpečenia."
+      },
+      "mfaResetByAdmin": {
+        "title": "Správca obnovil dvojfaktorové overovanie",
+        "body": "Správca obnovil dvojfaktorové overovanie vášho účtu a odhlásil vás zo všetkých zariadení. Nastavte ho znova v nastaveniach zabezpečenia. Ak ste to nečakali, kontaktujte svojho správcu."
+      },
+      "passwordChangeRequiredByAdmin": {
+        "title": "Správca vyžaduje zmenu hesla",
+        "body": "Správca vyžaduje, aby ste zmenili heslo, a odhlásil vás zo všetkých zariadení. Nové heslo zvolíte pri ďalšom prihlásení heslom. Ak ste to nečakali, kontaktujte svojho správcu."
+      },
+      "backupCodesGenerated": {
+        "title": "Vygenerované nové záložné kódy",
+        "body": "Pre váš účet boli vygenerované nové záložné kódy. Ak ste to neboli vy, obnovte heslo a skontrolujte nastavenia zabezpečenia."
+      },
+      "apiKeyCreated": {
+        "title": "Vytvorený nový kľúč API",
+        "body": "Pre váš účet bol vytvorený nový kľúč API. Ak ste to neboli vy, obnovte heslo a skontrolujte nastavenia zabezpečenia."
+      },
+      "apiKeysRevokedByAdmin": {
+        "title": "Kľúče API zrušené správcom",
+        "body": "Správca zrušil jeden alebo viac vašich kľúčov API, takže nič, čo ich používa, už nemá prístup k vášmu účtu. Ak ste to nečakali, obráťte sa na správcu."
+      },
+      "identityProviderUnlinked": {
+        "title": "Poskytovateľ prihlásenia odpojený",
+        "body": "{name} bol odpojený od vášho účtu. Ak ste to neboli vy, obnovte heslo a skontrolujte nastavenia zabezpečenia.",
+        "bodyGeneric": "Od vášho účtu bol odpojený poskytovateľ prihlásenia. Ak ste to neboli vy, obnovte heslo a skontrolujte nastavenia zabezpečenia."
+      },
+      "accountLocked": {
+        "title": "Účet je zamknutý",
+        "body": "Váš účet bol zamknutý po 100 neúspešných pokusoch o prihlásenie za sebou. Prehliadače a aplikácie, z ktorých ste sa prihlásili od poslednej zmeny zabezpečenia, sa môžu naďalej prihlásiť. Ak tieto pokusy neboli vaše, zmeňte alebo obnovte heslo, čím sa zámok zruší."
+      },
+      "mfaLocked": {
+        "title": "Dvojstupňové overovanie je zamknuté",
+        "body": "Váš účet bol zamknutý po 100 nesprávnych kódoch dvojstupňového overenia za sebou, takže niekto pozná vaše heslo. Prehliadače a aplikácie, z ktorých ste sa prihlásili od poslednej zmeny zabezpečenia, sa môžu naďalej prihlásiť. Ak tieto pokusy neboli vaše, zmeňte heslo."
+      },
+      "stepUpSessionEnded": {
+        "title": "Relácia bola odhlásená",
+        "body": "Jedna relácia vášho účtu bola odhlásená po tom, ako bolo 15-krát po sebe zadané nesprávne heslo alebo kód dvojfaktorového overovania pri potvrdzovaní citlivej akcie. Vaše ostatné relácie neboli dotknuté. Ak tieto pokusy neboli vaše, zmeňte si heslo."
+      },
+      "stepUpLocked": {
+        "title": "Potvrdzovanie citlivých akcií je uzamknuté",
+        "body": "Potvrdzovanie citlivých akcií, napríklad zmeny hesla alebo vytvorenia API kľúča, bolo uzamknuté na 30 dní po 100 nesprávnych potvrdeniach naprieč vašimi reláciami. Ak tieto pokusy neboli vaše, obnovte si heslo, čím sa zámok tiež zruší."
+      },
+      "backupCodeUsed": {
+        "title": "Použitý záložný kód",
+        "body": "Na dvojfaktorové overovanie vášho účtu bol použitý záložný kód. Ak ste to neboli vy, zmeňte si heslo a vygenerujte nové záložné kódy.",
+        "bodyRemaining": "Na dvojfaktorové overovanie vášho účtu bol použitý záložný kód. Zostávajúce nepoužité záložné kódy: {count}. Ak ste to neboli vy, zmeňte si heslo a vygenerujte nové záložné kódy.",
+        "bodyNone": "Na dvojfaktorové overovanie vášho účtu bol použitý záložný kód. Nezostávajú vám žiadne nepoužité záložné kódy, preto si v nastaveniach zabezpečenia vygenerujte nové. Ak ste to neboli vy, zmeňte si heslo."
+      },
+      "refreshTokenReuseDetected": {
+        "title": "Relácia bola ukončená",
+        "body": "Jedna prihlasovacia relácia vášho účtu bola ukončená, pretože bol znova predložený token, ktorý už bol použitý, čo môže znamenať, že relácia bola skopírovaná. Vaše ostatné relácie neboli dotknuté. Ak ste to nečakali, zmeňte si heslo."
+      },
+      "roleChangedByAdmin": {
+        "title": "Prístup zmenil správca",
+        "body": "Správca zmenil prístup vášho účtu a odhlásil vás zo všetkých zariadení. Ak ste to nečakali, obráťte sa na svojho správcu.",
+        "bodyAdmin": "Správca zmenil prístup vášho účtu na správcu a odhlásil vás zo všetkých zariadení. Ak ste to nečakali, obráťte sa na svojho správcu.",
+        "bodyRegular": "Správca zmenil prístup vášho účtu na bežného používateľa a odhlásil vás zo všetkých zariadení. Ak ste to nečakali, obráťte sa na svojho správcu."
+      },
+      "accountDeactivatedByAdmin": {
+        "title": "Účet deaktivoval správca",
+        "body": "Správca deaktivoval váš účet a odhlásil vás zo všetkých zariadení. Nemôžete sa prihlásiť, kým ho správca znova neaktivuje."
+      },
+      "unknown": {
+        "title": "Zabezpečenie účtu zmenené",
+        "body": "Zmenilo sa niektoré nastavenie zabezpečenia vášho účtu. Ak ste to neboli vy, obnovte heslo a skontrolujte nastavenia zabezpečenia."
+      },
+      "usernameChanged": {
+        "title": "Používateľské meno zmenené",
+        "body": "Vaše používateľské meno bolo zmenené. Ak ste to neboli vy, obnovte si heslo a skontrolujte nastavenia zabezpečenia."
+      }
+    },
+    "newDeviceSignIn": {
+      "title": "Nové prihlásenie",
+      "body": "Nové prihlásenie z prehliadača {browser} v systéme {os} ({ip}). Ak ste to neboli vy, zmeňte heslo a odhláste sa z ostatných relácií."
+    },
     "adminSignUpApproval": {
       "title": "Nová registrácia vyžaduje schválenie",
       "body": "{name} ({'@'}{username}) čaká na schválenie účtu."
+    },
+    "adminUserPromoted": {
+      "title": "Používateľ povýšený na správcu",
+      "body": "Používateľ {name} ({'@'}{username}) získal prístup správcu."
     },
     "unknown": {
       "title": "Upozornenie",

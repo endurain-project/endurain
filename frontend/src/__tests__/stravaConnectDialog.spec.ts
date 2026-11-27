@@ -11,7 +11,7 @@ const passthrough = { template: '<div><slot /></div>' }
 
 function mountDialog() {
   return mount(StravaConnectDialog, {
-    props: { open: true, pending: false },
+    props: { open: true, pending: false, requirePassword: true, requireMfa: false },
     global: {
       plugins: [i18n],
       stubs: {
@@ -35,16 +35,23 @@ describe('StravaConnectDialog submit', () => {
 
     await wrapper.find('#strava-client-id').setValue('12345')
     await wrapper.find('#strava-client-secret').setValue('s3cret')
+    await wrapper.find('#stepup-password').setValue('pw')
 
     await wrapper.find('form').trigger('submit')
 
-    expect(wrapper.emitted('submit')).toEqual([[{ clientId: 12345, clientSecret: 's3cret' }]])
+    expect(wrapper.emitted('submit')).toEqual([
+      [
+        { clientId: 12345, clientSecret: 's3cret' },
+        { currentPassword: 'pw', mfaCode: null, idpReauth: null },
+      ],
+    ])
   })
 
   it('does not emit while the client id is blank', async () => {
     const wrapper = mountDialog()
 
     await wrapper.find('#strava-client-secret').setValue('s3cret')
+    await wrapper.find('#stepup-password').setValue('pw')
     await wrapper.find('form').trigger('submit')
 
     expect(wrapper.emitted('submit')).toBeUndefined()

@@ -11,7 +11,7 @@
     "subtitle": "Разглеждайте, филтрирайте и сортирайте всичките си активности.",
     "searchPlaceholder": "Търсене по име или местоположение",
     "clearSearch": "Изчисти търсенето",
-    "resultCount": "{count} активности",
+    "resultCount": "{count} активност | {count} активности",
     "filters": {
       "type": "Тип активност",
       "allTypes": "Всички типове",
@@ -184,10 +184,13 @@
   },
   "edit": {
     "title": "Редактирай активността",
+    "loading": "Зареждане на активността",
+    "loadError": "Активността не можа да се зареди",
     "save": "Запази промените",
     "cancel": "Отказ",
     "close": "Затвори",
     "name": "Име",
+    "nameRequired": "Въведете име на активността",
     "type": "Тип активност",
     "description": "Описание",
     "privateNotes": "Лични бележки",
@@ -208,7 +211,7 @@
     "hideGear": "Скрий екипировката",
     "success": "Активността е обновена",
     "error": "Активността не можа да се обнови",
-    "staleError": "This activity was changed elsewhere while you were editing. Your changes were not saved. Reopen it to see the current version."
+    "staleError": "Тази активност е била променена другаде, докато я редактирахте. Промените ви не бяха запазени. Отворете я отново, за да видите текущата версия."
   },
   "alerts": {
     "hidden": "Тази активност е скрита. Само вие можете да я виждате.",

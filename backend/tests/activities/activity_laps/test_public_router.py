@@ -1,3 +1,4 @@
+import uuid
 from datetime import datetime
 from unittest.mock import patch
 
@@ -24,10 +25,13 @@ class TestReadPublicActivityLaps:
 
         client = TestClient(_build_app(mock_db))
         mock_get.return_value = ActivityLapsPage.build(
-            [ActivityLapsRead(id=1, activity_id=1, start_time=datetime(2024, 1, 15, 8, 0, 0))], 1, 1, 200
+            [ActivityLapsRead(id=uuid.uuid4(), activity_id=uuid.uuid4(), start_time=datetime(2024, 1, 15, 8, 0, 0))],
+            1,
+            1,
+            200,
         )
 
-        response = client.get("/public/activities/1/laps")
+        response = client.get("/public/activities/00000000-0000-4000-8000-000000000001/laps")
         assert response.status_code == 200
 
     @patch("modules.activities.activity_laps.public_router.activity_laps_service.list_public_activity_laps")
@@ -35,6 +39,12 @@ class TestReadPublicActivityLaps:
         client = TestClient(_build_app(mock_db))
         mock_get.return_value = ActivityLapsPage.build([], 0, 1, 200)
 
-        response = client.get("/public/activities/999/laps")
+        response = client.get("/public/activities/00000000-0000-4000-8000-000000000999/laps")
         assert response.status_code == 200
         assert response.json()["items"] == [] and response.json()["total"] == 0
+
+    def test_a_malformed_activity_id_answers_422(self, mock_db):
+        client = TestClient(_build_app(mock_db))
+
+        response = client.get("/public/activities/not-a-uuid/laps")
+        assert response.status_code == 422

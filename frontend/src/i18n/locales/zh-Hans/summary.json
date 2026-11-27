@@ -1,48 +1,48 @@
 {
-  "title": "Summary",
-  "subtitle": "Review your training totals and trends over time.",
+  "title": "摘要",
+  "subtitle": "查看您的训练总量和长期趋势。",
   "viewType": {
-    "label": "Summary period",
-    "week": "Week",
-    "month": "Month",
-    "year": "Year",
-    "lifetime": "Lifetime"
+    "label": "摘要周期",
+    "week": "周",
+    "month": "月",
+    "year": "年",
+    "lifetime": "累计"
   },
   "filters": {
-    "type": "Activity type",
-    "allTypes": "All types"
+    "type": "活动类型",
+    "allTypes": "所有类型"
   },
   "period": {
-    "previous": "Previous period",
-    "next": "Next period",
-    "picker": "Select period",
-    "allTime": "All time"
+    "previous": "上一周期",
+    "next": "下一周期",
+    "picker": "选择周期",
+    "allTime": "全部时间"
   },
   "metrics": {
-    "distance": "Distance",
-    "duration": "Duration",
-    "elevation": "Elevation",
-    "calories": "Calories",
-    "activities": "Activities"
+    "distance": "距离",
+    "duration": "时长",
+    "elevation": "海拔",
+    "calories": "卡路里",
+    "activities": "活动"
   },
   "breakdown": {
-    "title": "Breakdown",
-    "period": "Period",
-    "weekNumber": "Week {number}"
+    "title": "明细",
+    "period": "周期",
+    "weekNumber": "第 {number} 周"
   },
   "typeBreakdown": {
-    "title": "By activity type",
-    "type": "Type"
+    "title": "按活动类型",
+    "type": "类型"
   },
   "activities": {
-    "title": "Activities in this period"
+    "title": "此周期内的活动"
   },
   "empty": {
-    "description": "No activities match the selected period and type."
+    "description": "没有符合所选周期和类型的活动。"
   },
   "error": {
-    "title": "Couldn’t load summary",
-    "description": "Something went wrong loading your stats. Check your connection and try again.",
-    "retry": "Try again"
+    "title": "无法加载摘要",
+    "description": "加载您的统计数据时出错。请检查网络连接后重试。",
+    "retry": "重试"
   }
 }

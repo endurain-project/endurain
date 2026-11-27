@@ -18,6 +18,17 @@
     "help": "Proverite da ENDURAIN_HOST upućuje na URL na kome je vaša Endurain instanca dostupna (na primer https://endurain.example.com) i da je backend pokrenut, zatim ponovo učitajte stranicu.",
     "reload": "Ponovo učitaj"
   },
+  "staleError": "Ovo je izmenjeno na drugom mestu dok ste ga gledali, pa ništa nije sačuvano. Učitana je trenutna verzija. Pregledajte je i pokušajte ponovo.",
+  "sessionRestoreError": "Nismo mogli da proverimo da li ste prijavljeni. Server ili vaša veza možda nisu dostupni.",
+  "fieldError": {
+    "required": "Ovo polje je obavezno",
+    "tooShort": "Ova vrednost je prekratka",
+    "tooLong": "Ova vrednost je predugačka",
+    "tooLarge": "Ova vrednost je prevelika",
+    "tooSmall": "Ova vrednost je premala",
+    "invalidFormat": "Ova vrednost ima neispravan format",
+    "invalid": "Ova vrednost nije ispravna"
+  },
   "dismiss": "Odbaci",
   "language": "Jezik",
   "theme": {
@@ -35,5 +46,28 @@
     "edit": "Izmeni",
     "supported": "Markdown podržan",
     "empty": "Nema ničega za pregled"
+  },
+  "password": {
+    "hintLength": "Najmanje {min} znakova.",
+    "invalid": "Lozinka ne ispunjava uslove",
+    "mismatch": "Lozinke se ne podudaraju",
+    "tooShort": "Ova lozinka je prekratka. Upotrebite bar {min} znakova.",
+    "tooCommon": "Ova lozinka je previše uobičajena. Izaberite onu koju je teže pogoditi.",
+    "breached": "Ova lozinka se pojavila u poznatom curenju podataka. Izaberite drugu.",
+    "matchesAccount": "Ne koristite svoje korisničko ime ili adresu e-pošte kao lozinku.",
+    "blank": "Lozinka ne može sadržati samo razmake.",
+    "unchanged": "Izaberite lozinku koja se razlikuje od trenutne.",
+    "strength": {
+      "label": "Jačina lozinke: {level}",
+      "tooWeak": "Preslaba",
+      "weak": "Slaba",
+      "fair": "Prihvatljiva",
+      "good": "Dobra",
+      "strong": "Jaka"
+    }
+  },
+  "retryAfter": {
+    "tooManyAttempts": "Previše pokušaja. Pokušajte ponovo za {seconds} sekundi.",
+    "unavailable": "Autentifikacija je privremeno nedostupna. Pokušajte ponovo za {seconds} sekundi."
   }
 }

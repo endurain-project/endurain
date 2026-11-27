@@ -5,10 +5,12 @@
   "unread": "Sin leer",
   "markRead": "Marcar como leído",
   "markAllRead": "Marcar todo como leído",
+  "dismiss": "Descartar notificación",
+  "dismissError": "No se pudo descartar la notificación. Inténtalo de nuevo.",
   "seeAll": "Ver todo",
   "loadMore": "Cargar más",
-  "loading": "Cargando\u2026",
-  "badge": "{count} notificaciones sin leer",
+  "loading": "Cargando…",
+  "badge": "{count} notificación sin leer | {count} notificaciones sin leer",
   "empty": {
     "title": "Estás al día",
     "description": "Las actualizaciones sobre tus actividades, seguidores e integraciones aparecerán aquí."
@@ -39,9 +41,122 @@
       "title": "Garmin Connect necesita atención",
       "body": "Tu sesión de Garmin Connect ha caducado. Vuelve a conectarla para continuar sincronizando."
     },
+    "stravaTokenExpired": {
+      "title": "Strava necesita tu atención",
+      "body": "Strava rechazó tu conexión. Vuelve a conectarla para seguir sincronizando.",
+      "bodyRevoked": "El acceso a Strava ha terminado. Tus actividades y equipamiento sincronizados con Strava se eliminarán el {date} si no te vuelves a conectar."
+    },
+    "stravaDataDeleted": {
+      "title": "Datos de Strava eliminados",
+      "body": "Tus actividades y equipamiento sincronizados con Strava se eliminaron porque el acceso a Strava terminó y no te volviste a conectar."
+    },
+    "idpLinked": {
+      "title": "Nuevo proveedor de inicio de sesión vinculado",
+      "body": "{name} se vinculó a tu cuenta. Si no fuiste tú, revisa tu configuración de seguridad.",
+      "bodyGeneric": "Se vinculó un proveedor de inicio de sesión a tu cuenta. Si no fuiste tú, revisa tu configuración de seguridad."
+    },
+    "accountSecurityChanged": {
+      "passwordChanged": {
+        "title": "Contraseña cambiada",
+        "body": "Tu contraseña se ha cambiado. Si no fuiste tú, restablece tu contraseña y revisa tus ajustes de seguridad."
+      },
+      "passwordReset": {
+        "title": "Contraseña restablecida",
+        "body": "Tu contraseña se restableció mediante un enlace de restablecimiento. Si no fuiste tú, restablécela de nuevo y revisa tus ajustes de seguridad. Any API keys were revoked and any pending email change was cancelled."
+      },
+      "passwordSetByAdmin": {
+        "title": "Contraseña establecida por un administrador",
+        "body": "Un administrador estableció una nueva contraseña para tu cuenta. Si no lo esperabas, contacta con tu administrador. Any API keys were revoked and any pending email change was cancelled."
+      },
+      "mfaEnabled": {
+        "title": "Autenticación en dos pasos activada",
+        "body": "Se activó la autenticación en dos pasos en tu cuenta. Si no fuiste tú, restablece tu contraseña y revisa tus ajustes de seguridad."
+      },
+      "mfaDisabled": {
+        "title": "Autenticación en dos pasos desactivada",
+        "body": "Se desactivó la autenticación en dos pasos en tu cuenta. Si no fuiste tú, restablece tu contraseña y revisa tus ajustes de seguridad."
+      },
+      "mfaResetByAdmin": {
+        "title": "Autenticación en dos pasos restablecida por un administrador",
+        "body": "Un administrador restableció la autenticación en dos pasos de tu cuenta y cerró tu sesión en todos los dispositivos. Vuelve a configurarla desde los ajustes de seguridad. Si no lo esperabas, contacta con tu administrador."
+      },
+      "passwordChangeRequiredByAdmin": {
+        "title": "Cambio de contraseña exigido por un administrador",
+        "body": "Un administrador exigió que cambies tu contraseña y cerró tu sesión en todos los dispositivos. Elegirás una contraseña nueva la próxima vez que inicies sesión con tu contraseña. Si no lo esperabas, contacta con tu administrador."
+      },
+      "backupCodesGenerated": {
+        "title": "Nuevos códigos de respaldo generados",
+        "body": "Se generaron nuevos códigos de respaldo para tu cuenta. Si no fuiste tú, restablece tu contraseña y revisa tus ajustes de seguridad."
+      },
+      "apiKeyCreated": {
+        "title": "Nueva clave de API creada",
+        "body": "Se creó una nueva clave de API para tu cuenta. Si no fuiste tú, restablece tu contraseña y revisa tus ajustes de seguridad."
+      },
+      "apiKeysRevokedByAdmin": {
+        "title": "Claves de API revocadas por un administrador",
+        "body": "Un administrador revocó una o más de tus claves de API, por lo que nada que las use puede acceder ya a tu cuenta. Si no lo esperabas, ponte en contacto con tu administrador."
+      },
+      "identityProviderUnlinked": {
+        "title": "Proveedor de inicio de sesión desvinculado",
+        "body": "{name} se desvinculó de tu cuenta. Si no fuiste tú, restablece tu contraseña y revisa tus ajustes de seguridad.",
+        "bodyGeneric": "Se desvinculó un proveedor de inicio de sesión de tu cuenta. Si no fuiste tú, restablece tu contraseña y revisa tus ajustes de seguridad."
+      },
+      "accountLocked": {
+        "title": "Cuenta bloqueada",
+        "body": "Tu cuenta se bloqueó tras 100 intentos fallidos de inicio de sesión seguidos. Los navegadores y las apps desde los que iniciaste sesión desde tu último cambio de seguridad aún pueden iniciar sesión. Si esos intentos no fueron tuyos, cambia o restablece tu contraseña, lo que también levanta el bloqueo."
+      },
+      "mfaLocked": {
+        "title": "Verificación en dos pasos bloqueada",
+        "body": "Tu cuenta se bloqueó tras 100 códigos de verificación en dos pasos incorrectos seguidos, así que alguien conoce tu contraseña. Los navegadores y las apps desde los que iniciaste sesión desde tu último cambio de seguridad aún pueden iniciar sesión. Si esos intentos no fueron tuyos, cambia tu contraseña."
+      },
+      "stepUpSessionEnded": {
+        "title": "Sesión cerrada",
+        "body": "Se cerró una sesión de tu cuenta tras introducir 15 contraseñas o códigos de verificación en dos pasos incorrectos seguidos para confirmar una acción sensible. Tus otras sesiones no se vieron afectadas. Si esos intentos no fueron tuyos, cambia tu contraseña."
+      },
+      "stepUpLocked": {
+        "title": "Confirmación de acciones sensibles bloqueada",
+        "body": "La confirmación de acciones sensibles, como cambiar tu contraseña o crear una clave API, se bloqueó durante 30 días tras 100 confirmaciones incorrectas en tus sesiones. Si esos intentos no fueron tuyos, restablece tu contraseña, lo que también levanta el bloqueo."
+      },
+      "backupCodeUsed": {
+        "title": "Código de respaldo utilizado",
+        "body": "Se utilizó un código de respaldo para la verificación en dos pasos de tu cuenta. Si no fuiste tú, cambia tu contraseña y genera nuevos códigos de respaldo.",
+        "bodyRemaining": "Se utilizó un código de respaldo para la verificación en dos pasos de tu cuenta. Códigos de respaldo sin usar restantes: {count}. Si no fuiste tú, cambia tu contraseña y genera nuevos códigos de respaldo.",
+        "bodyNone": "Se utilizó un código de respaldo para la verificación en dos pasos de tu cuenta. Ya no te quedan códigos de respaldo sin usar, así que genera otros nuevos en tus ajustes de seguridad. Si no fuiste tú, cambia tu contraseña."
+      },
+      "refreshTokenReuseDetected": {
+        "title": "Sesión finalizada",
+        "body": "Se finalizó una sesión de inicio de sesión de tu cuenta porque se presentó de nuevo un token que ya se había usado, lo que puede significar que la sesión se copió. Tus otras sesiones no se vieron afectadas. Si no lo esperabas, cambia tu contraseña."
+      },
+      "roleChangedByAdmin": {
+        "title": "Acceso cambiado por un administrador",
+        "body": "Un administrador cambió el acceso de tu cuenta y cerró tu sesión en todos los dispositivos. Si no lo esperabas, contacta con tu administrador.",
+        "bodyAdmin": "Un administrador cambió el acceso de tu cuenta a administrador y cerró tu sesión en todos los dispositivos. Si no lo esperabas, contacta con tu administrador.",
+        "bodyRegular": "Un administrador cambió el acceso de tu cuenta a usuario normal y cerró tu sesión en todos los dispositivos. Si no lo esperabas, contacta con tu administrador."
+      },
+      "accountDeactivatedByAdmin": {
+        "title": "Cuenta desactivada por un administrador",
+        "body": "Un administrador desactivó tu cuenta y cerró tu sesión en todos los dispositivos. No puedes iniciar sesión hasta que un administrador la reactive."
+      },
+      "unknown": {
+        "title": "Seguridad de la cuenta modificada",
+        "body": "Se modificó un ajuste de seguridad de tu cuenta. Si no fuiste tú, restablece tu contraseña y revisa tus ajustes de seguridad."
+      },
+      "usernameChanged": {
+        "title": "Nombre de usuario cambiado",
+        "body": "Tu nombre de usuario ha cambiado. Si no has sido tú, restablece tu contraseña y revisa tu configuración de seguridad."
+      }
+    },
+    "newDeviceSignIn": {
+      "title": "Nuevo inicio de sesión",
+      "body": "Nuevo inicio de sesión desde {browser} en {os} ({ip}). Si no fuiste tú, cambia tu contraseña y cierra tus otras sesiones."
+    },
     "adminSignUpApproval": {
       "title": "Nuevo registro pendiente de aprobación",
       "body": "{name} ({'@'}{username}) está esperando la aprobación de la cuenta."
+    },
+    "adminUserPromoted": {
+      "title": "Usuario ascendido a administrador",
+      "body": "{name} ({'@'}{username}) recibió acceso de administrador."
     },
     "unknown": {
       "title": "Notificación",

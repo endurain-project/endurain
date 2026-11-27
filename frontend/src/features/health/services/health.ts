@@ -12,6 +12,8 @@ import type {
   FastingSnapshot,
   FastingStats,
   FastingStatus,
+  HealthChartMetric,
+  HealthChartSeries,
   HealthDashboard,
   HealthInterval,
   HealthTargets,
@@ -21,6 +23,7 @@ import type {
   RestingHeartRatePage,
   SleepEntry,
   SleepEntryInput,
+  SleepListEntry,
   SleepStage,
   StepsEntry,
   StepsEntryInput,
@@ -31,6 +34,7 @@ import type {
 } from '@/features/health/types'
 
 import { apiFetch } from '@/services/http'
+import { ifMatchHeaders, rowVersion } from '@/services/ifMatch'
 
 type HealthTargetsDto = Schemas['HealthTargetsRead']
 type HealthDashboardDto = Schemas['HealthDashboardResponse']
@@ -42,16 +46,19 @@ type HealthStepsDto = Schemas['HealthStepsRead']
 type HealthWaterDto = Schemas['HealthWaterRead']
 type HealthPoopDto = Schemas['HealthPoopRead']
 type HealthSleepDto = Schemas['HealthSleepRead']
+type HealthSleepListDto = Schemas['HealthSleepListItem']
+type HealthChartSeriesDto = Schemas['HealthChartSeries']
 
 /** Maps a raw targets DTO to the clean {@link HealthTargets} model. */
 function mapTargets(dto: HealthTargetsDto): HealthTargets {
   return {
     id: dto.id,
     userId: dto.user_id,
-    sleepSeconds: dto.sleep ?? null,
+    version: rowVersion(dto.version),
+    sleepSeconds: dto.sleep_seconds ?? null,
     steps: dto.steps ?? null,
-    weightKg: dto.weight ?? null,
-    fastingSeconds: dto.fasting ?? null,
+    weightKg: dto.weight_kg ?? null,
+    fastingSeconds: dto.fasting_seconds ?? null,
     waterMl: dto.water_ml ?? null,
     poopCount: dto.poop_count ?? null,
   }
@@ -74,12 +81,13 @@ function mapDashboard(dto: HealthDashboardDto): HealthDashboard {
     restingHeartRate: dto.sleep?.resting_heart_rate ?? null,
     hrvStatus: dto.sleep?.hrv_status ?? null,
     skinTempDeviation: dto.sleep?.avg_skin_temp_deviation ?? null,
-    weightKg: dto.weight?.weight ?? null,
+    weightKg: dto.weight?.weight_kg ?? null,
     bmi: dto.weight?.bmi ?? null,
     steps: dto.steps?.steps ?? null,
     fasting: mapFasting(dto.fasting),
     waterMl: dto.water?.amount_ml ?? null,
     poopCount: dto.poop?.count ?? null,
+    targets: dto.targets ? mapTargets(dto.targets) : null,
   }
 }
 
@@ -96,10 +104,10 @@ export async function fetchHealthTargets(signal?: AbortSignal): Promise<HealthTa
 }
 
 /**
- * Fetches the authenticated user's consolidated daily health dashboard.
+ * Fetches the authenticated user's consolidated daily health dashboard and targets.
  *
  * @param signal - Optional abort signal for cancellation.
- * @returns Today's health metrics.
+ * @returns Today's health metrics and configured targets.
  * @throws {HttpError} When the request fails.
  */
 export async function fetchHealthDashboard(signal?: AbortSignal): Promise<HealthDashboard> {
@@ -122,7 +130,7 @@ interface HealthHistoryResponse<Dto> {
   /** Total matching rows across all pages. */
   total: number
   /** Records in the current page. */
-  records?: Dto[] | null
+  items: Dto[]
 }
 
 /** Shared clean page shape returned by health-history services. */
@@ -147,12 +155,17 @@ export interface HealthListParams<Interval extends string = HealthInterval> {
   interval: Interval
 }
 
-/** Builds the query string for a paginated health-history endpoint. */
-function buildHealthHistoryPath(resource: string, params: HealthHistoryParams): string {
+/** Builds the query string for a paginated health-history endpoint, plus any metric-specific filters. */
+function buildHealthHistoryPath(
+  resource: string,
+  params: HealthHistoryParams,
+  filters: Record<string, string>,
+): string {
   const search = new URLSearchParams({
     page_number: String(params.page),
     num_records: String(params.numRecords),
     interval: params.interval,
+    ...filters,
   })
   return `/health/${resource}?${search.toString()}`
 }
@@ -163,12 +176,46 @@ async function fetchHealthHistoryPage<Dto, Entry>(
   params: HealthHistoryParams,
   mapEntry: (dto: Dto) => Entry,
   signal?: AbortSignal,
+  filters: Record<string, string> = {},
 ): Promise<HealthHistoryPage<Entry>> {
   const response = await apiFetch<HealthHistoryResponse<Dto>>(
-    buildHealthHistoryPath(resource, params),
+    buildHealthHistoryPath(resource, params, filters),
     { signal },
   )
-  return { records: (response.records ?? []).map(mapEntry), total: response.total }
+  return { records: response.items.map(mapEntry), total: response.total }
+}
+
+/** Endpoint of each metric's aggregated chart series, relative to `/health`. */
+const CHART_PATHS: Record<HealthChartMetric, string> = {
+  sleep: 'sleep/chart',
+  rhr: 'sleep/chart/resting-heart-rate',
+  steps: 'steps/chart',
+  weight: 'weight/chart',
+  water: 'water/chart',
+  poop: 'poop/chart',
+}
+
+/**
+ * Fetches a metric aggregated over an interval: one point per day, week or month depending on the
+ * interval, so the chart covers the whole range in a single small request.
+ *
+ * @param metric - The metric to chart.
+ * @param interval - The time window to chart.
+ * @param signal - Optional abort signal for cancellation.
+ * @returns The interval's bucket size and its points, oldest first.
+ * @throws {HttpError} When the request fails.
+ */
+export async function fetchHealthChart(
+  metric: HealthChartMetric,
+  interval: HealthInterval,
+  signal?: AbortSignal,
+): Promise<HealthChartSeries> {
+  const search = new URLSearchParams({ interval })
+  const dto = await apiFetch<HealthChartSeriesDto>(
+    `/health/${CHART_PATHS[metric]}?${search.toString()}`,
+    { signal },
+  )
+  return { bucket: dto.bucket, points: dto.points.map(({ date, value }) => ({ date, value })) }
 }
 
 /** Creates a health resource and maps the returned record. */
@@ -184,30 +231,39 @@ async function createHealthResource<Dto, Entry, Payload extends object>(
   return mapEntry(dto)
 }
 
-/** Updates a health resource and maps the returned record. */
+/** Changes the given fields of a health resource record and maps the returned record. */
 async function updateHealthResource<Dto, Entry, Payload extends object>(
   resource: string,
+  id: string,
   payload: Payload,
+  version: number,
   mapEntry: (dto: Dto) => Entry,
 ): Promise<Entry> {
-  const dto = await apiFetch<Dto>(`/health/${resource}`, {
-    method: 'PUT',
+  const dto = await apiFetch<Dto>(`/health/${resource}/${id}`, {
+    method: 'PATCH',
+    headers: ifMatchHeaders(version),
     body: JSON.stringify(payload),
   })
   return mapEntry(dto)
 }
 
-/** Deletes a single health-history record. */
-async function deleteHealthResource(resource: string, id: number): Promise<void> {
-  await apiFetch<void>(`/health/${resource}/${id}`, { method: 'DELETE', responseType: 'void' })
+/** Deletes a single health-history record, conditional on the version the caller read. */
+async function deleteHealthResource(resource: string, id: string, version: number): Promise<void> {
+  await apiFetch<void>(`/health/${resource}/${id}`, {
+    method: 'DELETE',
+    headers: ifMatchHeaders(version),
+    responseType: 'void',
+  })
 }
 
 /** Updates a subset of the health-targets record and maps the response. */
 async function updateHealthTargets(
   payload: Schemas['HealthTargetsUpdate'],
+  version: number,
 ): Promise<HealthTargets> {
   const dto = await apiFetch<HealthTargetsDto>('/health/targets', {
-    method: 'PUT',
+    method: 'PATCH',
+    headers: ifMatchHeaders(version),
     body: JSON.stringify(payload),
   })
   return mapTargets(dto)
@@ -217,12 +273,12 @@ async function updateHealthTargets(
 interface HealthCrudService<Entry, Input> {
   /** Fetches one filtered page of history and maps each record. */
   fetch: (params: HealthListParams, signal?: AbortSignal) => Promise<HealthHistoryPage<Entry>>
-  /** Creates (or upserts the existing same-date) record and maps the response. */
+  /** Creates a record, which is refused when the day already has one, and maps the response. */
   create: (input: Input) => Promise<Entry>
-  /** Updates an existing record (echoing id + user_id) and maps the response. */
-  update: (id: number, userId: number, input: Input) => Promise<Entry>
-  /** Deletes a record by id. */
-  remove: (id: number) => Promise<void>
+  /** Changes an existing record, conditional on the version the caller read, and maps the response. */
+  update: (id: string, input: Input, version: number) => Promise<Entry>
+  /** Deletes a record, conditional on the version the caller read. */
+  remove: (id: string, version: number) => Promise<void>
 }
 
 /**
@@ -244,31 +300,27 @@ function createHealthCrudService<Dto, Entry, Wire extends object, Input>(
   return {
     fetch: (params, signal) => fetchHealthHistoryPage(resource, params, mapEntry, signal),
     create: (input) => createHealthResource(resource, toWireFields(input), mapEntry),
-    update: (id, userId, input) =>
-      updateHealthResource(resource, { id, user_id: userId, ...toWireFields(input) }, mapEntry),
-    remove: (id) => deleteHealthResource(resource, id),
+    update: (id, input, version) =>
+      updateHealthResource(resource, id, toWireFields(input), version, mapEntry),
+    remove: (id, version) => deleteHealthResource(resource, id, version),
   }
 }
 
 /**
  * Builds an updater for a single health-targets field. The returned function
- * sends only `id`, `user_id`, and the one field so a stale local copy never
- * clobbers the user's other targets.
+ * sends only the one field so a stale local copy never clobbers the user's other
+ * targets, and names the version it read so a concurrent change is refused.
  *
  * @param field - The snake-cased targets field this updater writes.
- * @returns A `(id, userId, value)` updater that PUTs the single field.
+ * @returns A `(version, value)` updater that PATCHes the single field.
  */
 function createHealthTargetUpdater<Field extends keyof Schemas['HealthTargetsUpdate']>(
   field: Field,
 ) {
-  return (
-    id: number,
-    userId: number,
-    value: Schemas['HealthTargetsUpdate'][Field],
-  ): Promise<HealthTargets> =>
+  return (version: number, value: Schemas['HealthTargetsUpdate'][Field]): Promise<HealthTargets> =>
     // The key is statically constrained to a valid targets field, so the
     // assembled object is a valid partial targets update.
-    updateHealthTargets({ id, user_id: userId, [field]: value } as Schemas['HealthTargetsUpdate'])
+    updateHealthTargets({ [field]: value } as Schemas['HealthTargetsUpdate'], version)
 }
 
 /** Maps a raw weight DTO to the clean {@link WeightEntry} model. */
@@ -276,13 +328,14 @@ function mapWeightEntry(dto: HealthWeightDto): WeightEntry {
   return {
     id: dto.id,
     userId: dto.user_id,
+    version: rowVersion(dto.version),
     date: dto.date ?? null,
-    weightKg: dto.weight ?? null,
+    weightKg: dto.weight_kg ?? null,
     bmi: dto.bmi ?? null,
-    bodyFatPct: dto.body_fat ?? null,
-    bodyWaterPct: dto.body_water ?? null,
-    boneMassKg: dto.bone_mass ?? null,
-    muscleMassKg: dto.muscle_mass ?? null,
+    bodyFatPct: dto.body_fat_percent ?? null,
+    bodyWaterPct: dto.body_water_percent ?? null,
+    boneMassKg: dto.bone_mass_kg ?? null,
+    muscleMassKg: dto.muscle_mass_kg ?? null,
     source: dto.source ?? null,
   }
 }
@@ -297,12 +350,11 @@ function mapWeightEntry(dto: HealthWeightDto): WeightEntry {
 function toWeightWireFields(input: WeightEntryInput): Schemas['HealthWeightCreate'] {
   return {
     date: input.date,
-    weight: input.weightKg,
-    bmi: input.bmi,
-    body_fat: input.bodyFatPct,
-    body_water: input.bodyWaterPct,
-    bone_mass: input.boneMassKg,
-    muscle_mass: input.muscleMassKg,
+    weight_kg: input.weightKg,
+    body_fat_percent: input.bodyFatPct,
+    body_water_percent: input.bodyWaterPct,
+    bone_mass_kg: input.boneMassKg,
+    muscle_mass_kg: input.muscleMassKg,
   }
 }
 
@@ -310,20 +362,21 @@ const weightService = createHealthCrudService('weight', mapWeightEntry, toWeight
 
 /** Fetches one filtered page of the user's weight history. */
 export const fetchWeightEntries = weightService.fetch
-/** Creates (or updates the existing same-date) weight entry. */
+/** Creates a weight entry; a day that already has one is refused with `409`. */
 export const createWeightEntry = weightService.create
 /** Updates an existing weight entry (echoing id + user_id). */
 export const updateWeightEntry = weightService.update
 /** Deletes a weight entry. */
 export const deleteWeightEntry = weightService.remove
 /** Updates only the user's weight target, preserving the other targets. */
-export const updateWeightTarget = createHealthTargetUpdater('weight')
+export const updateWeightTarget = createHealthTargetUpdater('weight_kg')
 
 /** Maps a raw steps DTO to the clean {@link StepsEntry} model. */
 function mapStepsEntry(dto: HealthStepsDto): StepsEntry {
   return {
     id: dto.id,
     userId: dto.user_id,
+    version: rowVersion(dto.version),
     date: dto.date ?? null,
     steps: dto.steps ?? null,
     source: dto.source ?? null,
@@ -362,6 +415,7 @@ function mapWaterEntry(dto: HealthWaterDto): WaterEntry {
   return {
     id: dto.id,
     userId: dto.user_id,
+    version: rowVersion(dto.version),
     date: dto.date ?? null,
     amountMl: dto.amount_ml ?? null,
     source: dto.source ?? null,
@@ -386,7 +440,7 @@ const waterService = createHealthCrudService('water', mapWaterEntry, toWaterWire
 
 /** Fetches one filtered page of the user's water history. */
 export const fetchWaterEntries = waterService.fetch
-/** Creates (or updates the existing same-date) water entry. */
+/** Creates a water entry; a day that already has one is refused with `409`, so edit that entry. */
 export const createWaterEntry = waterService.create
 /** Updates an existing water entry (echoing id + user_id). */
 export const updateWaterEntry = waterService.update
@@ -400,6 +454,7 @@ function mapPoopEntry(dto: HealthPoopDto): PoopEntry {
   return {
     id: dto.id,
     userId: dto.user_id,
+    version: rowVersion(dto.version),
     dateTime: dto.date_time ?? null,
     bristolType: dto.bristol_type ?? null,
     color: dto.color ?? null,
@@ -440,8 +495,8 @@ export const deletePoopEntry = poopService.remove
 /** Updates only the user's daily bowel-movement target, preserving the others. */
 export const updatePoopTarget = createHealthTargetUpdater('poop_count')
 
-/** Maps a raw sleep DTO to the clean {@link RestingHeartRateEntry} model. */
-function mapRhrEntry(dto: HealthSleepDto): RestingHeartRateEntry {
+/** Maps a raw sleep list DTO to the clean {@link RestingHeartRateEntry} model. */
+function mapRhrEntry(dto: HealthSleepListDto): RestingHeartRateEntry {
   return {
     id: dto.id,
     date: dto.date ?? null,
@@ -454,9 +509,8 @@ function mapRhrEntry(dto: HealthSleepDto): RestingHeartRateEntry {
  * Fetches one page of the authenticated user's resting-heart-rate history.
  *
  * RHR has no endpoint of its own: the backend records it as a field on each
- * sleep session, so this reads the sleep history and keeps only the records
- * that carry a resting heart rate. The page `total` stays the backend's sleep
- * total so pagination still walks the full sleep history.
+ * sleep session, so this reads the sleep history filtered to the nights that
+ * carry a resting heart rate. The page and its `total` count the same nights.
  *
  * @param params - Page number, size, and the interval filter.
  * @param signal - Optional abort signal for cancellation.
@@ -467,16 +521,9 @@ export async function fetchRhrEntries(
   { page, numRecords, interval }: HealthListParams,
   signal?: AbortSignal,
 ): Promise<RestingHeartRatePage> {
-  const response = await fetchHealthHistoryPage(
-    'sleep',
-    { page, numRecords, interval },
-    mapRhrEntry,
-    signal,
-  )
-  return {
-    records: response.records.filter((entry) => entry.restingHeartRate !== null),
-    total: response.total,
-  }
+  return fetchHealthHistoryPage('sleep', { page, numRecords, interval }, mapRhrEntry, signal, {
+    has_resting_heart_rate: 'true',
+  })
 }
 
 /** Maps a raw fasting DTO to the clean {@link FastingEntry} model. */
@@ -484,6 +531,7 @@ function mapFastingEntry(dto: HealthFastingReadDto): FastingEntry {
   return {
     id: dto.id,
     userId: dto.user_id,
+    version: rowVersion(dto.version),
     fastStartTime: dto.fast_start_time ?? null,
     fastEndTime: dto.fast_end_time ?? null,
     fastingType: dto.fasting_type ?? null,
@@ -548,8 +596,8 @@ export async function fetchFastingStats(signal?: AbortSignal): Promise<FastingSt
 
 /**
  * Starts a new fasting session. The backend rejects a second active fast, so
- * the caller only exposes this when no session is in progress. The source is
- * fixed to manual for user-started fasts.
+ * the caller only exposes this when no session is in progress. The server
+ * records user-started fasts as manual.
  *
  * @param input - The clean fasting input (start time, type, target, notes).
  * @returns The persisted fasting session.
@@ -561,7 +609,6 @@ export async function createFastingEntry(input: FastingEntryInput): Promise<Fast
     fasting_type: input.fastingType,
     target_duration_seconds: input.targetDurationSeconds,
     notes: input.notes,
-    source: 'manual',
   }
   return createHealthResource('fasting', payload, mapFastingEntry)
 }
@@ -576,22 +623,19 @@ export async function createFastingEntry(input: FastingEntryInput): Promise<Fast
  * @throws {HttpError} When the request fails.
  */
 export async function updateFastingEntry(
-  id: number,
-  userId: number,
+  id: string,
   input: FastingEntryInput,
+  version: number,
 ): Promise<FastingEntry> {
   const payload: Schemas['HealthFastingUpdate'] = {
-    id,
-    user_id: userId,
     fast_start_time: input.fastStartTime,
     fast_end_time: input.fastEndTime,
     fasting_type: input.fastingType,
     target_duration_seconds: input.targetDurationSeconds,
-    actual_duration_seconds: input.actualDurationSeconds,
     status: input.status,
     notes: input.notes,
   }
-  return updateHealthResource('fasting', payload, mapFastingEntry)
+  return updateHealthResource('fasting', id, payload, version, mapFastingEntry)
 }
 
 /**
@@ -602,17 +646,20 @@ export async function updateFastingEntry(
  * @param id - The fasting record id.
  * @param fastEndTime - ISO end timestamp of the fast.
  * @param status - The final status to record.
+ * @param version - The row version the session was read at, for `If-Match`.
  * @returns The persisted fasting session.
- * @throws {HttpError} When the request fails.
+ * @throws {HttpError} When the request fails, including 412 when the session changed meanwhile.
  */
 export async function completeFastingEntry(
-  id: number,
+  id: string,
   fastEndTime: string,
   status: FastingStatus,
+  version: number,
 ): Promise<FastingEntry> {
   const payload: Schemas['HealthFastingComplete'] = { fast_end_time: fastEndTime, status }
   const dto = await apiFetch<HealthFastingReadDto>(`/health/fasting/${id}/complete`, {
     method: 'POST',
+    headers: ifMatchHeaders(version),
     body: JSON.stringify(payload),
   })
   return mapFastingEntry(dto)
@@ -622,14 +669,15 @@ export async function completeFastingEntry(
  * Deletes a fasting session.
  *
  * @param id - The fasting record id.
- * @throws {HttpError} When the request fails.
+ * @param version - The row version the session was read at, for `If-Match`.
+ * @throws {HttpError} When the request fails (`412` when the session changed since it was read).
  */
-export async function deleteFastingEntry(id: number): Promise<void> {
-  await deleteHealthResource('fasting', id)
+export async function deleteFastingEntry(id: string, version: number): Promise<void> {
+  await deleteHealthResource('fasting', id, version)
 }
 
 /** Updates only the user's fasting-duration target, preserving the other targets. */
-export const updateFastingTarget = createHealthTargetUpdater('fasting')
+export const updateFastingTarget = createHealthTargetUpdater('fasting_seconds')
 
 /** Maps a raw sleep-stage DTO to the clean {@link SleepStage} model. */
 function mapSleepStage(dto: NonNullable<HealthSleepDto['sleep_stages']>[number]): SleepStage {
@@ -641,11 +689,14 @@ function mapSleepStage(dto: NonNullable<HealthSleepDto['sleep_stages']>[number])
   }
 }
 
-/** Maps a raw sleep DTO to the clean {@link SleepEntry} model. */
-function mapSleepEntry(dto: HealthSleepDto): SleepEntry {
+/** Maps the sleep fields the list and the single-record read share. */
+function mapSleepFields(
+  dto: Omit<HealthSleepListDto, 'has_sleep_stages'>,
+): Omit<SleepListEntry, 'hasSleepStages'> {
   return {
     id: dto.id,
     userId: dto.user_id,
+    version: rowVersion(dto.version),
     date: dto.date ?? null,
     sleepStartTimeLocal: dto.sleep_start_time_local ?? null,
     sleepEndTimeLocal: dto.sleep_end_time_local ?? null,
@@ -667,17 +718,26 @@ function mapSleepEntry(dto: HealthSleepDto): SleepEntry {
     maxHeartRate: dto.max_heart_rate ?? null,
     avgSkinTempDeviation: dto.avg_skin_temp_deviation ?? null,
     hrvStatus: dto.hrv_status ?? null,
-    avgSpo2: dto.avg_spo2 ?? null,
-    lowestSpo2: dto.lowest_spo2 ?? null,
-    highestSpo2: dto.highest_spo2 ?? null,
+    avgSpo2: dto.avg_spo2_percent ?? null,
+    lowestSpo2: dto.lowest_spo2_percent ?? null,
+    highestSpo2: dto.highest_spo2_percent ?? null,
     avgRespiration: dto.avg_respiration ?? null,
     lowestRespiration: dto.lowest_respiration ?? null,
     highestRespiration: dto.highest_respiration ?? null,
     avgSleepStress: dto.avg_sleep_stress ?? null,
     awakeCount: dto.awake_count ?? null,
-    sleepStages: (dto.sleep_stages ?? []).map(mapSleepStage),
     source: dto.source ?? null,
   }
+}
+
+/** Maps a raw sleep list row to the clean {@link SleepListEntry} model, which has no stage rows. */
+function mapSleepListEntry(dto: HealthSleepListDto): SleepListEntry {
+  return { ...mapSleepFields(dto), hasSleepStages: dto.has_sleep_stages }
+}
+
+/** Maps a raw sleep DTO to the clean {@link SleepEntry} model. */
+function mapSleepEntry(dto: HealthSleepDto): SleepEntry {
+  return { ...mapSleepFields(dto), sleepStages: (dto.sleep_stages ?? []).map(mapSleepStage) }
 }
 
 /**
@@ -689,7 +749,7 @@ function toSleepStageWire(
   stage: SleepStage,
 ): NonNullable<Schemas['HealthSleepCreate']['sleep_stages']>[number] {
   return {
-    stage_type: stage.stageType as Schemas['SleepStageType'] | null | undefined,
+    stage_type: stage.stageType,
     start_time_gmt: stage.startTimeGmt,
     end_time_gmt: stage.endTimeGmt,
     duration_seconds: stage.durationSeconds,
@@ -720,9 +780,9 @@ function toSleepWireFields(input: SleepEntryInput): Schemas['HealthSleepCreate']
     min_heart_rate: input.minHeartRate,
     max_heart_rate: input.maxHeartRate,
     avg_skin_temp_deviation: input.avgSkinTempDeviation,
-    avg_spo2: input.avgSpo2,
-    lowest_spo2: input.lowestSpo2,
-    highest_spo2: input.highestSpo2,
+    avg_spo2_percent: input.avgSpo2,
+    lowest_spo2_percent: input.lowestSpo2,
+    highest_spo2_percent: input.highestSpo2,
     awake_count: input.awakeCount,
     avg_sleep_stress: input.avgSleepStress,
     sleep_stages: input.sleepStages.map(toSleepStageWire),
@@ -731,8 +791,34 @@ function toSleepWireFields(input: SleepEntryInput): Schemas['HealthSleepCreate']
 
 const sleepService = createHealthCrudService('sleep', mapSleepEntry, toSleepWireFields)
 
-/** Fetches one filtered page of the user's sleep history. */
-export const fetchSleepEntries = sleepService.fetch
+/**
+ * Fetches one filtered page of the user's sleep history. The rows carry no stage timeline.
+ *
+ * @param params - Page number, size, and the interval filter.
+ * @param signal - Optional abort signal for cancellation.
+ * @returns The page's sleep rows (mapped) plus the total count.
+ * @throws {HttpError} When the request fails.
+ */
+export function fetchSleepEntries(
+  params: HealthListParams,
+  signal?: AbortSignal,
+): Promise<HealthHistoryPage<SleepListEntry>> {
+  return fetchHealthHistoryPage('sleep', params, mapSleepListEntry, signal)
+}
+
+/**
+ * Fetches one sleep record with its stage timeline. The entry's version is the one an edit sends
+ * as `If-Match`.
+ *
+ * @param id - The sleep record id.
+ * @param signal - Optional abort signal for cancellation.
+ * @returns The full sleep entry.
+ * @throws {HttpError} When the request fails.
+ */
+export async function fetchSleepEntry(id: string, signal?: AbortSignal): Promise<SleepEntry> {
+  const dto = await apiFetch<HealthSleepDto>(`/health/sleep/${id}`, { signal })
+  return mapSleepEntry(dto)
+}
 /** Creates (or updates the existing same-date) sleep entry. */
 export const createSleepEntry = sleepService.create
 /** Updates an existing sleep entry (echoing id + user_id). */
@@ -740,4 +826,4 @@ export const updateSleepEntry = sleepService.update
 /** Deletes a sleep entry. */
 export const deleteSleepEntry = sleepService.remove
 /** Updates only the user's sleep-duration target, preserving the other targets. */
-export const updateSleepTarget = createHealthTargetUpdater('sleep')
+export const updateSleepTarget = createHealthTargetUpdater('sleep_seconds')

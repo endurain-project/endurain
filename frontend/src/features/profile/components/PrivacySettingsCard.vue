@@ -12,6 +12,7 @@ import { FormField } from '@/components/ui/form-field'
 import { Select } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { useForm } from '@/composables/useForm'
+import { isStaleWrite } from '@/services/ifMatch'
 import { useToasts } from '@/composables/useToasts'
 import {
   useUpdateExistingActivitiesVisibilityMutation,
@@ -37,7 +38,10 @@ const VISIBILITY_OPTIONS: { value: ActivityVisibility; labelKey: string }[] = [
 ]
 
 /** The per-field hide toggles, in display order. */
-type HideKey = Exclude<keyof PrivacySettings, 'defaultActivityVisibility'>
+type HideKey = Exclude<
+  keyof PrivacySettings,
+  'defaultActivityVisibility' | 'version' | 'discoverable'
+>
 const HIDE_FIELDS: { key: HideKey; labelKey: string }[] = [
   { key: 'hideStartTime', labelKey: 'settings.profile.privacy.hideStartTime' },
   { key: 'hideLocation', labelKey: 'settings.profile.privacy.hideLocation' },
@@ -62,8 +66,10 @@ async function submitPrivacy(values: PrivacySettings): Promise<void> {
   try {
     await updateMutation.mutateAsync(values)
     toasts.success(t('settings.profile.privacy.saveSuccess'))
-  } catch {
-    toasts.error(t('settings.profile.privacy.saveError'))
+  } catch (error) {
+    toasts.error(
+      isStaleWrite(error) ? t('app.staleError') : t('settings.profile.privacy.saveError'),
+    )
   }
 }
 
@@ -160,6 +166,13 @@ const { values, isSubmitting, handleSubmit } = useForm<PrivacySettings>({
           {{ t(field.labelKey) }}
         </Switch>
       </div>
+    </div>
+
+    <div class="flex flex-col gap-1">
+      <Switch v-model="values.discoverable" :disabled="isSubmitting">
+        {{ t('settings.profile.privacy.discoverable') }}
+      </Switch>
+      <p class="text-caption">{{ t('settings.profile.privacy.discoverableHint') }}</p>
     </div>
 
     <div class="flex justify-begin">

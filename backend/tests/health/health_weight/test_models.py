@@ -1,3 +1,4 @@
+import uuid
 from datetime import date as datetime_date
 
 import modules.health.health_weight.models as health_weight_models
@@ -23,12 +24,12 @@ class TestHealthWeightModel:
         assert hasattr(health_weight_models.HealthWeight, "id")
         assert hasattr(health_weight_models.HealthWeight, "user_id")
         assert hasattr(health_weight_models.HealthWeight, "date")
-        assert hasattr(health_weight_models.HealthWeight, "weight")
+        assert hasattr(health_weight_models.HealthWeight, "weight_kg")
         assert hasattr(health_weight_models.HealthWeight, "bmi")
-        assert hasattr(health_weight_models.HealthWeight, "body_fat")
-        assert hasattr(health_weight_models.HealthWeight, "body_water")
-        assert hasattr(health_weight_models.HealthWeight, "bone_mass")
-        assert hasattr(health_weight_models.HealthWeight, "muscle_mass")
+        assert hasattr(health_weight_models.HealthWeight, "body_fat_percent")
+        assert hasattr(health_weight_models.HealthWeight, "body_water_percent")
+        assert hasattr(health_weight_models.HealthWeight, "bone_mass_kg")
+        assert hasattr(health_weight_models.HealthWeight, "muscle_mass_kg")
         assert hasattr(health_weight_models.HealthWeight, "physique_rating")
         assert hasattr(health_weight_models.HealthWeight, "visceral_fat")
         assert hasattr(health_weight_models.HealthWeight, "metabolic_age")
@@ -43,7 +44,7 @@ class TestHealthWeightModel:
 
         # Assert
         assert id_column.primary_key is True
-        assert id_column.autoincrement is True
+        assert id_column.type.python_type is uuid.UUID
 
     def test_health_weight_model_foreign_key(self):
         """
@@ -62,14 +63,14 @@ class TestHealthWeightModel:
         """
         # Assert
         assert health_weight_models.HealthWeight.bmi.nullable is True
-        assert health_weight_models.HealthWeight.body_fat.nullable is True
-        assert health_weight_models.HealthWeight.body_water.nullable is True
-        assert health_weight_models.HealthWeight.bone_mass.nullable is True
-        assert health_weight_models.HealthWeight.muscle_mass.nullable is True
+        assert health_weight_models.HealthWeight.body_fat_percent.nullable is True
+        assert health_weight_models.HealthWeight.body_water_percent.nullable is True
+        assert health_weight_models.HealthWeight.bone_mass_kg.nullable is True
+        assert health_weight_models.HealthWeight.muscle_mass_kg.nullable is True
         assert health_weight_models.HealthWeight.physique_rating.nullable is True
         assert health_weight_models.HealthWeight.visceral_fat.nullable is True
         assert health_weight_models.HealthWeight.metabolic_age.nullable is True
-        assert health_weight_models.HealthWeight.source.nullable is True
+        assert health_weight_models.HealthWeight.source.nullable is False
 
     def test_health_weight_model_required_fields(self):
         """
@@ -78,15 +79,15 @@ class TestHealthWeightModel:
         # Assert
         assert health_weight_models.HealthWeight.user_id.nullable is False
         assert health_weight_models.HealthWeight.date.nullable is False
-        assert health_weight_models.HealthWeight.weight.nullable is False
+        assert health_weight_models.HealthWeight.weight_kg.nullable is False
 
     def test_health_weight_model_column_types(self):
         """
         Test HealthWeight model column types.
         """
         # Assert
-        assert health_weight_models.HealthWeight.id.type.python_type is int
-        assert health_weight_models.HealthWeight.user_id.type.python_type is int
+        assert health_weight_models.HealthWeight.id.type.python_type is uuid.UUID
+        assert health_weight_models.HealthWeight.user_id.type.python_type is uuid.UUID
         assert health_weight_models.HealthWeight.date.type.python_type is datetime_date
         assert health_weight_models.HealthWeight.physique_rating.type.python_type is int
         assert health_weight_models.HealthWeight.metabolic_age.type.python_type is int
@@ -97,19 +98,12 @@ class TestHealthWeightModel:
         Test HealthWeight model decimal fields precision.
         """
         # Assert
-        assert health_weight_models.HealthWeight.weight.type.precision == 10
-        assert health_weight_models.HealthWeight.weight.type.scale == 2
+        assert health_weight_models.HealthWeight.weight_kg.type.precision == 10
+        assert health_weight_models.HealthWeight.weight_kg.type.scale == 2
         assert health_weight_models.HealthWeight.bmi.type.precision == 10
         assert health_weight_models.HealthWeight.bmi.type.scale == 2
-        assert health_weight_models.HealthWeight.body_fat.type.precision == 10
-        assert health_weight_models.HealthWeight.body_fat.type.scale == 2
-
-    def test_health_weight_model_has_user_relationship(self):
-        """
-        Test HealthWeight model has user relationship.
-        """
-        # Assert
-        assert hasattr(health_weight_models.HealthWeight, "users")
+        assert health_weight_models.HealthWeight.body_fat_percent.type.precision == 10
+        assert health_weight_models.HealthWeight.body_fat_percent.type.scale == 2
 
     def test_health_weight_model_docstring(self):
         """

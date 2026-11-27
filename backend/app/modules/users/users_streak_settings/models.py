@@ -1,5 +1,7 @@
 """User weekly streak settings database models."""
 
+import uuid
+
 from sqlalchemy import JSON, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -7,11 +9,10 @@ from core.database import Base
 
 
 class UsersStreakSettings(Base):
-    """
-    Per-user configuration for the weekly activity streak.
+    """Per-user configuration for the weekly activity streak.
 
     Attributes:
-        id: Primary key.
+        id: Primary key, a random UUID.
         user_id: Foreign key to users table (unique).
         min_activities_per_week: Activities needed in a week
             for it to count toward the streak.
@@ -23,11 +24,8 @@ class UsersStreakSettings(Base):
 
     __tablename__ = "users_streak_settings"
 
-    id: Mapped[int] = mapped_column(
-        primary_key=True,
-        autoincrement=True,
-    )
-    user_id: Mapped[int] = mapped_column(
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         unique=True,

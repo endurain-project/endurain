@@ -1,28 +1,28 @@
 """SQLAlchemy ORM models for the identity providers module."""
 
+import uuid
 from datetime import datetime
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
-from sqlalchemy import JSON, Boolean, DateTime, String
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy import JSON, Boolean, DateTime, Index, Integer, String, text
+from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
 
 from core.database import Base
 
-if TYPE_CHECKING:
-    from modules.auth.identity_providers.links.models import IdentityLink
-    from modules.auth.oauth_state.models import OAuthState
+#: Unique index over the issuer without its trailing slashes, so two providers cannot share an issuer. Rows with no
+#: issuer are not indexed against each other.
+ISSUER_UNIQUE_INDEX = "uq_identity_providers_issuer_url_normalized"
 
 
 class IdentityProvider(Base):
-    """
-    Represents an external Identity Provider (IdP) configuration for authentication.
+    """Represents an external Identity Provider (IdP) configuration for authentication.
 
     Attributes:
-        id (int): Primary key.
+        id (uuid.UUID): Primary key, a random UUID.
         name (str): Display name of the IdP.
         slug (str): URL-safe unique identifier for the IdP.
-        provider_type (str): Type of provider (e.g., 'oidc', 'oauth2', 'saml').
+        provider_type (str): Type of provider ('oidc' or 'oauth2').
         enabled (bool): Whether this provider is enabled for authentication.
         client_id (str | None): OAuth2/OIDC client ID (encrypted).
         client_secret (str | None): OAuth2/OIDC client secret (encrypted).
@@ -30,25 +30,26 @@ class IdentityProvider(Base):
         authorization_endpoint (str | None): OAuth2/OIDC authorization endpoint.
         token_endpoint (str | None): OAuth2/OIDC token endpoint.
         userinfo_endpoint (str | None): OIDC userinfo endpoint.
-        jwks_uri (str | None): OIDC JWKS URI for token verification.
         scopes (str | None): OAuth2/OIDC scopes to request
             (default: "openid profile email").
         icon (str | None): Icon name (FontAwesome) or custom URL for the provider.
+        icon_uploaded (bool): An uploaded icon is stored and takes precedence over ``icon``.
         auto_create_users (bool): Automatically create users on first login.
-        sync_user_info (bool): Sync user info on each login.
+        link_by_email (bool): Link a sign-in with no link to the local account that has the same verified email.
+        sync_user_info (bool): Sync the mapped profile fields, except the email, on each login.
+        sync_email (bool): Sync the verified email on each login.
         user_mapping (dict[str, Any] | None): JSON mapping of IdP claims to user
             fields.
         created_at (datetime): Timestamp when the provider was created.
         updated_at (datetime): Timestamp when the provider was last updated.
-        user_identity_providers (list[IdentityLink]): Relationship to
-            user identity providers (many-to-many through junction table).
-        oauth_states (list[OAuthState]): Relationship to OAuth states.
+        version (int): Optimistic-concurrency counter exposed as the ETag.
     """
 
     __tablename__ = "identity_providers"
 
-    id: Mapped[int] = mapped_column(
+    id: Mapped[uuid.UUID] = mapped_column(
         primary_key=True,
+        default=uuid.uuid4,
         index=True,
     )
     name: Mapped[str] = mapped_column(
@@ -67,7 +68,7 @@ class IdentityProvider(Base):
         String(50),
         nullable=False,
         default="oidc",
-        comment="Type: oidc, oauth2, saml",
+        comment="Type: oidc, oauth2",
     )
     enabled: Mapped[bool] = mapped_column(
         Boolean,
@@ -106,11 +107,6 @@ class IdentityProvider(Base):
         nullable=True,
         comment="OIDC userinfo endpoint",
     )
-    jwks_uri: Mapped[str | None] = mapped_column(
-        String(500),
-        nullable=True,
-        comment="OIDC JWKS URI for token verification",
-    )
     scopes: Mapped[str | None] = mapped_column(
         String(500),
         nullable=True,
@@ -118,9 +114,16 @@ class IdentityProvider(Base):
         comment="OAuth2/OIDC scopes to request",
     )
     icon: Mapped[str | None] = mapped_column(
-        String(100),
+        String(500),
         nullable=True,
         comment="Icon name (FontAwesome) or custom URL",
+    )
+    icon_uploaded: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+        server_default=text("false"),
+        comment="Whether an uploaded icon is stored and shown instead of icon",
     )
     auto_create_users: Mapped[bool] = mapped_column(
         Boolean,
@@ -128,11 +131,25 @@ class IdentityProvider(Base):
         default=True,
         comment="Automatically create users on first login",
     )
+    link_by_email: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+        server_default=text("false"),
+        comment="Link a sign-in with no link to the local account that has the same verified email",
+    )
     sync_user_info: Mapped[bool] = mapped_column(
         Boolean,
         nullable=False,
         default=True,
-        comment="Sync user info on each login",
+        comment="Sync the mapped profile fields, except the email, on each login",
+    )
+    sync_email: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+        server_default=text("false"),
+        comment="Sync the verified email on each login",
     )
     user_mapping: Mapped[dict[str, Any] | None] = mapped_column(
         JSON,
@@ -152,15 +169,15 @@ class IdentityProvider(Base):
         onupdate=func.now(),
         comment="When this provider was last updated",
     )
-
-    # Relationship to user identity providers (many-to-many through junction table)
-    user_identity_providers: Mapped[list["IdentityLink"]] = relationship(
-        back_populates="identity_providers",
-        cascade="all, delete-orphan",
+    version: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=1,
+        server_default="1",
+        comment="Optimistic-concurrency counter, surfaced to clients as the ETag",
     )
 
-    # Relationship to OAuth states
-    oauth_states: Mapped[list["OAuthState"]] = relationship(
-        back_populates="identity_provider",
-        cascade="all, delete-orphan",
-    )
+    __mapper_args__ = {"version_id_col": version}  # noqa: RUF012
+
+
+Index(ISSUER_UNIQUE_INDEX, func.rtrim(IdentityProvider.issuer_url, "/"), unique=True)

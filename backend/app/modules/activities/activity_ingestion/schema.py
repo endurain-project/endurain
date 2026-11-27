@@ -1,13 +1,15 @@
 """Pydantic schemas for the activity ingestion job surface."""
 
+import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import Field
 
+import core.job_status as core_job_status
 import modules.activities.activity_ingestion.constants as activity_ingestion_constants
 
 
-class ActivityIngestionJobRead(BaseModel):
+class ActivityIngestionJobRead(core_job_status.JobStatus):
     """An accepted ingestion request and the current state of its import.
 
     One shape for all kinds, so a client has a single thing to poll: an upload, a
@@ -24,30 +26,29 @@ class ActivityIngestionJobRead(BaseModel):
         files_total: For a bulk import, importable files in its archive.
         files_done: For a bulk import, files imported so far.
         files_failed: For a bulk import, files that could not be imported. A
-            finished import with failures still ends ``completed``.
+            finished import with failures still ends ``succeeded``.
         provider: The one provider a refresh syncs; ``None`` when it syncs every
             linked provider.
-        status: Current lifecycle state.
-        error_code: Sanitized failure reason when ``status`` is failed.
+        status: Current lifecycle state. A refresh waiting for a provider's rate limit to clear is ``queued``
+            with ``retry_after`` set.
+        retry_after: When a deferred refresh runs again.
+        error_code: Sanitized failure reason when ``status`` is ``failed``.
         activity_ids: Ids created by the import once it completes.
         created_at: When the request was accepted.
         updated_at: When the job last changed state.
-        completed_at: When the job reached a terminal state.
+        finished_at: When the job reached a terminal state.
     """
 
-    model_config = ConfigDict(from_attributes=True, extra="forbid")
-
-    id: str
-    kind: activity_ingestion_constants.IngestionJobKind
+    id: uuid.UUID
+    kind: activity_ingestion_constants.JobKindName
     filename: str | None = None
     import_source: str | None = None
     files_total: int | None = None
     files_done: int | None = None
     files_failed: int | None = None
     provider: str | None = None
-    status: activity_ingestion_constants.IngestionJobStatus
     error_code: activity_ingestion_constants.IngestionJobErrorCode | None = None
-    activity_ids: list[int] = []
+    retry_after: datetime | None = None
+    activity_ids: list[uuid.UUID] = Field(default=[])
     created_at: datetime
     updated_at: datetime
-    completed_at: datetime | None = None

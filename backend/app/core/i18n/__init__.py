@@ -59,10 +59,9 @@ _LOCALES_DIR = pathlib.Path(__file__).parent / "locales"
 #: The locales this build can render an email in.
 #:
 #: Owned here because "supported" means "a catalog ships for it", which is a fact
-#: about this package. It used to be derived from the users module's ``Language``
-#: enum — core reaching up into a domain module, and lazily at that, to avoid the
-#: import cycle that reach created. The enum is still the API-facing list a client
-#: picks from; ``tests/core/test_i18n_locales.py`` asserts the two agree and that
+#: about this package. It is not derived from the users module's ``Language``
+#: enum, which would make core reach up into a domain module. That enum is the
+#: API-facing list a client picks from; ``tests/core/test_i18n_locales.py`` asserts the two agree and that
 #: every one of them has a catalog on disk, so a language added to one and not the
 #: other fails CI instead of silently falling back to English.
 SUPPORTED_LOCALES: Final[frozenset[str]] = frozenset(HTML_LANG_BY_LOCALE)
@@ -144,7 +143,10 @@ def _load_catalog(locale: str) -> dict[str, str]:
     catalog_path = _LOCALES_DIR / locale / "email.json"
     if not catalog_path.exists():
         if locale != DEFAULT_LOCALE:
-            logger.warning(f"i18n: missing email catalog for locale '{locale}', falling back to '{DEFAULT_LOCALE}'")
+            logger.warning(
+                "i18n: missing email catalog for locale, falling back to the default",
+                extra=core_logger.context(locale=locale, default_locale=DEFAULT_LOCALE),
+            )
         catalog_path = _LOCALES_DIR / DEFAULT_LOCALE / "email.json"
     with catalog_path.open(encoding="utf-8") as fh:
         return json.load(fh)

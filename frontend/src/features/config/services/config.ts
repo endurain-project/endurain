@@ -1,7 +1,6 @@
 import type { AppConfig, PublicServerSettings } from '@/features/config/types'
 
 import { DEFAULT_MAP_CONFIG } from '../defaults'
-import { fetchPublicServerSettings } from './serverSettings'
 
 /**
  * Self-hosted defaults applied when the public server settings are
@@ -12,7 +11,6 @@ export const DEFAULT_APP_CONFIG: AppConfig = {
     signUp: false,
     strava: true,
     garmin: true,
-    federation: false,
   },
   branding: {
     appName: 'Endurain',
@@ -24,7 +22,7 @@ export const DEFAULT_APP_CONFIG: AppConfig = {
 /**
  * Derives the app-wide runtime config from the public server settings — the
  * single source of truth for per-instance flags. Fields the public settings
- * don't yet carry (branding, integration availability, federation, enabled
+ * don't yet carry (branding, integration availability, enabled
  * locales) keep their self-hosted defaults until the backend exposes them, so
  * the {@link AppConfig} abstraction stays stable when it does.
  *
@@ -44,15 +42,4 @@ export function mapServerSettingsToAppConfig(settings: PublicServerSettings): Ap
     },
     enabledLocales: DEFAULT_APP_CONFIG.enabledLocales,
   }
-}
-
-/**
- * Fetches the instance's runtime configuration, derived from the public server
- * settings so per-instance flags have one source of truth.
- *
- * @returns The resolved {@link AppConfig}.
- * @throws {HttpError} When the public settings request fails.
- */
-export async function fetchAppConfig(): Promise<AppConfig> {
-  return mapServerSettingsToAppConfig(await fetchPublicServerSettings())
 }

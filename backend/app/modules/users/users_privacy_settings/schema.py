@@ -1,6 +1,6 @@
 """User privacy settings Pydantic schemas and validators."""
 
-from enum import Enum
+import uuid
 
 from pydantic import (
     BaseModel,
@@ -10,25 +10,12 @@ from pydantic import (
     StrictInt,
 )
 
-
-class ActivityVisibility(Enum):
-    """
-    Activity visibility levels.
-
-    Attributes:
-        PUBLIC: Visible to everyone.
-        FOLLOWERS: Visible only to followers.
-        PRIVATE: Visible only to the user.
-    """
-
-    PUBLIC = "public"
-    FOLLOWERS = "followers"
-    PRIVATE = "private"
+import core.partial_update as core_partial_update
+import modules.activities.activity.constants as activity_constants
 
 
-class UsersPrivacySettingsBase(BaseModel):
-    """
-    Base schema for user privacy settings.
+class UserPrivacySettingsBase(BaseModel):
+    """Base schema for user privacy settings.
 
     Attributes:
         default_activity_visibility: Default activity visibility
@@ -52,10 +39,11 @@ class UsersPrivacySettingsBase(BaseModel):
             steps from activities.
         hide_activity_gear: Hide gear information from
             activities.
+        discoverable: Appear in other users' username search.
     """
 
-    default_activity_visibility: ActivityVisibility | None = Field(
-        default=ActivityVisibility.PUBLIC,
+    default_activity_visibility: activity_constants.ActivityVisibility | None = Field(
+        default=activity_constants.ActivityVisibility.PRIVATE,
         description="Default activity visibility (public, followers, private)",
     )
     hide_activity_start_time: StrictBool | None = Field(default=False, description="Hide activity start time")
@@ -72,6 +60,7 @@ class UsersPrivacySettingsBase(BaseModel):
         default=False, description="Hide activity workout sets and steps"
     )
     hide_activity_gear: StrictBool | None = Field(default=False, description="Hide activity gear")
+    discoverable: StrictBool | None = Field(default=True, description="Appear in other users' username search")
 
     model_config = ConfigDict(
         from_attributes=True,
@@ -81,31 +70,46 @@ class UsersPrivacySettingsBase(BaseModel):
     )
 
 
-class UsersPrivacySettingsCreate(UsersPrivacySettingsBase):
+class UserPrivacySettingsCreate(UserPrivacySettingsBase):
+    """Pydantic model for creating user privacy settings.
+
+    Inherits all attributes from UserPrivacySettingsBase.
     """
-    Pydantic model for creating user privacy settings.
-
-    Inherits all attributes from UsersPrivacySettingsBase.
-    """
 
 
-class UsersPrivacySettingsUpdate(UsersPrivacySettingsBase):
-    """
-    Schema for updating user privacy settings.
+class UserPrivacySettingsUpdate(core_partial_update.NotClearable, UserPrivacySettingsBase):
+    """Schema for updating user privacy settings.
 
-    Inherits all validation from UsersPrivacySettingsBase.
+    Inherits all validation from UserPrivacySettingsBase.
     All fields are optional for partial updates.
     """
 
+    not_clearable = (
+        "default_activity_visibility",
+        "hide_activity_start_time",
+        "hide_activity_location",
+        "hide_activity_map",
+        "hide_activity_hr",
+        "hide_activity_power",
+        "hide_activity_cadence",
+        "hide_activity_elevation",
+        "hide_activity_speed",
+        "hide_activity_pace",
+        "hide_activity_laps",
+        "hide_activity_workout_sets_steps",
+        "hide_activity_gear",
+        "discoverable",
+    )
 
-class UsersPrivacySettingsRead(UsersPrivacySettingsBase):
-    """
-    Schema for reading user privacy settings.
+
+class UserPrivacySettingsRead(UserPrivacySettingsBase):
+    """Schema for reading user privacy settings.
 
     Attributes:
         id: Unique identifier for the privacy settings record.
         user_id: Foreign key reference to the user.
     """
 
-    id: StrictInt = Field(..., ge=1, description="Unique identifier for privacy settings")
-    user_id: StrictInt = Field(..., ge=1, description="Foreign key reference to the user")
+    id: uuid.UUID = Field(..., description="Unique identifier for privacy settings")
+    user_id: uuid.UUID = Field(..., description="Foreign key reference to the user")
+    version: StrictInt = Field(default=1, ge=1, description="Optimistic-concurrency counter, also sent as the ETag")

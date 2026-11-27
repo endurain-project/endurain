@@ -1,18 +1,23 @@
 """Weekly streak calculation over a user's activities."""
 
+import uuid
 from datetime import date
 
 from sqlalchemy.orm import Session
 
 import core.calendar as core_calendar
+import core.exceptions as core_exceptions
+import core.timezone as core_timezone
 import modules.activities.activity.integration_service as activity_integration
+import modules.users.users.integration_service as users_integration
+import modules.users.users_streak_settings.integration_service as streak_settings_integration
 import modules.users.users_streak_settings.schema as streak_settings_schema
 import modules.users.users_streaks.schema as streak_schema
 import modules.users.users_streaks.utils as streak_utils
 
 
 def get_weekly_streak(
-    user_id: int,
+    user_id: uuid.UUID,
     first_day_of_week: core_calendar.WeekdayValue,
     settings: streak_settings_schema.UsersStreakSettingsBase,
     today: date,
@@ -20,8 +25,7 @@ def get_weekly_streak(
     *,
     user_is_owner: bool,
 ) -> streak_schema.WeeklyStreakResponse:
-    """
-    Calculate the weekly streak for a user.
+    """Calculate the weekly streak for a user.
 
     Hidden activities are skipped so a duplicate import from a
     second source cannot count twice. Activities are bucketed by
@@ -75,3 +79,67 @@ def get_weekly_streak(
             for week, count, met in result.recent_weeks
         ],
     )
+
+
+def _streak_for_user(user_id: uuid.UUID, db: Session, *, user_is_owner: bool) -> streak_schema.WeeklyStreakResponse:
+    """Load a user and their settings and calculate their streak for today in their timezone.
+
+    Args:
+        user_id: Target user ID.
+        db: Database session.
+        user_is_owner: Whether the requester is the target user.
+
+    Returns:
+        The weekly streak response.
+
+    Raises:
+        NotFoundError: If the user does not exist.
+    """
+    user = users_integration.get_user(user_id, db)
+    if user is None:
+        raise core_exceptions.NotFoundError("User not found")
+    settings = streak_settings_integration.get_streak_settings(user_id, db)
+    today = core_timezone.today_in(users_integration.timezone_or_default(user.timezone))
+    return get_weekly_streak(user_id, user.first_day_of_week, settings, today, db, user_is_owner=user_is_owner)
+
+
+def read_own_weekly_streak(user_id: uuid.UUID, db: Session) -> streak_schema.WeeklyStreakResponse:
+    """Read the requester's own weekly streak.
+
+    Args:
+        user_id: The requester's user ID.
+        db: Database session.
+
+    Returns:
+        The weekly streak response.
+
+    Raises:
+        NotFoundError: If the user does not exist.
+    """
+    return _streak_for_user(user_id, db, user_is_owner=True)
+
+
+def read_profile_weekly_streak(
+    user_id: uuid.UUID,
+    viewer_id: uuid.UUID,
+    db: Session,
+) -> streak_schema.WeeklyStreakResponse | None:
+    """Read a user's weekly streak for their profile page.
+
+    Another viewer only gets the streak when the owner shows it on their profile.
+
+    Args:
+        user_id: The profile owner's user ID.
+        viewer_id: The requester's user ID.
+        db: Database session.
+
+    Returns:
+        The weekly streak response, or None when the owner does not share it.
+
+    Raises:
+        NotFoundError: If the user does not exist.
+    """
+    user_is_owner = user_id == viewer_id
+    if not user_is_owner and not streak_settings_integration.get_streak_settings(user_id, db).show_on_profile:
+        return None
+    return _streak_for_user(user_id, db, user_is_owner=user_is_owner)

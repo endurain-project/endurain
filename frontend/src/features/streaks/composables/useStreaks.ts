@@ -6,6 +6,7 @@ import type { StreakSettings } from '@/features/streaks/types'
 
 import { queryKeys } from '@/services/queryKeys'
 import { useAuthStore } from '@/features/auth/stores/auth'
+import { resolveUserId } from '@/utils/userId'
 import {
   fetchMyWeeklyStreak,
   fetchStreakSettings,
@@ -37,18 +38,15 @@ export function useMyWeeklyStreakQuery(enabled: MaybeRefOrGetter<boolean> = true
  * @param userId - Reactive id of the profile owner.
  * @returns The TanStack Query result for that user's streak.
  */
-export function useUserWeeklyStreakQuery(userId: MaybeRefOrGetter<number | null>) {
+export function useUserWeeklyStreakQuery(userId: MaybeRefOrGetter<string | null>) {
   const { isAuthenticated } = storeToRefs(useAuthStore())
-  /** The owner id as a positive number, or `0` while unavailable (disables the query). */
-  const id = computed(() => {
-    const value = toValue(userId)
-    return value !== null && Number.isFinite(value) && value > 0 ? value : 0
-  })
+  /** The owner id, or `''` while unavailable (disables the query). */
+  const id = computed(() => resolveUserId(userId))
 
   return useQuery({
     queryKey: computed(() => queryKeys.activities.streak(id.value)),
     queryFn: ({ signal }) => fetchUserWeeklyStreak(id.value, signal),
-    enabled: computed(() => isAuthenticated.value && id.value > 0),
+    enabled: computed(() => isAuthenticated.value && id.value !== ''),
   })
 }
 

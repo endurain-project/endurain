@@ -82,5 +82,13 @@
       "ownTitle": "Još nemate pratilaca.",
       "otherTitle": "Još nema pratilaca."
     }
+  },
+  "block": {
+    "block": "Blokiraj",
+    "unblock": "Odblokiraj",
+    "confirmTitle": "Blokirati {name}?",
+    "confirmBody": "{name} neće moći da zatraži da vas prati, a svako praćenje između vas se uklanja. Korisnik neće biti obavešten.",
+    "blockError": "Nije moguće blokirati ovog korisnika. Pokušajte ponovo.",
+    "unblockError": "Nije moguće odblokirati ovog korisnika. Pokušajte ponovo."
   }
 }

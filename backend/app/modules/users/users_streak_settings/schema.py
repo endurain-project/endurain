@@ -1,5 +1,7 @@
 """User weekly streak settings Pydantic schemas."""
 
+import uuid
+
 from pydantic import (
     BaseModel,
     ConfigDict,
@@ -16,8 +18,7 @@ MIN_ACTIVITIES_PER_WEEK_LIMIT = 21
 
 
 class UsersStreakSettingsBase(BaseModel):
-    """
-    Shared fields for weekly streak settings.
+    """Shared fields for weekly streak settings.
 
     Attributes:
         min_activities_per_week: Activities needed in a week
@@ -52,8 +53,7 @@ class UsersStreakSettingsBase(BaseModel):
     @field_validator("activity_types")
     @classmethod
     def validate_activity_types(cls, value: list[int] | None) -> list[int] | None:
-        """
-        Validate and normalise the activity type list.
+        """Validate and normalise the activity type list.
 
         An empty list is treated as "all types" (None) so the
         streak can never be configured into an impossible state.
@@ -81,11 +81,10 @@ class UsersStreakSettingsUpdate(UsersStreakSettingsBase):
 
 
 class UsersStreakSettingsRead(UsersStreakSettingsBase):
-    """
-    Streak settings as returned by the API.
+    """Streak settings as returned by the API.
 
     Attributes:
         user_id: Owner of the settings.
     """
 
-    user_id: StrictInt = Field(..., description="User ID that owns the settings")
+    user_id: uuid.UUID = Field(..., description="User ID that owns the settings")

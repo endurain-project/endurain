@@ -24,12 +24,10 @@
     "waterSports": "Vodni športi",
     "skating": "Drsanje"
   },
-  "results": {
-    "inactive": "Neaktivno"
-  },
   "idle": {
     "title": "Išči v Endurainu",
-    "description": "Izberi, kaj iščeš, nato začni tipkati, da vidiš zadetke."
+    "description": "Izberi, kaj iščeš, nato začni tipkati, da vidiš zadetke.",
+    "usersDescription": "Za iskanje uporabnikov vnesite vsaj {min} znake."
   },
   "empty": {
     "title": "Ni zadetkov",

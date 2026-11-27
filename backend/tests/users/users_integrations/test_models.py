@@ -53,7 +53,6 @@ class TestUsersIntegrationsModel:
             "user_id",
             "strava_client_id",
             "strava_client_secret",
-            "strava_state",
             "strava_token",
             "strava_refresh_token",
             "strava_token_expires_at",
@@ -76,7 +75,6 @@ class TestUsersIntegrationsModel:
         strava_columns = [
             "strava_client_id",
             "strava_client_secret",
-            "strava_state",
             "strava_token",
             "strava_refresh_token",
             "strava_token_expires_at",
@@ -120,14 +118,15 @@ class TestUsersIntegrationsModel:
             column = UsersIntegrations.__table__.columns[col_name]
             assert not column.nullable, f"{col_name} should NOT be nullable"
 
-    def test_users_integrations_has_user_relationship(self):
-        """Test that model has user relationship.
+    def test_users_integrations_user_is_deleted_with_the_user_by_the_database(self):
+        """Test that the user foreign key cascades on delete.
 
         Asserts:
-            - Relationship to Users model exists
+            - ON DELETE CASCADE, so no ORM relationship is needed
         """
         # Assert
-        assert hasattr(UsersIntegrations, "users")
+        foreign_key = next(iter(UsersIntegrations.__table__.c.user_id.foreign_keys))
+        assert foreign_key.ondelete == "CASCADE"
 
     def test_users_integrations_user_id_foreign_key(self):
         """Test that user_id has foreign key constraint.

@@ -85,13 +85,16 @@ describe('streak service', () => {
 
   it('returns null for a profile that keeps the streak private', async () => {
     vi.mocked(apiFetch).mockResolvedValueOnce(null)
-    expect(await fetchUserWeeklyStreak(7)).toBeNull()
-    expect(apiFetch).toHaveBeenCalledWith('/activities_streaks/user/7', { signal: undefined })
+    expect(await fetchUserWeeklyStreak('3f2b8c1e-5a4d-4c6b-9e7f-1a2b3c4d5e6f')).toBeNull()
+    expect(apiFetch).toHaveBeenCalledWith(
+      '/activities_streaks/user/3f2b8c1e-5a4d-4c6b-9e7f-1a2b3c4d5e6f',
+      { signal: undefined },
+    )
   })
 
   it('maps settings and treats an empty type list as all types', async () => {
     vi.mocked(apiFetch).mockResolvedValueOnce({
-      user_id: 1,
+      user_id: '3f2b8c1e-5a4d-4c6b-9e7f-1a2b3c4d5e6f',
       min_activities_per_week: 3,
       activity_types: [],
       show_on_profile: true,

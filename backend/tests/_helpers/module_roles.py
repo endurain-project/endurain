@@ -18,24 +18,20 @@ rules (wrong stem) nor the ``query`` ones (wrong role).
 
 import pathlib
 
-#: Top-level modules converted to the structure guide. The single source of
-#: truth for every conformance test (``test_module_boundaries.py``,
-#: ``test_logging_rule.py``): converting a module is moving its name from
-#: ``UNCONVERTED_MODULES`` to here, in this one file.
-CONVERTED_MODULES: tuple[str, ...] = ("activities", "followers")
-
-#: Top-level modules still on the legacy layout. Listed explicitly, rather than
-#: left implicit as "everything not converted", so that
-#: ``TestModuleInventory`` can fail on a module that is in neither list — a new
-#: module cannot start life silently outside the rules.
-UNCONVERTED_MODULES: tuple[str, ...] = (
+#: Every top-level module. The single source of truth for every conformance
+#: test (``test_module_boundaries.py``, ``test_logging_rule.py``).
+MODULES: tuple[str, ...] = (
+    "activities",
     "auth",
+    "followers",
     "garmin",
     "gears",
     "health",
+    "jobs",
     "notifications",
     "server_settings",
     "strava",
+    "sync",
     "users",
     "websocket",
 )
@@ -49,6 +45,7 @@ ROLES: tuple[str, ...] = (
     "integration_service",
     "migration_service",
     "event_publishers",
+    "audit_actions",
     "scheduled_jobs",
     "model_registry",
     "public_router",
@@ -56,6 +53,7 @@ ROLES: tuple[str, ...] = (
     "computation",
     "serializers",
     "subscribers",
+    "store",
     "constants",
     "contracts",
     "service",

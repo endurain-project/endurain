@@ -1,5 +1,6 @@
 """Domain event channel names owned by the activity-ingestion sub-domain."""
 
+import uuid
 from typing import ClassVar
 
 from jasil.event_versioning import VersionedPayload
@@ -27,7 +28,7 @@ class BulkImportContinuePayload(VersionedPayload):
 
     SCHEMA_VERSION: ClassVar[int] = 1
 
-    job_id: str
+    job_id: uuid.UUID
 
 
 # Published once per accepted upload when durable jobs are enabled; a durable
@@ -54,7 +55,7 @@ class UploadedFilePayload(VersionedPayload):
 
     SCHEMA_VERSION: ClassVar[int] = 1
 
-    job_id: str
+    job_id: uuid.UUID
 
 
 # Published once per accepted provider refresh when durable jobs are enabled; a
@@ -79,4 +80,4 @@ class RefreshRequestedPayload(VersionedPayload):
 
     SCHEMA_VERSION: ClassVar[int] = 1
 
-    job_id: str
+    job_id: uuid.UUID

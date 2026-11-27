@@ -5,6 +5,8 @@
   "unread": "未讀",
   "markRead": "標記為已讀",
   "markAllRead": "全部標記為已讀",
+  "dismiss": "忽略通知",
+  "dismissError": "無法忽略該通知，請重試。",
   "seeAll": "查看全部",
   "loadMore": "載入更多",
   "loading": "載入中…",
@@ -39,9 +41,122 @@
       "title": "Garmin Connect 需要重新連線",
       "body": "您的 Garmin Connect 工作階段已過期，請重新連線以繼續同步。"
     },
+    "stravaTokenExpired": {
+      "title": "Strava 需要處理",
+      "body": "Strava 拒絕了您的連線，請重新連線以繼續同步。",
+      "bodyRevoked": "Strava 存取已結束。除非你重新連線，否則透過 Strava 同步的活動和裝備將於 {date} 刪除。"
+    },
+    "stravaDataDeleted": {
+      "title": "Strava 資料已刪除",
+      "body": "由於 Strava 存取已結束且你未重新連線，透過 Strava 同步的活動和裝備已被刪除。"
+    },
+    "idpLinked": {
+      "title": "已連結新的登入提供者",
+      "body": "{name} 已連結到您的帳號。如果這不是您本人操作，請檢查您的安全性設定。",
+      "bodyGeneric": "有登入提供者已連結到您的帳號。如果這不是您本人操作，請檢查您的安全性設定。"
+    },
+    "accountSecurityChanged": {
+      "passwordChanged": {
+        "title": "密碼已變更",
+        "body": "您的密碼已變更。如果這不是您本人操作，請重設密碼並檢查您的安全性設定。"
+      },
+      "passwordReset": {
+        "title": "密碼已重設",
+        "body": "您的密碼已透過重設連結重設。如果這不是您本人操作，請再次重設密碼並檢查您的安全性設定。 Any API keys were revoked and any pending email change was cancelled."
+      },
+      "passwordSetByAdmin": {
+        "title": "管理員已設定密碼",
+        "body": "管理員為您的帳號設定了新密碼。如果您並不知情，請聯絡管理員。 Any API keys were revoked and any pending email change was cancelled."
+      },
+      "mfaEnabled": {
+        "title": "雙重驗證已開啟",
+        "body": "您的帳號已開啟雙重驗證。如果這不是您本人操作，請重設密碼並檢查您的安全性設定。"
+      },
+      "mfaDisabled": {
+        "title": "雙重驗證已關閉",
+        "body": "您的帳號已關閉雙重驗證。如果這不是您本人操作，請重設密碼並檢查您的安全性設定。"
+      },
+      "mfaResetByAdmin": {
+        "title": "管理員已重設雙重驗證",
+        "body": "管理員已重設您帳號的雙重驗證，並將您從所有裝置登出。請在安全性設定中重新設定。如果這不在您的預期之內，請聯絡管理員。"
+      },
+      "passwordChangeRequiredByAdmin": {
+        "title": "管理員要求變更密碼",
+        "body": "管理員要求您變更密碼，並將您從所有裝置登出。下次使用密碼登入時，您需要選擇新密碼。如果這不在您的預期之內，請聯絡管理員。"
+      },
+      "backupCodesGenerated": {
+        "title": "已產生新的備用碼",
+        "body": "您的帳號已產生新的備用碼。如果這不是您本人操作，請重設密碼並檢查您的安全性設定。"
+      },
+      "apiKeyCreated": {
+        "title": "已建立新的 API 金鑰",
+        "body": "您的帳號已建立新的 API 金鑰。如果這不是您本人操作，請重設密碼並檢查您的安全性設定。"
+      },
+      "apiKeysRevokedByAdmin": {
+        "title": "管理員已撤銷 API 金鑰",
+        "body": "管理員撤銷了你的一個或多個 API 金鑰，因此使用這些金鑰的任何程式都無法再存取你的帳戶。如果這出乎你的意料，請聯絡你的管理員。"
+      },
+      "identityProviderUnlinked": {
+        "title": "登入提供者已取消連結",
+        "body": "{name} 已與您的帳號取消連結。如果這不是您本人操作，請重設密碼並檢查您的安全性設定。",
+        "bodyGeneric": "有登入提供者已與您的帳號取消連結。如果這不是您本人操作，請重設密碼並檢查您的安全性設定。"
+      },
+      "accountLocked": {
+        "title": "帳號已鎖定",
+        "body": "您的帳號在連續 100 次登入失敗後被鎖定。自您上次安全性變更以來登入過的瀏覽器和應用程式仍可登入。如果這些嘗試不是您本人所為，請變更或重設密碼，這也會解除鎖定。"
+      },
+      "mfaLocked": {
+        "title": "兩步驟驗證已鎖定",
+        "body": "您的帳號在連續輸入 100 次錯誤的兩步驟驗證碼後被鎖定，這表示有人知道您的密碼。自您上次安全性變更以來登入過的瀏覽器和應用程式仍可登入。如果這些嘗試不是您本人所為，請變更密碼。"
+      },
+      "stepUpSessionEnded": {
+        "title": "工作階段已登出",
+        "body": "在確認敏感操作時，連續輸入了 15 次錯誤的密碼或雙重驗證碼，您帳號的一個工作階段已被登出。您的其他工作階段不受影響。如果這些嘗試不是您本人所為，請變更密碼。"
+      },
+      "stepUpLocked": {
+        "title": "敏感操作確認已鎖定",
+        "body": "在您的各工作階段中累計出現 100 次錯誤確認後，變更密碼或建立 API 金鑰等敏感操作的確認已被鎖定 30 天。如果這些嘗試不是您本人所為，請重設密碼，這也會解除鎖定。"
+      },
+      "backupCodeUsed": {
+        "title": "已使用備用碼",
+        "body": "您的帳號在雙重驗證中使用了一組備用碼。如果這不是您本人所為，請變更密碼並產生新的備用碼。",
+        "bodyRemaining": "您的帳號在雙重驗證中使用了一組備用碼。剩餘未使用的備用碼：{count} 組。如果這不是您本人所為，請變更密碼並產生新的備用碼。",
+        "bodyNone": "您的帳號在雙重驗證中使用了一組備用碼。您已沒有未使用的備用碼，請在安全性設定中產生新的備用碼。如果這不是您本人所為，請變更密碼。"
+      },
+      "refreshTokenReuseDetected": {
+        "title": "工作階段已結束",
+        "body": "您帳號的一個登入工作階段已結束，因為一個已使用過的權杖被再次提交，這可能表示該工作階段被複製。您的其他工作階段不受影響。如果這不在您的預期之內，請變更密碼。"
+      },
+      "roleChangedByAdmin": {
+        "title": "管理員變更了存取權限",
+        "body": "管理員變更了您帳號的存取權限，並使您在所有裝置上登出。如果這不在您的預期之內，請聯絡您的管理員。",
+        "bodyAdmin": "管理員將您帳號的存取權限變更為管理員，並使您在所有裝置上登出。如果這不在您的預期之內，請聯絡您的管理員。",
+        "bodyRegular": "管理員將您帳號的存取權限變更為一般使用者，並使您在所有裝置上登出。如果這不在您的預期之內，請聯絡您的管理員。"
+      },
+      "accountDeactivatedByAdmin": {
+        "title": "管理員已停用帳號",
+        "body": "管理員停用了您的帳號，並使您在所有裝置上登出。在管理員重新啟用之前，您無法登入。"
+      },
+      "unknown": {
+        "title": "帳號安全性設定已變更",
+        "body": "您帳號的某項安全性設定已變更。如果這不是您本人操作，請重設密碼並檢查您的安全性設定。"
+      },
+      "usernameChanged": {
+        "title": "使用者名稱已變更",
+        "body": "你的使用者名稱已被變更。如果這不是你本人操作，請重設密碼並檢查安全性設定。"
+      }
+    },
+    "newDeviceSignIn": {
+      "title": "新的登入",
+      "body": "偵測到來自 {os} 上 {browser} 的新登入（{ip}）。如果這不是您本人操作，請變更密碼並登出其他工作階段。"
+    },
     "adminSignUpApproval": {
       "title": "新註冊待核准",
       "body": "{name} ({'@'}{username}) 正在等待帳號核准。"
+    },
+    "adminUserPromoted": {
+      "title": "使用者已升級為管理員",
+      "body": "{name}（{'@'}{username}）已獲得管理員權限。"
     },
     "unknown": {
       "title": "通知",

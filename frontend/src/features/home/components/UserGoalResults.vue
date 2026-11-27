@@ -3,12 +3,16 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Target, type LucideIcon } from '@lucide/vue'
 
+import type { ActivityType } from '@/features/activities/types'
 import type { GoalActivityType, GoalMetric, GoalProgress } from '@/features/goals/types'
 import type { Units } from '@/features/activities/utils/format'
+import type { UnitKey } from '@/i18n'
 
 import { Card } from '@/components/ui/card'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Skeleton } from '@/components/ui/skeleton'
+import { useUnitFormat } from '@/composables/useUnitFormat'
+import { formatNumber } from '@/utils/formatNumber'
 import { activityTypeIcon } from '@/features/activities/utils/activityType'
 import {
   formatDistance,
@@ -26,20 +30,21 @@ const props = defineProps<{
 }>()
 
 const { t } = useI18n()
+const { unitLabel, percent } = useUnitFormat()
 
-/** Maps a goal's sport-level activity type to a representative numeric type. */
-const GOAL_ACTIVITY_TYPE: Record<GoalActivityType, number> = {
-  run: 1,
-  bike: 4,
-  swim: 8,
-  walk: 11,
-  strength: 19,
-  cardio: 41,
+/** Maps a goal's sport-level activity type to a representative activity type. */
+const GOAL_ACTIVITY_TYPE: Record<GoalActivityType, ActivityType> = {
+  run: 'run',
+  bike: 'ride',
+  swim: 'lap_swimming',
+  walk: 'walk',
+  strength: 'strength_training',
+  cardio: 'cardio_training',
 }
 
 /** A goal prepared for display: localized labels, formatted values, and an icon. */
 interface GoalRow {
-  goalId: number
+  goalId: string
   icon: LucideIcon
   label: string
   metricLabel: string
@@ -51,7 +56,7 @@ interface GoalRow {
 }
 
 /** Formats one numeric value for the goal's metric (value only, no unit). */
-function formatByMetric(value: number, goalType: GoalMetric, activityType: number): string {
+function formatByMetric(value: number, goalType: GoalMetric, activityType: ActivityType): string {
   if (goalType === 'distance') {
     return formatDistance(value, activityType, props.units).value
   }
@@ -61,11 +66,11 @@ function formatByMetric(value: number, goalType: GoalMetric, activityType: numbe
   if (goalType === 'duration') {
     return formatHmsDuration(value)
   }
-  return String(Math.round(value))
+  return formatNumber(value)
 }
 
-/** Resolves the unit suffix shown after the total/target values. */
-function unitFor(goalType: GoalMetric, activityType: number): string {
+/** Resolves the unit shown after the total/target values, or `null` when unitless. */
+function unitFor(goalType: GoalMetric, activityType: ActivityType): UnitKey | null {
   if (goalType === 'distance') {
     return formatDistance(0, activityType, props.units).unit
   }
@@ -73,14 +78,15 @@ function unitFor(goalType: GoalMetric, activityType: number): string {
     return formatElevation(0, props.units).unit
   }
   if (goalType === 'calories') {
-    return t('settings.goals.unit.calories')
+    return 'kcal'
   }
-  return ''
+  return null
 }
 
 const rows = computed<GoalRow[]>(() =>
   props.goals.map((goal) => {
     const activityType = GOAL_ACTIVITY_TYPE[goal.activityType]
+    const unitKey = unitFor(goal.goalType, activityType)
     return {
       goalId: goal.goalId,
       icon: activityTypeIcon(activityType),
@@ -88,7 +94,7 @@ const rows = computed<GoalRow[]>(() =>
       metricLabel: t(`settings.goals.metric.${goal.goalType}`),
       total: formatByMetric(goal.total, goal.goalType, activityType),
       target: goal.target === null ? '—' : formatByMetric(goal.target, goal.goalType, activityType),
-      unit: unitFor(goal.goalType, activityType),
+      unit: unitKey === null ? '' : unitLabel(unitKey),
       percentage: Math.round(goal.percentageCompleted),
       reached: goal.percentageCompleted >= 100,
     }
@@ -134,7 +140,7 @@ function barWidth(percentage: number): string {
             aria-hidden="true"
           />
           <span class="min-w-0 flex-1 truncate text-item-title">{{ row.label }}</span>
-          <span class="text-caption">{{ row.percentage }}%</span>
+          <span class="text-caption">{{ percent(row.percentage) }}</span>
         </div>
 
         <div class="h-2 w-full overflow-hidden rounded-full bg-muted">

@@ -3,14 +3,14 @@
 This page describes how a file or a provider sync becomes stored activities. The code lives in `backend/app/modules/activities/`:
 
 - `activity_ingestion/` orchestrates the entry points and the shared pipeline.
-- `activity_file_import/` holds the format parsers (`.gpx`, `.tcx`, `.fit`, `.gz`).
+- `activity_file_import/` holds the format parsers (`.gpx`, `.tcx`, `.fit`); the pipeline decompresses a `.gz` before parsing.
 - `activity/` is the activities core. It never imports a parser or a provider.
 
-Two import-linter contracts enforce that split: `activities-parsing-boundary` and `ingestion-pipeline-provider-agnostic`.
+Three import-linter contracts enforce that split: `activities-provider-agnostic` (the activities module imports no provider), `activities-parsing-boundary` (the core imports no parser) and `ingestion-pipeline-format-agnostic` (the pipeline imports no parser directly).
 
 ## One pipeline, three entry points
 
-Upload, provider sync (Garmin Connect, Strava) and bulk import differ only in how the file arrives and what happens on failure. They all call the same pipeline.
+Upload, the Garmin Connect sync and bulk import differ only in how the file arrives and what happens on failure. They all call the same file pipeline. The Strava sync has no file: it builds the parsed activity from the API response and enters at the store step (`store_parsed_activity`).
 
 ```mermaid
 flowchart LR
@@ -25,18 +25,21 @@ flowchart LR
     S --> RET[Retain source file]
 ```
 
-On failure the entry points differ: an upload cleans up and re-raises, a provider sync logs and returns nothing, and a bulk import counts the file as failed and keeps its bytes.
+On failure the entry points differ: an upload cleans up and re-raises, a Garmin Connect sync logs a file the pipeline refuses and moves on (a database or storage outage is raised, so the refresh job retries the window), and a bulk import counts the file as failed and keeps its bytes (an outage is raised, so the batch resumes from its cursor).
+
+On the local profile with one web worker the in-process pool is the only place a job runs, so startup submits every open upload and bulk import again (`resume_orphaned_local_jobs`). Re-running is safe because uploads and bulk-import members are deduplicated by content and a bulk import resumes after its cursor. A job with no staged blob, such as a folder import that was still being packed, is failed.
 
 ## What happens to a parsed activity
 
 Parsers are pure functions. They return a canonical `ParsedFile` and know nothing about the database, privacy settings, gear or providers. The pipeline then applies these steps to each activity in the file:
 
 1. **Enrich:** re-attach the owner's privacy defaults, gear and provider ids (`enrichment_service`).
-2. **Source rules (bulk imports only):** the source's `should_import` hook decides whether to keep an activity, for example to skip duplicate listings in a Strava export. Then `apply_metadata` applies the manifest's name, description, type and gear.
-3. **Deduplicate:** `store_parsed_activity` derives a key, in this order of precedence, and skips the activity if the owner already has it.
+2. **Source rules (bulk imports only):** the source's `should_import` hook decides whether to keep an activity, for example to skip duplicate listings in a Strava export. Then `apply_metadata` applies the manifest's name, description and gear.
+3. **Deduplicate:** `store_parsed_activity` takes a key, in this order of precedence, and skips the activity if the owner already has it.
 
     | Source | Key |
     | --- | --- |
+    | An explicit key set by the source | That key, used as is |
     | Strava activity id | `strava:<id>` |
     | Garmin activity id | `garmin:<id>:<start time>` (a multi-activity `.fit` shares one Garmin id) |
     | File content | `file:<sha256>:<start time>` |
@@ -72,10 +75,10 @@ Nothing in the ingestion path knows what consumes `activity.created`. Independen
 - reverse geocoding (`activity_geocoding`)
 - notifications (`notifications`)
 
-Every subscriber also has a scheduled backfill that repairs missed events. How delivery works, locally and distributed, is covered in [Scaling and background jobs](../getting-started/scaling-and-background-jobs.md#how-events-are-delivered).
+Thumbnails and geocoding also have a scheduled backfill that repairs missed events; notifications are transient and have none. How delivery works, locally and distributed, is covered in [Scaling and background jobs](../getting-started/scaling-and-background-jobs.md#how-events-are-delivered).
 
 ## Adding to the pipeline
 
 - **A new file format:** register a parser for its extension in `activity_file_import/parser_registry.py`. Return the canonical `ParsedFile`, with no database or provider coupling.
 - **A new component stored with each activity:** register an activity-ingestion contributor in `contributor_registry`. File-scoped reference data uses a file-ingestion contributor.
-- **A new provider export with its own rules:** subclass `BulkImportSource` and override `metadata_for`, `should_import` and `apply_metadata`, as the Strava export does. Do not branch on the provider inside the pipeline.
+- **A new provider export with its own rules:** subclass `BulkImportSource` and override `metadata_for`, `should_import`, `apply_metadata` or `import_side_artifacts` as needed; the Strava export overrides `metadata_for`, `should_import` and `import_side_artifacts`. Do not branch on the provider inside the pipeline.

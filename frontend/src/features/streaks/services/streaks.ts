@@ -77,7 +77,7 @@ export async function fetchMyWeeklyStreak(signal?: AbortSignal): Promise<WeeklyS
  * @throws {HttpError} When the request fails.
  */
 export async function fetchUserWeeklyStreak(
-  userId: number,
+  userId: string,
   signal?: AbortSignal,
 ): Promise<WeeklyStreak | null> {
   const dto = await apiFetch<WeeklyStreakDto | null>(`/activities_streaks/user/${userId}`, {

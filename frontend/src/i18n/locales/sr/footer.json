@@ -1,10 +1,17 @@
 {
-  "repository": "Repozitorijum",
+  "releaseNotes": "Napomene o izdanju {version}",
+  "project": "Projekat",
+  "website": "Veb-sajt",
   "documentation": "Dokumentacija",
+  "sourceCode": "Izvorni kôd",
+  "community": "Zajednica",
   "mastodon": "Endurain Mastodon nalog",
   "bluesky": "Endurain Bluesky profil",
   "discord": "Endurain Discord server",
   "linkedin": "Endurain LinkedIn stranica",
+  "externalLink": "otvara se u novoj kartici",
+  "trademarkNotice": "Endurain® je registrovani žig João Vitória Silva.",
+  "trademarkPolicy": "Pravila o žigu",
   "compatibleStrava": "Kompatibilno sa Strava",
   "worksGarmin": "Radi sa Garmin Connect"
 }

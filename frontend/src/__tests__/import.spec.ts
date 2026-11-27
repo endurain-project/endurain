@@ -4,8 +4,7 @@ import { apiFetch } from '@/services/http'
 import {
   bulkImportFromArchive,
   bulkImportFromFolder,
-  importStravaBikes,
-  importStravaShoes,
+  importStravaGear,
 } from '@/features/import/services/import'
 
 vi.mock('@/services/http', () => ({
@@ -23,7 +22,7 @@ describe('import service', () => {
   })
 
   it('bulkImportFromFolder POSTs the folder path for the chosen source and returns the one job', async () => {
-    const job = { id: 'job-1' }
+    const job = { id: '00000000-0000-4000-8000-0000000000a1' }
     vi.mocked(apiFetch).mockResolvedValueOnce(job)
 
     await expect(bulkImportFromFolder('strava')).resolves.toBe(job)
@@ -33,7 +32,7 @@ describe('import service', () => {
   })
 
   it('bulkImportFromArchive uploads the archive as multipart with no request timeout', async () => {
-    const job = { id: 'job-2' }
+    const job = { id: '00000000-0000-4000-8000-0000000000a2' }
     vi.mocked(apiFetch).mockResolvedValueOnce(job)
     const archive = new File(['zip'], 'export.zip', { type: 'application/zip' })
 
@@ -47,20 +46,30 @@ describe('import service', () => {
     expect((body.get('file') as File).name).toBe('export.zip')
   })
 
-  it('importStravaBikes uploads the CSV to the bikes import path (void)', async () => {
-    await importStravaBikes(csv('bikes.csv'))
+  it('bulkImportFromArchive sends the idempotency key it is given, and none otherwise', async () => {
+    const archive = new File(['zip'], 'export.zip', { type: 'application/zip' })
 
-    const [path, options] = vi.mocked(apiFetch).mock.calls[0]!
-    expect(path).toBe('/strava/import/bikes')
-    expect(options).toMatchObject({ method: 'POST', responseType: 'void' })
-    expect(((options as { body: FormData }).body.get('file') as File).name).toBe('bikes.csv')
+    await bulkImportFromArchive(archive, 'generic', { idempotencyKey: 'key-1' })
+    await bulkImportFromArchive(archive, 'generic')
+
+    const [, keyed] = vi.mocked(apiFetch).mock.calls[0]!
+    const [, unkeyed] = vi.mocked(apiFetch).mock.calls[1]!
+    expect(keyed).toMatchObject({ headers: { 'Idempotency-Key': 'key-1' } })
+    expect((unkeyed as { headers?: unknown }).headers).toBeUndefined()
   })
 
-  it('importStravaShoes uploads the CSV to the shoes import path (void)', async () => {
-    await importStravaShoes(csv('shoes.csv'))
+  it.each([
+    ['bike', 'bikes.csv'],
+    ['shoes', 'shoes.csv'],
+  ] as const)(
+    'importStravaGear uploads the %s CSV to the gear import path (void)',
+    async (gearType, name) => {
+      await importStravaGear(csv(name), gearType)
 
-    const [path, options] = vi.mocked(apiFetch).mock.calls[0]!
-    expect(path).toBe('/strava/import/shoes')
-    expect(options).toMatchObject({ method: 'POST', responseType: 'void' })
-  })
+      const [path, options] = vi.mocked(apiFetch).mock.calls[0]!
+      expect(path).toBe(`/strava/import/gear?gear_type=${gearType}`)
+      expect(options).toMatchObject({ method: 'POST', responseType: 'void' })
+      expect(((options as { body: FormData }).body.get('file') as File).name).toBe(name)
+    },
+  )
 })

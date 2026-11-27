@@ -11,7 +11,7 @@
     "subtitle": "Sirvi, filtreeri ja sorteeri kõiki oma tegevusi.",
     "searchPlaceholder": "Otsi nime või asukoha järgi",
     "clearSearch": "Tühjenda otsing",
-    "resultCount": "{count} tegevust",
+    "resultCount": "{count} tegevus | {count} tegevust",
     "filters": {
       "type": "Tegevuse tüüp",
       "allTypes": "Kõik tüübid",
@@ -184,10 +184,13 @@
   },
   "edit": {
     "title": "Muuda tegevust",
+    "loading": "Tegevuse laadimine",
+    "loadError": "Tegevust ei õnnestunud laadida",
     "save": "Salvesta muudatused",
     "cancel": "Tühista",
     "close": "Sulge",
     "name": "Nimi",
+    "nameRequired": "Sisesta tegevuse nimi",
     "type": "Tegevuse tüüp",
     "description": "Kirjeldus",
     "privateNotes": "Privaatsed märkmed",
@@ -208,7 +211,7 @@
     "hideGear": "Peida varustus",
     "success": "Tegevus uuendatud",
     "error": "Tegevust ei õnnestunud uuendada",
-    "staleError": "This activity was changed elsewhere while you were editing. Your changes were not saved. Reopen it to see the current version."
+    "staleError": "Seda tegevust muudeti mujal, kui sa seda redigeerisid. Sinu muudatusi ei salvestatud. Ava see uuesti, et näha praegust versiooni."
   },
   "alerts": {
     "hidden": "See tegevus on peidetud. Ainult sina näed seda.",

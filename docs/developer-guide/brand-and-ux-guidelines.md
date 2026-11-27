@@ -80,6 +80,9 @@ Each accent maps to a specific data domain. Never swap them.
 | `--color-hr` | `#E24B4A` | Heart rate, HR zones 4–5, warnings |
 | `--color-info` | `#378ADD` | Distance, speed, informational states |
 | `--color-goal` | `#639922` | Goal completion, PRs, streaks |
+| `--color-hr-zone-4` | `#F97316` | Heart rate zone 4 in charts |
+| `--color-cadence` | `#A855F7` | Cadence stream in charts |
+| `--color-temperature` | `#F97316` | Temperature stream in charts |
 
 ### Neutrals - warm gray
 
@@ -216,8 +219,10 @@ specific primitives below.
 ### Buttons
 
 - **Primary:** `bg-primary text-primary-foreground` (brand teal).
-- **Ghost / secondary:** bordered, `hover:bg-muted`.
-- **Destructive:** `text-destructive` with a subtle destructive-tinted border.
+- **Outline / ghost / secondary:** `variant="outline"` is bordered with
+  `hover:bg-accent`; `ghost` has no border; `secondary` uses `bg-secondary`.
+- **Destructive:** `variant="destructive"` is a filled destructive button;
+  `outlineDestructive` and `ghostDestructive` are the quieter forms.
 
 Compose these via the `button` primitive rather than re-styling raw `<button>`
 elements.
@@ -238,17 +243,19 @@ composable (`@custom-variant dark` in `main.css`).
 
 ## UX patterns
 
-**Activity list**, reverse chronological, infinite scroll (not pagination).
-The filter bar uses activity-type badges as toggle filters. Each card shows the
-4 core stats inline (no "expand to see stats"); tapping opens a detail view.
+**Activity list**, paginated, with server-side filters (activity type and
+date range). Each row shows its core stats inline (no "expand to see stats");
+selecting a row opens the detail view.
 
-**Activity detail**, full-width map at the top (GPX trace, teal polyline),
-then a metric grid (2×4 or 2×3 by sport), compact lap-splits table, and
-HR/pace/elevation charts below the fold. Gear used links to gear detail.
+**Activity detail**, map and gallery at the top, then a metric grid, a
+lap-splits table, the HR zones and the stream charts (HR, pace, elevation).
+Each block is hidden when the activity's privacy settings hide it from the
+viewer. The gear used is shown in a gear card.
 
-**Dashboard**, weekly volume histogram at top, a YTD stats row (distance,
-time, elevation), then a recent-activities list. Linear scroll, not a draggable
-widget grid.
+**Home**, a profile card and week and month distance stats in a side column,
+and a centre feed of activity cards with a scope toggle (mine or following).
+The feed loads more cards with infinite scroll and a "load more" button as the
+accessible fallback. It is not a draggable widget grid.
 
 **Empty states**
 

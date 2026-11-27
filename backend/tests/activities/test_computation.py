@@ -12,7 +12,6 @@ import pytest
 from geopy.distance import geodesic
 
 from modules.activities.computation import (
-    append_if_not_none,
     calculate_avg_and_max,
     calculate_instant_speed,
     calculate_np,
@@ -20,6 +19,8 @@ from modules.activities.computation import (
     calculate_pace_from_duration,
     calculate_robust_max,
     compute_elevation_gain_and_loss,
+    double_cadence_waypoints,
+    double_running_cadence,
     smooth_elevation_stream,
     sum_elevation_deltas,
 )
@@ -292,19 +293,6 @@ class TestCalculateNP:
         assert result == 0
 
 
-class TestAppendIfNotNone:
-    def test_appends_when_value_not_none(self):
-        waypoints = []
-        append_if_not_none(waypoints, waypoint_time="2024-01-15T08:00:00", value=145, key="hr")
-        assert len(waypoints) == 1
-        assert waypoints[0]["hr"] == 145
-
-    def test_does_not_append_when_none(self):
-        waypoints = []
-        append_if_not_none(waypoints, waypoint_time="2024-01-15T08:00:00", value=None, key="hr")
-        assert len(waypoints) == 0
-
-
 class TestCalculatePaceAcrossDstAndOffsets:
     """Duration math must run on the aware instants, not on stripped wall clocks.
 
@@ -371,3 +359,22 @@ class TestElevationSmoothing:
     def test_stream_smoothing_returns_input_on_invalid_data(self):
         stream = [{"time": "t", "ele": None}]
         assert smooth_elevation_stream(stream) == stream
+
+
+class TestRunningCadenceNormalization:
+    def test_double_running_cadence_folds_fractional(self):
+        # (85 + 0.328125) * 2 = 170.66 -> 171.
+        assert double_running_cadence(85, 0.328125) == 171
+        assert double_running_cadence(93, 0.0) == 186
+        assert double_running_cadence(90) == 180
+        assert double_running_cadence(85, None) == 170
+        assert double_running_cadence(None) is None
+
+    def test_double_cadence_waypoints_keeps_none_samples(self):
+        waypoints = [{"time": "t0", "cad": 85}, {"time": "t1", "cad": None}, {"time": "t2", "cad": 87.4}]
+
+        assert double_cadence_waypoints(waypoints) == [
+            {"time": "t0", "cad": 170},
+            {"time": "t1", "cad": None},
+            {"time": "t2", "cad": 175},
+        ]

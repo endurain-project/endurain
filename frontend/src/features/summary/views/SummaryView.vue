@@ -52,13 +52,16 @@ import {
 } from '@/composables/useRouteQuery'
 import {
   useUserActivitiesQuery,
-  useUserActivityTypeMapQuery,
+  useUserActivityTypesQuery,
 } from '@/features/activities/composables/useActivities'
 import { useActivitySummaryQuery } from '@/features/summary/composables/useSummary'
 import WeeklyStreakCard from '@/features/streaks/components/WeeklyStreakCard.vue'
 import { useMyWeeklyStreakQuery } from '@/features/streaks/composables/useStreaks'
 import { SUMMARY_ACTIVITY_SORT_OPTIONS } from '@/features/activities/utils/activitySortOptions'
-import { presentActivityType } from '@/features/activities/utils/activityType'
+import {
+  presentActivityType,
+  sortActivityTypesByLabel,
+} from '@/features/activities/utils/activityType'
 import {
   currentMonth,
   currentWeekAnchor,
@@ -158,31 +161,28 @@ const yearModel = computed<string>({
   },
 })
 
-// Type filter (code; 0 = all). The summary endpoint filters by type *name*, so
-// the selected code is resolved to its backend name via the owned-types map.
+// Type filter (the empty string = all types), limited to the types the user owns.
 const typeFilter = ref(parseActivityTypeFilterQuery(route.query.type))
-const typeMapQuery = useUserActivityTypeMapQuery()
+const typesQuery = useUserActivityTypesQuery()
 const typeOptions = computed(() =>
-  [...(typeMapQuery.data.value?.keys() ?? [])].sort((a, b) => a - b),
+  sortActivityTypesByLabel(typesQuery.data.value ?? [], t, locale.value),
 )
-const selectedTypeName = computed(() =>
-  typeFilter.value > 0 ? (typeMapQuery.data.value?.get(typeFilter.value) ?? null) : null,
-)
+const selectedType = computed(() => typeFilter.value || null)
 
-// Summary query: the date/year anchor + optional type name, by view type.
+// Summary query: the date/year anchor + optional type, by view type.
 const summaryParams = computed<ActivitySummaryParams>(() => {
   switch (viewType.value) {
     case 'week':
       return {
         date: weekStart(safeWeekAnchor.value, firstDayOfWeek.value),
-        typeName: selectedTypeName.value,
+        type: selectedType.value,
       }
     case 'month':
-      return { date: monthStart(safeMonth.value), typeName: selectedTypeName.value }
+      return { date: monthStart(safeMonth.value), type: selectedType.value }
     case 'year':
-      return { year: year.value, typeName: selectedTypeName.value }
+      return { year: year.value, type: selectedType.value }
     default:
-      return { typeName: selectedTypeName.value }
+      return { type: selectedType.value }
   }
 })
 
@@ -205,8 +205,8 @@ const summaryQueryState = computed<Record<string, string>>(() => {
   } else if (viewType.value === 'year') {
     params.year = String(year.value)
   }
-  if (typeFilter.value > 0) {
-    params.type = String(typeFilter.value)
+  if (typeFilter.value) {
+    params.type = typeFilter.value
   }
   return params
 })
@@ -214,7 +214,7 @@ const summaryQueryState = computed<Record<string, string>>(() => {
 useRouteQueryReplacement(summaryQueryState)
 
 const showPeriodNav = computed(() => viewType.value !== 'lifetime')
-const showTypeBreakdown = computed(() => typeFilter.value === 0)
+const showTypeBreakdown = computed(() => typeFilter.value === '')
 const showActivities = computed(() => viewType.value !== 'lifetime')
 
 /** Human-readable label for the selected period, shown under the controls. */
@@ -309,7 +309,7 @@ const activityRange = computed<{ startDate: string | null; endDate: string | nul
 })
 
 const activityFilters = computed<ActivityListFilters>(() => ({
-  type: typeFilter.value > 0 ? typeFilter.value : null,
+  type: selectedType.value,
   startDate: activityRange.value.startDate,
   endDate: activityRange.value.endDate,
   nameSearch: null,
@@ -393,7 +393,7 @@ function refetchList(): void {
             class="w-full sm:w-56"
             :aria-label="t('summary.filters.type')"
           >
-            <option :value="0">{{ t('summary.filters.allTypes') }}</option>
+            <option value="">{{ t('summary.filters.allTypes') }}</option>
             <option v-for="code in typeOptions" :key="code" :value="code">
               {{ t(presentActivityType(code).labelKey) }}
             </option>

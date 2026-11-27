@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { toNumberOrNull } from '@/utils/number'
+import { moneyToNumber, numberToMoney, toNumberOrNull } from '@/utils/number'
 
 describe('toNumberOrNull', () => {
   it('returns a finite number unchanged', () => {
@@ -30,5 +30,19 @@ describe('toNumberOrNull', () => {
     expect(toNumberOrNull('abc')).toBeNull()
     expect(toNumberOrNull('1,234')).toBeNull()
     expect(toNumberOrNull('12px')).toBeNull()
+  })
+})
+
+describe('money', () => {
+  it('reads a decimal string as a number and an unset price as null', () => {
+    expect(moneyToNumber('129.90')).toBe(129.9)
+    expect(moneyToNumber(null)).toBeNull()
+    expect(moneyToNumber(undefined)).toBeNull()
+  })
+
+  it('writes a number as a decimal string with two decimals', () => {
+    expect(numberToMoney(129.9)).toBe('129.90')
+    expect(numberToMoney(45)).toBe('45.00')
+    expect(numberToMoney(null)).toBeNull()
   })
 })

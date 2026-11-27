@@ -10,6 +10,7 @@
   "settings": "Paramètres",
   "profile": "Profil",
   "logout": "Déconnexion",
+  "logoutFailed": "Déconnexion impossible. Vérifiez votre connexion et réessayez.",
   "userMenu": "Menu utilisateur",
   "menu": "Menu",
   "primary": "Navigation principale",

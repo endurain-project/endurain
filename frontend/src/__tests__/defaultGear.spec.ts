@@ -19,14 +19,15 @@ vi.mock('@/services/http', () => ({
 /** Builds a full default-gear wire payload, overridable per case. */
 function makeDefaultGearDto(overrides: Partial<DefaultGearDto> = {}): DefaultGearDto {
   return {
-    id: 1,
-    user_id: 5,
-    run_gear_id: 10,
+    id: '00000000-0000-4000-8000-000000000001',
+    user_id: '00000000-0000-4000-8000-000000000005',
+    version: 3,
+    run_gear_id: '00000000-0000-4000-8000-000000000010',
     trail_run_gear_id: null,
     virtual_run_gear_id: null,
     walk_gear_id: null,
     hike_gear_id: null,
-    ride_gear_id: 20,
+    ride_gear_id: '00000000-0000-4000-8000-000000000020',
     mtb_ride_gear_id: null,
     gravel_ride_gear_id: null,
     virtual_ride_gear_id: null,
@@ -44,10 +45,10 @@ describe('mapDefaultGear', () => {
   it('maps the wire shape to the clean camel-cased model', () => {
     const gear = mapDefaultGear(makeDefaultGearDto())
     expect(gear).toMatchObject({
-      id: 1,
-      userId: 5,
-      runGearId: 10,
-      rideGearId: 20,
+      id: '00000000-0000-4000-8000-000000000001',
+      userId: '00000000-0000-4000-8000-000000000005',
+      runGearId: '00000000-0000-4000-8000-000000000010',
+      rideGearId: '00000000-0000-4000-8000-000000000020',
       trailRunGearId: null,
       windsurfGearId: null,
     })
@@ -55,8 +56,10 @@ describe('mapDefaultGear', () => {
 })
 
 describe('toDefaultGearWire', () => {
-  it('round-trips every field, including id and user id', () => {
-    expect(toDefaultGearWire(mapDefaultGear(makeDefaultGearDto()))).toEqual(makeDefaultGearDto())
+  it('round-trips every assignment and leaves out the record, user id and version', () => {
+    const { id: _id, user_id: _userId, version: _version, ...assignments } = makeDefaultGearDto()
+
+    expect(toDefaultGearWire(mapDefaultGear(makeDefaultGearDto()))).toEqual(assignments)
   })
 })
 
@@ -68,8 +71,8 @@ describe('default gear service requests', () => {
   it('fetchDefaultGear reads the endpoint and maps the response', async () => {
     vi.mocked(apiFetch).mockResolvedValueOnce(makeDefaultGearDto())
     const gear = await fetchDefaultGear()
-    expect(apiFetch).toHaveBeenCalledWith('/profile/default_gear', { signal: undefined })
-    expect(gear?.runGearId).toBe(10)
+    expect(apiFetch).toHaveBeenCalledWith('/profile/default-gear', { signal: undefined })
+    expect(gear?.runGearId).toBe('00000000-0000-4000-8000-000000000010')
   })
 
   it('fetchDefaultGear returns null when no record exists', async () => {
@@ -77,33 +80,47 @@ describe('default gear service requests', () => {
     expect(await fetchDefaultGear()).toBeNull()
   })
 
-  it('updateDefaultGear PUTs the full snake-cased body', async () => {
+  it('updateDefaultGear PATCHes the snake-cased body, guarded by If-Match', async () => {
     let body: unknown
     vi.mocked(apiFetch).mockImplementation((_path, init) => {
       body = init?.body
       return Promise.resolve(makeDefaultGearDto())
     })
 
-    await updateDefaultGear(mapDefaultGear(makeDefaultGearDto({ hike_gear_id: 30 })))
+    await updateDefaultGear(
+      mapDefaultGear(makeDefaultGearDto({ hike_gear_id: '00000000-0000-4000-8000-000000000030' })),
+    )
 
     expect(apiFetch).toHaveBeenCalledWith(
-      '/profile/default_gear',
-      expect.objectContaining({ method: 'PUT' }),
+      '/profile/default-gear',
+      expect.objectContaining({ method: 'PATCH', headers: { 'If-Match': '"3"' } }),
     )
     const parsed = JSON.parse(body as string) as Record<string, unknown>
-    expect(parsed.id).toBe(1)
-    expect(parsed.user_id).toBe(5)
-    expect(parsed.run_gear_id).toBe(10)
-    expect(parsed.hike_gear_id).toBe(30)
+    expect(parsed).not.toHaveProperty('id')
+    expect(parsed).not.toHaveProperty('user_id')
+    expect(parsed).not.toHaveProperty('version')
+    expect(parsed.run_gear_id).toBe('00000000-0000-4000-8000-000000000010')
+    expect(parsed.hike_gear_id).toBe('00000000-0000-4000-8000-000000000030')
     expect(parsed.windsurf_gear_id).toBeNull()
   })
 
   it('fetchGearsByType reads the gear-type endpoint', async () => {
-    vi.mocked(apiFetch).mockResolvedValueOnce([
-      { id: 10, user_id: 5, gear_type: 2, nickname: 'Trail shoes' },
-    ])
-    const gears = await fetchGearsByType(2)
-    expect(apiFetch).toHaveBeenCalledWith('/gears/type/2', { signal: undefined })
+    vi.mocked(apiFetch).mockResolvedValueOnce({
+      items: [
+        {
+          id: '00000000-0000-4000-8000-000000000010',
+          user_id: '00000000-0000-4000-8000-000000000005',
+          gear_type: 'shoes',
+          nickname: 'Trail shoes',
+          version: 1,
+        },
+      ],
+      total: 1,
+    })
+    const gears = await fetchGearsByType('shoes')
+    expect(apiFetch).toHaveBeenCalledWith('/gears?gear_type=shoes&num_records=200&page_number=1', {
+      signal: undefined,
+    })
     expect(gears).toHaveLength(1)
     expect(gears[0]?.nickname).toBe('Trail shoes')
   })
@@ -117,6 +134,14 @@ describe('default gear field config', () => {
   })
 
   it('prefetches exactly the seven distinct gear types it uses', () => {
-    expect(Array.from(DEFAULT_GEAR_TYPES).sort((a, b) => a - b)).toEqual([1, 2, 3, 4, 5, 6, 7])
+    expect(Array.from(DEFAULT_GEAR_TYPES).sort()).toEqual([
+      'bike',
+      'racquet',
+      'shoes',
+      'ski',
+      'snowboard',
+      'wetsuit',
+      'windsurf',
+    ])
   })
 })

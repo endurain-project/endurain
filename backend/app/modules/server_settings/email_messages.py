@@ -12,8 +12,7 @@ def get_test_email(
     frontend_host: str,
     locale: str | None = None,
 ) -> tuple[str, str, str]:
-    """
-    Build a localized test email.
+    """Build a localized test email.
 
     Args:
         user_name: The recipient's display name.

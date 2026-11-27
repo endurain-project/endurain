@@ -1,8 +1,8 @@
 # Stage 0: Pin uv version
-FROM ghcr.io/astral-sh/uv:0.12.24@sha256:3af4716e991d6956a41e573eab705d0ee08500cd829ed30293eb8472f372c65a AS uv-dist
+FROM ghcr.io/astral-sh/uv:0.13.9@sha256:d3b601f0c7b118bc1753febf7c41cc80981df678445e0254284eecf84db79a7d AS uv-dist
 
 # Stage 1: Build Vue.js app
-FROM node:24-slim@sha256:a5f4366e834695d5f363b920c104953a535d3a9864d1bdf74566a0ebe01daee5 AS frontend-build
+FROM node:24-slim@sha256:dc26ae92c9fb15cf6b1d63e20f0944b2efe0f115b20e00be48fb23fceb061c54 AS frontend-build
 
 # Set the working directory to /tmp/frontend
 WORKDIR /tmp/frontend
@@ -18,7 +18,7 @@ COPY frontend ./
 RUN npm run build
 
 # Stage 2: Install requirements
-FROM python:3.13-alpine@sha256:2d9aefe2fef018a7eb2c13064c89c71929800fd2e5dccdbf52ea5da5bb8d929a AS requirements-stage
+FROM python:3.13-alpine@sha256:9ef1a599f863231c3d91e941389bfdc4a2d6070557243d54df1a4e57015b960e AS requirements-stage
 
 # Optional project extras baked into the image. Empty by default so the image
 # stays lean for `local` deployments. Build with
@@ -39,7 +39,7 @@ COPY backend/pyproject.toml backend/uv.lock ./
 RUN uv export --no-emit-project --no-dev ${PYTHON_EXTRAS:+--extra "$PYTHON_EXTRAS"} -o requirements.txt
 
 # Stage 3: Build FastAPI app
-FROM python:3.13-alpine@sha256:2d9aefe2fef018a7eb2c13064c89c71929800fd2e5dccdbf52ea5da5bb8d929a
+FROM python:3.13-alpine@sha256:9ef1a599f863231c3d91e941389bfdc4a2d6070557243d54df1a4e57015b960e
 
 ARG UID=1000
 ARG GID=1000
@@ -73,11 +73,6 @@ ENV BEHIND_PROXY=false
 WORKDIR /app/frontend
 
 COPY --from=frontend-build --chown=${UID}:${GID} /tmp/frontend/dist ./dist
-
-# env.js is created world-writable (666) so the file can be overwritten at
-# runtime even when docker-compose overrides the container user via `user:`
-# to a UID different from the one baked in at build time (ARG UID).
-RUN touch /app/frontend/dist/env.js && chmod 666 /app/frontend/dist/env.js /app/frontend/dist/index.html
 
 # --- Backend ---
 WORKDIR /app/backend

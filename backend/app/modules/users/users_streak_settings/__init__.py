@@ -1,5 +1,4 @@
-"""
-User weekly streak settings module.
+"""User weekly streak settings module.
 
 Stores per-user configuration for the weekly activity
 streak feature: how many activities a week needs to count

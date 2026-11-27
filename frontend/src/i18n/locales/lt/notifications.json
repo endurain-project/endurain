@@ -5,10 +5,12 @@
   "unread": "Neperskaityti",
   "markRead": "Žymėti kaip perskaitytą",
   "markAllRead": "Žymėti visus kaip perskaitytus",
+  "dismiss": "Atmesti pranešimą",
+  "dismissError": "Nepavyko atmesti pranešimo. Bandykite dar kartą.",
   "seeAll": "Žiūrėti visus",
   "loadMore": "Įkelti daugiau",
   "loading": "Įkeliama…",
-  "badge": "{count} neperskaitytų pranešimų",
+  "badge": "{count} neperskaitytas pranešimas | {count} neperskaityti pranešimai | {count} neperskaitytų pranešimų",
   "empty": {
     "title": "Viskas perskaityta",
     "description": "Naujienos apie jūsų veiklas, sekėjus ir integracijas bus rodomos čia."
@@ -39,9 +41,122 @@
       "title": "Garmin Connect reikia dėmesio",
       "body": "Jūsų Garmin Connect sesija baigėsi. Prijunkite iš naujo, kad sinchronizavimas tęstųsi."
     },
+    "stravaTokenExpired": {
+      "title": "Strava reikia dėmesio",
+      "body": "Strava atmetė jūsų ryšį. Prijunkite iš naujo, kad sinchronizavimas tęstųsi.",
+      "bodyRevoked": "Prieiga prie Strava baigėsi. Su Strava sinchronizuotos veiklos ir įranga bus ištrintos {date}, jei neprisijungsite iš naujo."
+    },
+    "stravaDataDeleted": {
+      "title": "Strava duomenys ištrinti",
+      "body": "Su Strava sinchronizuotos veiklos ir įranga buvo ištrintos, nes prieiga prie Strava baigėsi, o jūs neprisijungėte iš naujo."
+    },
+    "idpLinked": {
+      "title": "Susietas naujas prisijungimo teikėjas",
+      "body": "{name} buvo susietas su jūsų paskyra. Jei tai nebuvote Jūs, peržiūrėkite saugumo nustatymus.",
+      "bodyGeneric": "Prisijungimo teikėjas buvo susietas su jūsų paskyra. Jei tai nebuvote Jūs, peržiūrėkite saugumo nustatymus."
+    },
+    "accountSecurityChanged": {
+      "passwordChanged": {
+        "title": "Slaptažodis pakeistas",
+        "body": "Jūsų slaptažodis buvo pakeistas. Jei tai nebuvote Jūs, nustatykite slaptažodį iš naujo ir peržiūrėkite saugumo nustatymus."
+      },
+      "passwordReset": {
+        "title": "Slaptažodis nustatytas iš naujo",
+        "body": "Jūsų slaptažodis buvo nustatytas iš naujo naudojant atkūrimo nuorodą. Jei tai nebuvote Jūs, vėl nustatykite slaptažodį iš naujo ir peržiūrėkite saugumo nustatymus. Any API keys were revoked and any pending email change was cancelled."
+      },
+      "passwordSetByAdmin": {
+        "title": "Slaptažodį nustatė administratorius",
+        "body": "Administratorius nustatė naują jūsų paskyros slaptažodį. Jei to nesitikėjote, susisiekite su administratoriumi. Any API keys were revoked and any pending email change was cancelled."
+      },
+      "mfaEnabled": {
+        "title": "Dviejų veiksnių autentifikavimas įjungtas",
+        "body": "Jūsų paskyroje įjungtas dviejų veiksnių autentifikavimas. Jei tai nebuvote Jūs, nustatykite slaptažodį iš naujo ir peržiūrėkite saugumo nustatymus."
+      },
+      "mfaDisabled": {
+        "title": "Dviejų veiksnių autentifikavimas išjungtas",
+        "body": "Jūsų paskyroje išjungtas dviejų veiksnių autentifikavimas. Jei tai nebuvote Jūs, nustatykite slaptažodį iš naujo ir peržiūrėkite saugumo nustatymus."
+      },
+      "mfaResetByAdmin": {
+        "title": "Administratorius atstatė dviejų veiksnių autentifikavimą",
+        "body": "Administratorius atstatė Jūsų paskyros dviejų veiksnių autentifikavimą ir atjungė Jus visuose įrenginiuose. Nustatykite jį iš naujo saugumo nustatymuose. Jei to nesitikėjote, susisiekite su administratoriumi."
+      },
+      "passwordChangeRequiredByAdmin": {
+        "title": "Administratorius pareikalavo pakeisti slaptažodį",
+        "body": "Administratorius pareikalavo, kad pakeistumėte slaptažodį, ir atjungė Jus visuose įrenginiuose. Naują slaptažodį pasirinksite kitą kartą prisijungdami su slaptažodžiu. Jei to nesitikėjote, susisiekite su administratoriumi."
+      },
+      "backupCodesGenerated": {
+        "title": "Sugeneruoti nauji atsarginiai kodai",
+        "body": "Jūsų paskyrai sugeneruoti nauji atsarginiai kodai. Jei tai nebuvote Jūs, nustatykite slaptažodį iš naujo ir peržiūrėkite saugumo nustatymus."
+      },
+      "apiKeyCreated": {
+        "title": "Sukurtas naujas API raktas",
+        "body": "Jūsų paskyrai sukurtas naujas API raktas. Jei tai nebuvote Jūs, nustatykite slaptažodį iš naujo ir peržiūrėkite saugumo nustatymus."
+      },
+      "apiKeysRevokedByAdmin": {
+        "title": "Administratorius atšaukė API raktus",
+        "body": "Administratorius atšaukė vieną ar kelis jūsų API raktus, todėl niekas, kas juos naudoja, nebegali pasiekti jūsų paskyros. Jei to nesitikėjote, susisiekite su savo administratoriumi."
+      },
+      "identityProviderUnlinked": {
+        "title": "Prisijungimo teikėjas atsietas",
+        "body": "{name} buvo atsietas nuo jūsų paskyros. Jei tai nebuvote Jūs, nustatykite slaptažodį iš naujo ir peržiūrėkite saugumo nustatymus.",
+        "bodyGeneric": "Prisijungimo teikėjas buvo atsietas nuo jūsų paskyros. Jei tai nebuvote Jūs, nustatykite slaptažodį iš naujo ir peržiūrėkite saugumo nustatymus."
+      },
+      "accountLocked": {
+        "title": "Paskyra užrakinta",
+        "body": "Jūsų paskyra buvo užrakinta po 100 nesėkmingų prisijungimo bandymų iš eilės. Naršyklės ir programėlės, iš kurių prisijungėte nuo paskutinio saugumo pakeitimo, vis dar gali prisijungti. Jei šie bandymai nebuvo Jūsų, pakeiskite arba atstatykite slaptažodį – tai taip pat atrakina paskyrą."
+      },
+      "mfaLocked": {
+        "title": "Dviejų žingsnių patvirtinimas užrakintas",
+        "body": "Jūsų paskyra buvo užrakinta po 100 neteisingų dviejų žingsnių patvirtinimo kodų iš eilės, vadinasi, kažkas žino Jūsų slaptažodį. Naršyklės ir programėlės, iš kurių prisijungėte nuo paskutinio saugumo pakeitimo, vis dar gali prisijungti. Jei šie bandymai nebuvo Jūsų, pakeiskite slaptažodį."
+      },
+      "stepUpSessionEnded": {
+        "title": "Sesija atjungta",
+        "body": "Viena Jūsų paskyros sesija buvo atjungta, kai jautriam veiksmui patvirtinti 15 kartų iš eilės buvo įvestas neteisingas slaptažodis arba dviejų veiksnių autentifikavimo kodas. Kitos Jūsų sesijos nebuvo paveiktos. Jei tų bandymų neatlikote Jūs, pakeiskite slaptažodį."
+      },
+      "stepUpLocked": {
+        "title": "Jautrių veiksmų patvirtinimas užrakintas",
+        "body": "Jautrių veiksmų, pavyzdžiui, slaptažodžio keitimo ar API rakto kūrimo, patvirtinimas buvo užrakintas 30 dienų po 100 neteisingų patvirtinimų visose Jūsų sesijose. Jei tų bandymų neatlikote Jūs, atstatykite slaptažodį, tai taip pat panaikina užraktą."
+      },
+      "backupCodeUsed": {
+        "title": "Panaudotas atsarginis kodas",
+        "body": "Jūsų paskyros dviejų veiksnių autentifikavimui buvo panaudotas atsarginis kodas. Jei tai buvote ne Jūs, pakeiskite slaptažodį ir sugeneruokite naujus atsarginius kodus.",
+        "bodyRemaining": "Jūsų paskyros dviejų veiksnių autentifikavimui buvo panaudotas atsarginis kodas. Liko nepanaudotų atsarginių kodų: {count}. Jei tai buvote ne Jūs, pakeiskite slaptažodį ir sugeneruokite naujus atsarginius kodus.",
+        "bodyNone": "Jūsų paskyros dviejų veiksnių autentifikavimui buvo panaudotas atsarginis kodas. Nepanaudotų atsarginių kodų nebeliko, todėl sugeneruokite naujų saugos nustatymuose. Jei tai buvote ne Jūs, pakeiskite slaptažodį."
+      },
+      "refreshTokenReuseDetected": {
+        "title": "Sesija nutraukta",
+        "body": "Jūsų paskyros prisijungimo sesija buvo nutraukta, nes jau panaudotas prieigos raktas buvo pateiktas dar kartą, o tai gali reikšti, kad sesija buvo nukopijuota. Kitos Jūsų sesijos nebuvo paveiktos. Jei to nesitikėjote, pakeiskite slaptažodį."
+      },
+      "roleChangedByAdmin": {
+        "title": "Administratorius pakeitė prieigą",
+        "body": "Administratorius pakeitė Jūsų paskyros prieigą ir atjungė Jus visuose įrenginiuose. Jei to nesitikėjote, susisiekite su savo administratoriumi.",
+        "bodyAdmin": "Administratorius pakeitė Jūsų paskyros prieigą į administratoriaus ir atjungė Jus visuose įrenginiuose. Jei to nesitikėjote, susisiekite su savo administratoriumi.",
+        "bodyRegular": "Administratorius pakeitė Jūsų paskyros prieigą į įprasto naudotojo ir atjungė Jus visuose įrenginiuose. Jei to nesitikėjote, susisiekite su savo administratoriumi."
+      },
+      "accountDeactivatedByAdmin": {
+        "title": "Administratorius išjungė paskyrą",
+        "body": "Administratorius išjungė Jūsų paskyrą ir atjungė Jus visuose įrenginiuose. Negalėsite prisijungti, kol administratorius jos vėl neįjungs."
+      },
+      "unknown": {
+        "title": "Pasikeitė paskyros saugumas",
+        "body": "Pasikeitė jūsų paskyros saugumo nustatymas. Jei tai nebuvote Jūs, nustatykite slaptažodį iš naujo ir peržiūrėkite saugumo nustatymus."
+      },
+      "usernameChanged": {
+        "title": "Naudotojo vardas pakeistas",
+        "body": "Jūsų naudotojo vardas buvo pakeistas. Jei tai buvote ne jūs, iš naujo nustatykite slaptažodį ir peržiūrėkite saugos nustatymus."
+      }
+    },
+    "newDeviceSignIn": {
+      "title": "Naujas prisijungimas",
+      "body": "Naujas prisijungimas iš {browser} sistemoje {os} ({ip}). Jei tai nebuvote Jūs, pakeiskite slaptažodį ir atsijunkite iš kitų sesijų."
+    },
     "adminSignUpApproval": {
       "title": "Nauja registracija laukia patvirtinimo",
       "body": "{name} ({'@'}{username}) laukia paskyros patvirtinimo."
+    },
+    "adminUserPromoted": {
+      "title": "Naudotojas paaukštintas į administratorių",
+      "body": "{name} ({'@'}{username}) suteikta administratoriaus prieiga."
     },
     "unknown": {
       "title": "Pranešimas",

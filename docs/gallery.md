@@ -1,7 +1,7 @@
 # Gallery
 
 ## Login page
-*The login image can be changed; an image of 1000x1000 pixels is expected.*
+*The login image can be changed; a square image of up to 5 MB is expected.*
 ![Login](assets/gallery/screenshot_login.png)
 
 ## Home page

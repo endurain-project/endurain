@@ -10,6 +10,7 @@
   "settings": "Nastavení",
   "profile": "Profil",
   "logout": "Odhlásit se",
+  "logoutFailed": "Odhlášení se nezdařilo. Zkontrolujte připojení a zkuste to znovu.",
   "userMenu": "Uživatelská nabídka",
   "menu": "Nabídka",
   "primary": "Hlavní navigace",

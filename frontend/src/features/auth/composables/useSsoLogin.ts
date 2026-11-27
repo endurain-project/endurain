@@ -1,15 +1,20 @@
 import { useRoute, useRouter } from 'vue-router'
 
-import type { AuthTokenResponse, IdentityProviderPublic } from '@/types'
+import type { IdentityProviderPublic } from '@/types'
 import type { PublicServerSettings } from '@/features/config/types'
 
-import { useAuthStore } from '@/features/auth/stores/auth'
+import {
+  type AuthCompletedResult,
+  type LoginResult,
+  useAuthStore,
+} from '@/features/auth/stores/auth'
 import { generateCodeChallenge, generateCodeVerifier } from '@/features/auth/utils/pkce'
-import { exchangeSessionForTokens, getIdentityProviderLoginUrl } from '@/services/identityProviders'
+import { getIdentityProviderLoginUrl } from '@/services/identityProviders'
+import { dropQueryParam } from '@/composables/useRouteQuery'
+import { hasLoginStatusFlag } from '@/features/auth/composables/useLoginRouteMessages'
 import { getQueryString, useSafeRedirect } from '@/composables/useSafeRedirect'
-import { useTelemetry } from '@/composables/useTelemetry'
 
-const PKCE_PREFIX = 'pkce_verifier_'
+const PKCE_KEY = 'pkce_verifier'
 const PKCE_VERIFIER_TTL_MS = 10 * 60 * 1000
 
 interface StoredPkceVerifier {
@@ -20,39 +25,26 @@ interface StoredPkceVerifier {
 /** Result of starting an SSO login. */
 export type SsoStartResult = { status: 'redirecting' } | { status: 'error' }
 
-/** Result of processing an SSO callback. */
-export type SsoCallbackResult =
-  { status: 'none' } | { status: 'completed' } | { status: 'error'; messageKey: string }
-
 /**
- * Finds the PKCE verifier stored before redirecting to the IdP.
- *
- * @returns Verifier plus storage key, or `null` when absent.
+ * Result of processing an SSO callback. `app-handoff` carries the custom-scheme address (with the
+ * session ID) a native app gets only after the user confirms. `next-step` carries the step the login form shows next,
+ * such as the MFA step of an account with MFA enabled.
  */
-function findStoredPkceVerifier(): { key: string; verifier: string } | null {
-  const now = Date.now()
-  for (let index = 0; index < sessionStorage.length; index += 1) {
-    const key = sessionStorage.key(index)
-    if (key?.startsWith(PKCE_PREFIX)) {
-      const stored = readStoredPkceVerifier(key, now)
-      if (stored) {
-        return { key, verifier: stored.verifier }
-      }
-    }
-  }
-  return null
-}
+export type SsoCallbackResult =
+  | { status: 'none' }
+  | { status: 'completed' }
+  | { status: 'app-handoff'; target: string }
+  | { status: 'next-step'; result: Exclude<LoginResult, AuthCompletedResult> }
+  | { status: 'error'; messageKey: string }
 
 /**
- * Reads a stored PKCE verifier and removes it when expired or malformed.
+ * Reads the stored PKCE verifier and removes it when expired or malformed.
  *
- * @param key - Storage key to read.
- * @param now - Current timestamp used for TTL validation.
  * @returns Stored verifier, or `null` when unavailable.
  */
-function readStoredPkceVerifier(key: string, now = Date.now()): StoredPkceVerifier | null {
+function readStoredPkceVerifier(): StoredPkceVerifier | null {
   try {
-    const raw = sessionStorage.getItem(key)
+    const raw = sessionStorage.getItem(PKCE_KEY)
     if (!raw) {
       return null
     }
@@ -62,45 +54,31 @@ function readStoredPkceVerifier(key: string, now = Date.now()): StoredPkceVerifi
       typeof parsed.verifier !== 'string' ||
       parsed.verifier.length === 0 ||
       typeof parsed.createdAt !== 'number' ||
-      now - parsed.createdAt > PKCE_VERIFIER_TTL_MS
+      Date.now() - parsed.createdAt > PKCE_VERIFIER_TTL_MS
     ) {
-      sessionStorage.removeItem(key)
+      sessionStorage.removeItem(PKCE_KEY)
       return null
     }
 
     return { verifier: parsed.verifier, createdAt: parsed.createdAt }
   } catch {
-    sessionStorage.removeItem(key)
+    sessionStorage.removeItem(PKCE_KEY)
     return null
   }
 }
 
 /**
  * Stores a verifier with a short TTL so abandoned redirects cannot linger for
- * the lifetime of the browser tab.
+ * the lifetime of the browser tab. A later start replaces an earlier one, so the
+ * callback always uses the verifier of the latest sign-in.
  *
- * @param slug - Provider slug.
  * @param verifier - PKCE verifier to store.
  */
-function storePkceVerifier(slug: string, verifier: string): void {
-  cleanupExpiredPkceVerifiers()
+function storePkceVerifier(verifier: string): void {
   sessionStorage.setItem(
-    `${PKCE_PREFIX}${slug}`,
+    PKCE_KEY,
     JSON.stringify({ verifier, createdAt: Date.now() } satisfies StoredPkceVerifier),
   )
-}
-
-/**
- * Removes expired or malformed PKCE verifier records only.
- */
-function cleanupExpiredPkceVerifiers(): void {
-  const now = Date.now()
-  for (let index = sessionStorage.length - 1; index >= 0; index -= 1) {
-    const key = sessionStorage.key(index)
-    if (key?.startsWith(PKCE_PREFIX)) {
-      readStoredPkceVerifier(key, now)
-    }
-  }
 }
 
 /**
@@ -115,7 +93,7 @@ export function useSsoLogin() {
   const route = useRoute()
   const router = useRouter()
   const auth = useAuthStore()
-  const { getSafeRedirect, getSsoRedirect, isCustomSchemeRedirect, navigateAfterLogin } =
+  const { getSafeRedirect, getSsoRedirect, isNativeRedirect, navigateAfterLogin } =
     useSafeRedirect()
 
   /**
@@ -129,7 +107,7 @@ export function useSsoLogin() {
     try {
       const verifier = generateCodeVerifier()
       const challenge = await generateCodeChallenge(verifier)
-      storePkceVerifier(slug, verifier)
+      storePkceVerifier(verifier)
 
       const params = new URLSearchParams({
         code_challenge: challenge,
@@ -148,10 +126,29 @@ export function useSsoLogin() {
   }
 
   /**
-   * Completes an SSO callback when the backend redirected back with a session
-   * ID, exchanging it (plus the stored PKCE verifier) for web tokens.
+   * Hands the session ID to the native app by navigating to its address.
    *
-   * @returns Whether a callback was handled, completed, or failed.
+   * @param target - App address carrying the session ID.
+   */
+  async function continueAppHandoff(target: string): Promise<void> {
+    window.location.href = target
+    // A custom scheme doesn't navigate the tab away, so this document stays loaded;
+    // a claimed https link may navigate away when the app isn't installed. When
+    // the browser already has its own authenticated session, fall back to the
+    // dashboard instead of leaving a stale login form behind in case the OS
+    // handoff to the app doesn't happen (app not installed, prompt dismissed,
+    // desktop testing, etc.).
+    if (auth.isAuthenticated) {
+      await router.replace({ name: 'home' })
+    }
+  }
+
+  /**
+   * Completes an SSO callback when the backend redirected back with a session
+   * ID, exchanging it (plus the stored PKCE verifier) for web tokens. An account
+   * with MFA enabled continues at the MFA step the password sign-in uses.
+   *
+   * @returns Whether a callback was handled, completed, needs another step, or failed.
    */
   async function processSsoCallback(): Promise<SsoCallbackResult> {
     if (route.query.sso !== 'success' || !route.query.session_id) {
@@ -159,51 +156,41 @@ export function useSsoLogin() {
     }
 
     try {
-      cleanupExpiredPkceVerifiers()
       const sessionId = getQueryString(route.query.session_id)
       if (!sessionId) {
         throw new Error('Invalid session ID')
       }
+      // The session id is single-use and already held here, so it does not stay in the history.
+      dropQueryParam(route, router, 'session_id')
 
-      // The flag comes from the URL, so it alone grants nothing: only the app's own
-      // deep-link scheme may be navigated to with the session ID. Anything else
+      // The flag comes from the URL, so it alone grants nothing: only a native-app address
+      // the server lists may be navigated to with the session ID. Anything else
       // takes the normal token exchange below, which needs the stored PKCE verifier.
       const redirect = getSafeRedirect(route.query.redirect)
-      if (route.query.external_redirect === 'true' && isCustomSchemeRedirect(redirect)) {
-        const separator = redirect.includes('?') ? '&' : '?'
-        window.location.href = `${redirect}${separator}session_id=${encodeURIComponent(sessionId)}`
-        // Custom schemes don't actually navigate the tab away, so this document
-        // stays loaded. When the browser already has its own authenticated
-        // session, fall back to the dashboard instead of leaving a stale login
-        // form behind in case the OS handoff to the app doesn't happen (app not
-        // installed, prompt dismissed, desktop testing, etc.).
-        if (auth.isAuthenticated) {
-          await router.replace({ name: 'home' })
+      if (route.query.external_redirect === 'true' && isNativeRedirect(redirect)) {
+        const target = new URL(redirect)
+        target.searchParams.set('session_id', sessionId)
+        // A custom scheme is not verified by the OS, so any app on the device may have registered it.
+        // The user confirms before the session ID goes to it (RFC 8252 section 8.6). A claimed
+        // https link is verified by the OS, so it is followed at once.
+        if (target.protocol !== 'https:') {
+          return { status: 'app-handoff', target: target.href }
         }
+        await continueAppHandoff(target.href)
         return { status: 'completed' }
       }
 
-      const stored = findStoredPkceVerifier()
+      const stored = readStoredPkceVerifier()
       if (!stored) {
         throw new Error('Missing PKCE verifier')
       }
 
-      const tokenData = await exchangeSessionForTokens(sessionId, stored.verifier)
-      sessionStorage.removeItem(stored.key)
-
-      if (!tokenData.csrf_token) {
-        throw new Error('Missing CSRF token')
+      const result = await auth.exchangeSsoSession(sessionId, stored.verifier)
+      // The exchange has checked the verifier, so it is not needed again, not even by the MFA step.
+      sessionStorage.removeItem(PKCE_KEY)
+      if (result.status !== 'authenticated') {
+        return { status: 'next-step', result }
       }
-
-      await auth.completeTokenLogin({
-        session_id: tokenData.session_id,
-        access_token: tokenData.access_token,
-        csrf_token: tokenData.csrf_token,
-        token_type: 'bearer',
-        expires_in: tokenData.expires_in,
-        refresh_token_expires_in: tokenData.refresh_token_expires_in,
-      } satisfies AuthTokenResponse)
-      useTelemetry().trackEvent('login_succeeded', { method: 'sso' })
       await navigateAfterLogin()
       return { status: 'completed' }
     } catch {
@@ -212,8 +199,9 @@ export function useSsoLogin() {
   }
 
   /**
-   * Redirects to the sole SSO provider when the server is configured for a
-   * single-provider, SSO-only login and no callback is in progress.
+   * Redirects to the sole SSO provider when the server is configured for
+   * SSO-only login with exactly one enabled provider, no callback is in progress and the login
+   * route carries no status message (such as signed out or session expired).
    *
    * @param settings - Public server settings.
    * @param providers - Enabled SSO providers.
@@ -224,19 +212,21 @@ export function useSsoLogin() {
     providers: IdentityProviderPublic[],
     forceLocalLogin: boolean,
   ): void {
-    const onlyProvider = providers[0]
+    const [onlyProvider] = providers
     if (
       settings.sso_enabled &&
       settings.sso_auto_redirect &&
       !settings.local_login_enabled &&
+      providers.length === 1 &&
       onlyProvider &&
       !forceLocalLogin &&
       route.query.sso !== 'success' &&
-      !route.query.error
+      !route.query.error &&
+      !hasLoginStatusFlag(route.query)
     ) {
       void startSsoLogin(onlyProvider.slug)
     }
   }
 
-  return { startSsoLogin, processSsoCallback, maybeAutoRedirect }
+  return { startSsoLogin, processSsoCallback, continueAppHandoff, maybeAutoRedirect }
 }

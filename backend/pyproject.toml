@@ -1,50 +1,50 @@
 [project]
 name = "endurain"
-version = "0.20.2"
+version = "0.21.2"
 description = "Endurain API for the Endurain app"
 authors = [{name = "João Vitória Silva", email = "joao@endurain.com"}]
 # readme intentionally omitted — internal app, not published to PyPI
 requires-python = ">=3.13,<4.0"
 dependencies = [
-    "fastapi>=0.141.1",
-    "uvicorn>=0.53.0",
-    "python-dotenv>=1.2.3",
-    "sqlalchemy>=2.0.54",
+    "fastapi>=0.162.2",
+    "uvicorn>=0.54.0",
+    "python-dotenv>=1.2.4",
+    "sqlalchemy>=2.1.8",
     "apscheduler>=3.11.3",
     "requests>=2.34.2",
     "stravalib>=2.6.0",
-    "python-multipart>=0.0.32",
+    "python-multipart>=0.0.33",
     "gpxpy>=1.6.2",
     "tcxreader>=0.4.11",
-    "alembic>=1.20.0",
-    "joserfc>=1.7.5",
+    "alembic>=1.20.1",
+    "joserfc>=1.8.0",
     "fitdecode>=0.11.0",
-    "numpy>=2.5.3",
+    "numpy>=2.5.4",
     "geopy>=2.5.0",
-    "pydantic-core>=2.46.5",
-    "pydantic-settings>=2.15.0",
-    "garminconnect>=0.3.16",
-    "websockets>=17.1",
-    "timezonefinder>=9.0.0",
-    "psycopg[binary,pool]>=3.3.6",
+    "pydantic-core>=2.50.4",
+    "pydantic-settings>=2.16.2",
+    "garminconnect>=0.3.20",
+    "websockets>=17.4",
+    "timezonefinder>=9.2.0",
+    "psycopg[binary,pool]>=3.3.8",
     "user-agents>=2.2.0",
-    "pydantic[email]>=2.13.5",
+    "pydantic[email]>=2.14.3",
     "pyotp>=2.10.0",
     "qrcode[pil]>=8.2",
+    "pillow>=13.0.0",
     "psutil>=7.2.2",
     "python-magic>=0.4.27",
-    "pwdlib[argon2,bcrypt]>=0.3.1",
-    "authlib>=1.8.0",
-    "httpx2>=2.13.0",
+    "pwdlib[argon2]>=0.3.1",
+    "authlib>=1.9.5",
+    "httpx2>=2.16.0",
     "itsdangerous>=2.2.0",
     "slowapi>=0.1.10",
-    "safeuploads[fastapi]>=1.1.1",
+    "safeuploads[fastapi]>=4.0.1",
     "nh3>=0.3.7",
-    "aiofiles>=25.1.0",
     "staticmap>=0.5.7",
     # Pinned below the next minor: JASIL is pre-1.0 and documents breaking
     # changes on minor versions.
-    "jasil[fastapi,geocoding,jobs,migrations]>=0.6.1,<0.7.0",
+    "jasil[audit,fastapi,geocoding,jobs,migrations]>=0.22.1,<0.23.0",
 ]
 
 [project.optional-dependencies]
@@ -52,54 +52,55 @@ dependencies = [
 # shared state / event bus and S3-compatible object storage. The default image
 # (`uv export --no-dev`) ships neither, so `local` deployments stay lean.
 distributed = [
-    "boto3>=1.43.98",
+    "boto3>=1.43.126",
     "redis>=8.1.0",
-    "jasil[redis,s3]>=0.6.1,<0.7.0",
+    "jasil[redis,s3]>=0.22.1,<0.23.0",
 ]
 
 [dependency-groups]
 typecheck = [
-    "mypy>=2.3.1",
+    "mypy>=2.4.1",
+    "ty>=0.0.99",
     "types-requests",
     "types-psutil",
     "types-qrcode",
-    "types-aiofiles",
     "types-Authlib",
 ]
 lint = [
-    "ruff>=0.16.8",
+    "ruff>=0.17.4",
 ]
 test = [
-    "httpx2>=2.13.0",
-    "faker>=40.39.0",
-    "hypothesis>=6.168.0",
-    "import-linter>=2.15",
-    "pytest>=9.1.1",
-    "pytest-asyncio>=1.4.0",
+    "httpx2>=2.16.0",
+    "faker>=40.46.0",
+    "hypothesis>=6.170.15",
+    "import-linter>=2.16",
+    "pytest>=9.2.0",
+    "pytest-asyncio>=1.4.1.post1",
     "pytest-cov>=7.1.0",
-    "boto3>=1.43.98",
+    "boto3>=1.43.126",
     "redis>=8.1.0",
 ]
 dev = [
-    "hatch>=1.18.1",
+    "hatch>=1.18.2",
     {include-group = "lint"},
     {include-group = "test"},
     {include-group = "typecheck"},
 ]
 docs = [
-    "mkdocs-material>=9.7.7",
-    "mkdocstrings[python]>=1.0.6",
+    "mkdocs-material>=9.8.1",
+    "mkdocstrings[python]>=1.0.8",
     "mkdocs-redirects>=1.2.3",
     "mkdocs-swagger-ui-tag>=0.8.1",
 ]
 
 [tool.uv]
-required-version = "0.12.24"
-exclude-newer = "30 days"
-# jasil is first-party (endurain-project) and published through PyPI Trusted
-# Publishing with PEP 740 attestations, so it is exempt from the quarantine the
-# cutoff applies to third-party releases. Every other dependency keeps it.
-exclude-newer-package = { jasil = false }
+required-version = "0.13.9"
+exclude-newer = "7 days"
+# jasil and safeuploads are first-party (endurain-project) and published through
+# PyPI Trusted Publishing with PEP 740 attestations, so they are exempt from the
+# quarantine the cutoff applies to third-party releases. Every other dependency
+# keeps it.
+exclude-newer-package = { jasil = false, safeuploads = false }
 
 [[tool.uv.index]]
 name = "pypi"
@@ -127,6 +128,7 @@ lint-check = "ruff check ."
 format-check = "ruff format --check ."
 test = "pytest"
 typecheck = "mypy"
+typecheck-ty = "ty check"
 validate = ["lint", "format", "test", "typecheck"]
 check = ["lint-check", "format-check", "test", "typecheck"]
 
@@ -166,6 +168,8 @@ exclude_lines = [
 python_version = "3.13"
 incremental = false
 check_untyped_defs = true
+disallow_untyped_defs = true
+disallow_any_generics = true
 mypy_path = ["app"]
 files = ["app"]
 exclude = ["tests/", "alembic/"]
@@ -177,13 +181,35 @@ module = [
     "fitdecode",
     "garminconnect",
     "geopy.*",
-    "tcxreader",
+    "tcxreader.*",
     "user_agents",
     "safeuploads.*",
     "boto3",
     "botocore.*",
 ]
 ignore_missing_imports = true
+
+[tool.ty.environment]
+python-version = "3.13"
+root = ["app"]
+
+[tool.ty.src]
+include = ["app"]
+exclude = ["tests/", "app/alembic/"]
+
+[tool.ty.analysis]
+allowed-unresolved-imports = [
+    "apscheduler.**",
+    "staticmap",
+    "fitdecode",
+    "garminconnect",
+    "geopy.**",
+    "tcxreader.**",
+    "user_agents",
+    "safeuploads.**",
+    "boto3",
+    "botocore.**",
+]
 
 [tool.ruff]
 target-version = "py313"
@@ -204,21 +230,21 @@ select = [
     "T20",    # flake8-print
     "SIM",    # flake8-simplify
     "RUF",    # ruff-specific rules
-    "D",      # pydocstyle; scoped to converted modules below, see per-file-ignores
+    "D",      # pydocstyle; see per-file-ignores for the exempt paths
 ]
 ignore = [
-    "E501",   # line too long (handled by formatter)
     "B008",   # do not perform function calls in argument defaults (FastAPI Depends/Query) — tracked in https://github.com/endurain-project/endurain/issues/653
 ]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
 
+[tool.ruff.lint.pep8-naming]
+# SQLAlchemy's declared_attr is called with the mapped class, so its methods take cls.
+classmethod-decorators = ["sqlalchemy.orm.declared_attr"]
+
 [tool.ruff.lint.per-file-ignores]
-# Docstring rules ("D") apply to the converted modules (activities, followers). Everything
-# below is outside them until converted: removing a module from this list is part of
-# converting it. ``tests/architecture/test_module_boundaries.py`` keeps the module entries
-# in step with UNCONVERTED_MODULES.
+# Docstring rules apply to every module; only application composition, runtime data, and tests are exempt.
 "app/api.py" = ["D"]
 "app/model_registry.py" = ["D"]
 "app/module_registry.py" = ["D"]
@@ -227,24 +253,19 @@ convention = "google"
 "app/data/**/*.py" = ["D"]  # runtime data directories, not code
 "app/logs/**/*.py" = ["D"]
 "app/migrations/**/*.py" = ["D"]
-"app/modules/auth/**/*.py" = ["D"]
-"app/modules/garmin/**/*.py" = ["D"]
-"app/modules/gears/**/*.py" = ["D"]
-"app/modules/health/**/*.py" = ["D"]
-"app/modules/notifications/**/*.py" = ["D"]
-"app/modules/server_settings/**/*.py" = ["D"]
-"app/modules/strava/**/*.py" = ["D"]
-"app/modules/users/**/*.py" = ["D"]
-"app/modules/websocket/**/*.py" = ["D"]
 "scripts/**/*.py" = ["D"]
 "tests/**/*.py" = ["D", "S101", "S105", "S106", "S108"]  # allow assert, password-like test data, and hardcoded /tmp-style paths in test mocks/fixtures
 "app/alembic/**/*.py" = ["D", "E402", "I001"]  # alembic migrations have specific import order; docstrings not required
 "app/alembic/versions/v0_3_0_migration.py" = ["S105", "S106"]  # legitimate password hashes in seed migration
 "app/modules/auth/identity_providers/public_router.py" = ["S105", "S106"]  # false positive on token_type
-"app/modules/auth/schema.py" = ["S105", "S106"]  # false positive on token_type Literal defaults
-"app/modules/auth/security.py" = ["S105", "S106"]  # false positive on token_type string comparisons
-"app/modules/auth/utils.py" = ["S105", "S106"]  # false positive on cookie name constants
+"app/modules/auth/authentication/schema.py" = ["S105", "S106"]  # false positive on token_type Literal defaults
+"app/modules/auth/authentication/service.py" = ["S105", "S106"]  # false positive on token_type string comparisons
+"app/modules/auth/authentication/sso_exchange_service.py" = ["S105", "S106"]  # false positive on token_type string comparisons
+"app/modules/auth/authentication/dependencies.py" = ["S105", "S106"]  # false positive on cookie name constants
+"app/modules/auth/account_security/events.py" = ["S105"]  # false positive on the password-change event values
+"app/modules/auth/known_devices/events.py" = ["S105"]  # false positive on the password sign-in method value
 "app/main.py" = ["D", "S105"]  # false positive on env var value
+"app/modules/**/audit_actions.py" = ["S105"]  # false positive on enum members naming a credential kind ("password")
 
 [tool.ruff.format]
 quote-style = "double"

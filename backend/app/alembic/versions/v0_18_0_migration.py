@@ -635,7 +635,9 @@ def upgrade() -> None:
         "stream_type",
         existing_type=sa.Integer(),
         comment="Stream type (1-HR, 2-Power, 3-Cadence, 4-Elevation, 5-Velocity, 6-Pace, 7-lat/lon)",
-        existing_comment="Stream type (1 - HR, 2 - Power, 3 - Cadence, 4 - Elevation, 5 - Velocity, 6 - Pace, 7 - lat/lon)",
+        existing_comment=(
+            "Stream type (1 - HR, 2 - Power, 3 - Cadence, 4 - Elevation, 5 - Velocity, 6 - Pace, 7 - lat/lon)"
+        ),
         existing_nullable=False,
     )
     op.alter_column(

@@ -1,0 +1,478 @@
+"""Session lifecycle and transaction orchestration."""
+
+import uuid
+from collections.abc import Callable, Sequence
+from datetime import UTC, datetime
+
+import jasil.audit as jasil_audit
+from sqlalchemy.orm import Session
+
+import core.config as core_config
+import core.database as core_database
+import core.hashing as core_hashing
+import core.logger as core_logger
+import core.pagination as core_pagination
+import modules.auth.access_tokens.integration_service as access_tokens_integration
+import modules.auth.constants as auth_constants
+import modules.auth.oauth_state.integration_service as oauth_state_integration
+import modules.auth.oauth_state.schema as oauth_state_schema
+import modules.auth.rotated_refresh_tokens.integration_service as rotated_refresh_tokens_integration
+import modules.auth.schema as auth_schema
+import modules.auth.security_generation.integration_service as security_generation_integration
+import modules.auth.sessions.audit_actions as sessions_audit_actions
+import modules.auth.sessions.contracts as sessions_contracts
+import modules.auth.sessions.crud as sessions_crud
+import modules.auth.sessions.event_publishers as sessions_event_publishers
+import modules.auth.sessions.schema as sessions_schema
+import modules.auth.sessions.utils as sessions_utils
+import modules.server_settings.contracts as server_settings_contracts
+import modules.server_settings.integration_service as server_settings_integration
+import modules.users.users.schema as users_schema
+
+logger = core_logger.get_logger(__name__)
+
+
+def list_user_sessions(
+    user_id: uuid.UUID,
+    page: core_pagination.PageParams,
+    db: Session,
+    current_session_id: uuid.UUID | None = None,
+) -> sessions_schema.UserSessionsPage:
+    """Return one page of a user's exchanged sessions, hiding them in the demo environment.
+
+    Args:
+        user_id: The user whose sessions to list.
+        page: The requested window.
+        db: Database session.
+        current_session_id: The caller's own session, marked ``is_current`` when it is on the page.
+
+    Returns:
+        The page of sessions.
+    """
+    if core_config.settings.ENVIRONMENT == "demo":
+        logger.info("Session retrieval in demo environment", extra=core_logger.context(user_id=str(user_id)))
+        return sessions_schema.UserSessionsPage.build([], 0, page.page_number, page.num_records)
+    sessions = sessions_crud.get_user_sessions_page(
+        user_id,
+        db,
+        limit=page.num_records,
+        offset=(page.page_number - 1) * page.num_records,
+    )
+    total = sessions_crud.count_user_sessions(user_id, db)
+    return sessions_schema.UserSessionsPage.build(
+        [
+            sessions_schema.UserSessionsRead.model_validate(session).model_copy(
+                update={"is_current": session.id == current_session_id}
+            )
+            for session in sessions
+        ],
+        total,
+        page.page_number,
+        page.num_records,
+    )
+
+
+def get_session_with_oauth_state(
+    session_id: uuid.UUID,
+    db: Session,
+) -> tuple[sessions_contracts.SessionRead, oauth_state_schema.OAuthStateRead | None] | None:
+    """Return an unexpired session and its optional OAuth state."""
+    session = sessions_crud.get_session_by_id_not_expired(session_id, db)
+    if session is None:
+        return None
+    oauth_state = (
+        oauth_state_integration.get_oauth_state_by_id_not_expired(session.oauth_state_id, db)
+        if session.oauth_state_id
+        else None
+    )
+    return session, oauth_state
+
+
+def _cap_expiry(expires_at: datetime, created_at: datetime, db: Session) -> datetime:
+    """Return ``expires_at`` limited to the session's creation time plus the absolute timeout."""
+    policy: server_settings_contracts.SessionPolicy = server_settings_integration.get_session_policy(db)
+    return min(expires_at, created_at + policy.absolute_timeout)
+
+
+def create_session(
+    session_id: uuid.UUID,
+    user: users_schema.UserRead,
+    client_type: auth_constants.ClientType,
+    ip_address: str,
+    user_agent: str,
+    refresh_token: str | None,
+    expires_at: datetime,
+    db: Session,
+    oauth_state_id: str | None = None,
+    *,
+    amr: Sequence[str],
+    device_hash: str | None,
+    app_redirect_uri: str | None = None,
+) -> sessions_contracts.SessionRead:
+    """Stage a session with digested tokens, its client type, the client's IP address and user agent.
+
+    ``amr`` records how the user signed in; ``auth_time`` is the moment the session is created.
+    ``device_hash`` is the digest of the known-device id the sign-in recorded, or ``None`` when the device is not
+    known yet (an SSO session, whose exchange records it). ``app_redirect_uri`` names the native app an SSO sign-in
+    handed the session to. The caller commits.
+    """
+    device = sessions_utils.parse_user_agent(user_agent)
+    now = datetime.now(UTC)
+    session_data = sessions_schema.UserSessionsInternal(
+        id=session_id,
+        user_id=user.id,
+        refresh_token=hash_refresh_token(refresh_token) if refresh_token else None,
+        ip_address=ip_address,
+        device_type=device.device_type.value,
+        operating_system=device.operating_system,
+        operating_system_version=device.operating_system_version,
+        browser=device.browser,
+        browser_version=device.browser_version,
+        created_at=now,
+        last_activity_at=now,
+        expires_at=_cap_expiry(expires_at, now, db),
+        oauth_state_id=oauth_state_id,
+        tokens_exchanged=refresh_token is not None,
+        token_family_id=session_id,
+        rotation_count=0,
+        last_rotation_at=None,
+        client_type=client_type,
+        auth_time=now,
+        amr=list(amr),
+        app_redirect_uri=app_redirect_uri,
+        device_hash=device_hash,
+    )
+    session = sessions_crud.create_session(session_data, db)
+    logger.info(
+        "Session created",
+        extra=core_logger.context(user_id=str(user.id), session_id=core_hashing.log_fingerprint(str(session_id))),
+    )
+    return session
+
+
+def edit_session(
+    session: sessions_contracts.SessionRead,
+    ip_address: str,
+    user_agent: str,
+    new_refresh_token: str,
+    expires_at: datetime,
+    db: Session,
+) -> sessions_contracts.SessionRead:
+    """Stage a refresh-token rotation and client metadata update; the caller commits."""
+    device = sessions_utils.parse_user_agent(user_agent)
+    session_data = sessions_schema.UserSessionsInternal.model_validate(session)
+    session_data = session_data.model_copy(
+        update={
+            "refresh_token": hash_refresh_token(new_refresh_token),
+            "ip_address": ip_address,
+            "device_type": device.device_type.value,
+            "operating_system": device.operating_system,
+            "operating_system_version": device.operating_system_version,
+            "browser": device.browser,
+            "browser_version": device.browser_version,
+            "last_activity_at": datetime.now(UTC),
+            "expires_at": _cap_expiry(expires_at, session.created_at, db),
+            "rotation_count": session.rotation_count + 1,
+            "last_rotation_at": datetime.now(UTC),
+        }
+    )
+    updated = sessions_crud.edit_session(session_data, db)
+    logger.debug(
+        "Session refresh token rotated",
+        extra=core_logger.context(session_id=core_hashing.log_fingerprint(str(session.id))),
+    )
+    return updated
+
+
+def stage_delete_session(session_id: uuid.UUID, user_id: uuid.UUID, db: Session) -> None:
+    """Stage deletion of a session with its token and OAuth state records; the caller commits."""
+    session = sessions_crud.delete_session(session_id, user_id, db)
+    _stage_deleted_session_cleanup(session, session_id, user_id, db)
+
+
+def stage_delete_session_if_present(session_id: uuid.UUID, user_id: uuid.UUID, db: Session) -> bool:
+    """Stage deletion of a session as ``stage_delete_session`` does, or do nothing when the user has no such session.
+
+    Returns:
+        True when a session was deleted, False when it was already gone.
+    """
+    session = sessions_crud.delete_session_if_present(session_id, user_id, db)
+    if session is None:
+        return False
+    _stage_deleted_session_cleanup(session, session_id, user_id, db)
+    return True
+
+
+def _stage_deleted_session_cleanup(
+    session: sessions_contracts.SessionRead, session_id: uuid.UUID, user_id: uuid.UUID, db: Session
+) -> None:
+    """Stage the removal of a deleted session's OAuth state and rotated tokens and publish the revocation."""
+    if session.oauth_state_id:
+        oauth_state_integration.delete_oauth_state(session.oauth_state_id, db)
+    rotated_refresh_tokens_integration.delete_by_family(session.token_family_id, db)
+    sessions_event_publishers.publish_sessions_revoked(user_id, db, session_id=session_id)
+
+
+def delete_sessions_by_device(user_id: uuid.UUID, device_hash: str, db: Session) -> int:
+    """Stage deletion of a user's sessions that signed in from a known device, with their token records.
+
+    The caller commits.
+
+    Returns:
+        The number of sessions deleted.
+    """
+    sessions = sessions_crud.delete_sessions_by_device(user_id, device_hash, db)
+    for session in sessions:
+        _stage_deleted_session_cleanup(session, session.id, user_id, db)
+    return len(sessions)
+
+
+def set_session_device_hash(session_id: uuid.UUID, device_hash: str, db: Session) -> None:
+    """Stage the known device a session signed in from; the caller commits."""
+    sessions_crud.set_session_device_hash(session_id, device_hash, db)
+
+
+def delete_session(
+    session_id: uuid.UUID,
+    user_id: uuid.UUID,
+    step_up: auth_schema.StepUpVerification,
+    verify_step_up: sessions_contracts.SessionRevokeVerifier,
+    db: Session,
+) -> None:
+    """Delete a session with its token and OAuth state records, audit the revocation and commit.
+
+    Backs the administrator's route; logout and self-revocation stage the deletion through
+    ``stage_delete_session`` and write their own audit rows. Ending another user's session locks them out, so
+    the administrator's step-up is verified before anything is deleted.
+
+    Args:
+        session_id: The session to delete.
+        user_id: The user who owns the session.
+        step_up: The administrator's step-up verification.
+        verify_step_up: Verifies the step-up for the calling administrator.
+        db: Database session.
+
+    Raises:
+        StepUpFailedError: When the step-up does not verify.
+        NotFoundError: When the user has no such session.
+    """
+    verify_step_up(step_up)
+    stage_delete_session(session_id, user_id, db)
+    jasil_audit.stage(
+        db,
+        sessions_audit_actions.SESSION_REVOKE,
+        target_type="session",
+        target_id=str(session_id),
+        target_owner_id=str(user_id),
+        details=sessions_audit_actions.SessionsRevokedDetails(sessions_revoked=1),
+    )
+    db.commit()
+    logger.info(
+        "Session deleted",
+        extra=core_logger.context(user_id=str(user_id), session_id=core_hashing.log_fingerprint(str(session_id))),
+    )
+
+
+def claim_session_for_token_exchange(
+    session_id: uuid.UUID, hashed_refresh_token: str, expires_at: datetime, amr: Sequence[str], db: Session
+) -> datetime | None:
+    """Atomically claim a session for its one-shot token exchange and extend it; the caller commits.
+
+    Args:
+        session_id: The session the exchange completes.
+        hashed_refresh_token: Hash of the refresh token the exchange issued.
+        expires_at: Expiry of that refresh token, which the session's absolute timeout may shorten.
+        amr: The methods the sign-in finally used, including a second factor verified at the exchange.
+        db: Database session.
+
+    Returns:
+        The session's new expiry, or ``None`` if the session is gone or another exchange claimed it first.
+    """
+    session = sessions_crud.get_session_by_id(session_id, db)
+    if session is None:
+        return None
+    session_expires_at = _cap_expiry(expires_at, session.created_at, db)
+    if not sessions_crud.claim_session_for_token_exchange(
+        session_id, hashed_refresh_token, session_expires_at, amr, db
+    ):
+        logger.warning(
+            "Session token exchange claim lost",
+            extra=core_logger.context(session_id=core_hashing.log_fingerprint(str(session_id))),
+        )
+        return None
+    _clear_oauth_state(session, db)
+    logger.info(
+        "Session token exchange claimed",
+        extra=core_logger.context(session_id=core_hashing.log_fingerprint(str(session_id))),
+    )
+    return session_expires_at
+
+
+def _clear_oauth_state(session: sessions_contracts.SessionRead | None, db: Session) -> None:
+    if session is None or session.oauth_state_id is None:
+        return
+    sessions_crud.clear_oauth_state_reference(session.id, db)
+    oauth_state_integration.delete_oauth_state(session.oauth_state_id, db)
+
+
+def invalidate_token_family(token_family_id: uuid.UUID, db: Session) -> int:
+    """Stage deletion of a token family from sessions and rotated-token persistence; the caller commits."""
+    owners = sessions_crud.list_session_owners_by_family(token_family_id, db)
+    sessions_deleted = sessions_crud.delete_sessions_by_family(token_family_id, db)
+    for owner_id, session_id in owners:
+        sessions_event_publishers.publish_sessions_revoked(owner_id, db, session_id=session_id)
+    tokens_deleted = rotated_refresh_tokens_integration.delete_by_family(token_family_id, db)
+    # The family id is the session id, the handle exchanged for tokens, so only a one-way fingerprint is logged.
+    logger.warning(
+        "Invalidated refresh-token family after reuse detection",
+        extra=core_logger.context(
+            session=core_hashing.log_fingerprint(str(token_family_id)),
+            sessions_deleted=sessions_deleted,
+            tokens_deleted=tokens_deleted,
+        ),
+    )
+    return sessions_deleted
+
+
+def delete_sessions_by_user(user_id: uuid.UUID, db: Session, exclude_session_id: uuid.UUID | None = None) -> int:
+    """Stage deletion of a user's sessions and their OAuth states for a larger auth transaction."""
+    state_ids = sessions_crud.list_oauth_state_ids_by_user(user_id, db, exclude_session_id)
+    deleted_count = sessions_crud.delete_sessions_by_user(user_id, db, exclude_session_id)
+    oauth_state_integration.delete_oauth_states(state_ids, db)
+    if deleted_count:
+        sessions_event_publishers.publish_sessions_revoked(user_id, db, except_session_id=exclude_session_id)
+    return deleted_count
+
+
+def delete_sessions_by_user_and_commit(
+    user_id: uuid.UUID,
+    step_up: auth_schema.StepUpVerification,
+    verify_step_up: sessions_contracts.SessionRevokeVerifier,
+    db: Session,
+    exclude_session_id: uuid.UUID | None = None,
+) -> int:
+    """Delete a user's sessions after the administrator's step-up, audit the revocation when any ended, and commit.
+
+    Args:
+        user_id: The user whose sessions to delete.
+        step_up: The administrator's step-up verification.
+        verify_step_up: Verifies the step-up for the calling administrator.
+        db: Database session.
+        exclude_session_id: Optional session to leave intact.
+
+    Returns:
+        The number of sessions deleted.
+
+    Raises:
+        StepUpFailedError: When the step-up does not verify.
+    """
+    verify_step_up(step_up)
+    if exclude_session_id is None:
+        security_generation_integration.stage_bump(user_id, db)
+    deleted_count = delete_sessions_by_user(user_id, db, exclude_session_id)
+    if deleted_count:
+        jasil_audit.stage(
+            db,
+            sessions_audit_actions.SESSION_REVOKE,
+            target_type="user",
+            target_id=str(user_id),
+            target_owner_id=str(user_id),
+            details=sessions_audit_actions.SessionsRevokedDetails(sessions_revoked=deleted_count),
+        )
+    db.commit()
+    logger.info(
+        "User sessions deleted",
+        extra=core_logger.context(
+            user_id=user_id,
+            count=deleted_count,
+            excluded_session_id=core_hashing.log_fingerprint(str(exclude_session_id)) if exclude_session_id else None,
+        ),
+    )
+    return deleted_count
+
+
+def _purge_ended_sessions(stage_batch: Callable[[int], list[tuple[uuid.UUID, uuid.UUID]]], db: Session) -> int:
+    """Delete sessions one batch per commit, announcing each as revoked when its batch commits.
+
+    The announcement closes the session's sockets and revokes its identity-provider tokens, as any other
+    revocation does.
+
+    Args:
+        stage_batch: Stages the deletion of up to the given number of sessions and returns each one's owner and id.
+        db: Database session.
+
+    Returns:
+        The number of sessions deleted.
+    """
+
+    def stage(limit: int) -> int:
+        ended = stage_batch(limit)
+        for user_id, session_id in ended:
+            sessions_event_publishers.publish_sessions_revoked(user_id, db, session_id=session_id)
+        return len(ended)
+
+    return core_database.delete_in_batches(stage, db)
+
+
+def delete_expired_sessions(db: Session) -> int:
+    """Delete sessions past their expiry, one batch per commit.
+
+    An expired session can no longer be read or refreshed, whatever the idle policy, so it is always
+    removed; its rotated refresh-token records go with it.
+    """
+    now = datetime.now(UTC)
+    return _purge_ended_sessions(lambda limit: sessions_crud.delete_expired_sessions(now, limit, db), db)
+
+
+def delete_idle_sessions(db: Session) -> int:
+    """Delete sessions that exceed the configured idle timeout, one batch per commit."""
+    policy: server_settings_contracts.SessionPolicy = server_settings_integration.get_session_policy(db)
+    if policy.idle_timeout is None:
+        return 0
+    cutoff_time = datetime.now(UTC) - policy.idle_timeout
+    return _purge_ended_sessions(lambda limit: sessions_crud.delete_idle_sessions(cutoff_time, limit, db), db)
+
+
+def validate_session_timeout(
+    session: sessions_contracts.SessionRead,
+    policy: server_settings_contracts.SessionPolicy,
+) -> None:
+    """Validate session idle and absolute timeouts."""
+    sessions_utils.validate_session_timeout(session, policy)
+
+
+def _matches_stored_digest(candidate: str, stored_hmac: str) -> bool:
+    """Compare a secret with a stored HMAC that may predate a rotation of ``SECRET_KEY``."""
+    matches = [
+        sessions_utils.digests_match(stored_hmac, digest)
+        for digest in access_tokens_integration.hmac_sha256_under_every_key(candidate)
+    ]
+    return any(matches)
+
+
+def hash_refresh_token(token: str) -> str:
+    """Return the digest a session stores for a refresh token.
+
+    A refresh token is 256 bits of signed random data, so a keyed digest is enough: a slow password hash would only
+    cost the server time on every refresh.
+
+    Args:
+        token: The raw refresh token.
+
+    Returns:
+        The HMAC-SHA256 digest, under the first ``SECRET_KEY`` entry.
+    """
+    return access_tokens_integration.hmac_sha256(token)
+
+
+def verify_refresh_token(candidate: str, stored_digest: str) -> bool:
+    """Tell whether a presented refresh token is the one a session stores, whichever ``SECRET_KEY`` entry made it.
+
+    Args:
+        candidate: The raw refresh token presented.
+        stored_digest: The digest the session stores.
+
+    Returns:
+        True when the digest matches.
+    """
+    return _matches_stored_digest(candidate, stored_digest)

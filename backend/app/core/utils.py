@@ -77,11 +77,6 @@ def _serve_from(base_dir: str, untrusted_path: str) -> FileResponse | None:
     return FileResponse(resolved)
 
 
-def return_frontend_index(path: str):
+def return_frontend_index(path: str) -> FileResponse | None:
     """Serve a file from the built frontend bundle."""
     return _serve_from(core_config.settings.FRONTEND_DIR, path)
-
-
-def return_server_img_path(server_img: str):
-    """Serve a server-managed image asset."""
-    return _serve_from(core_config.SERVER_IMAGES_DIR, server_img)

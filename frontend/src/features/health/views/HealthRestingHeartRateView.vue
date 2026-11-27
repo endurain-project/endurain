@@ -7,6 +7,7 @@ import type { HealthInterval } from '@/features/health/types'
 
 import HealthRestingHeartRateChart from '@/features/health/components/HealthRestingHeartRateChart.vue'
 import HealthRestingHeartRateListItem from '@/features/health/components/HealthRestingHeartRateListItem.vue'
+import { Alert } from '@/components/ui/alert'
 import { EmptyState } from '@/components/ui/empty-state'
 import { ListPanel } from '@/components/ui/list-panel'
 import { Select } from '@/components/ui/select'
@@ -14,7 +15,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useChartProvider } from '@/composables/useChartProvider'
 import { useListPagination } from '@/composables/useListPagination'
 import { useRecordsPerPage } from '@/features/config/composables/useRecordsPerPage'
-import { useRhrEntriesQuery } from '@/features/health/composables/useHealth'
+import { useHealthChartQuery, useRhrEntriesQuery } from '@/features/health/composables/useHealth'
 
 const { t } = useI18n()
 const chart = useChartProvider()
@@ -35,6 +36,7 @@ const page = ref(1)
 const { recordsPerPage } = useRecordsPerPage()
 
 const listQuery = useRhrEntriesQuery(page, recordsPerPage, interval)
+const chartQuery = useHealthChartQuery('rhr', interval)
 
 /** Resting-heart-rate entries on the current page (newest first). */
 const entries = computed(() => listQuery.data.value?.records ?? [])
@@ -49,10 +51,14 @@ const isPending = computed(() => listQuery.isPending.value)
 const isError = computed(() => listQuery.isError.value)
 const isEmpty = computed(() => !isPending.value && !isError.value && entries.value.length === 0)
 
-/** The chart is shown only when a provider is bundled and there is data to plot. */
-const showChart = computed(
-  () => chart.isAvailable && !isPending.value && !isError.value && entries.value.length > 0,
-)
+/**
+ * The whole interval's chart series, independent of the list's page. `null` when no chart
+ * provider is bundled or the interval holds nothing to plot.
+ */
+const chartSeries = computed(() => {
+  const series = chartQuery.data.value
+  return chart.isAvailable && series && series.points.length > 0 ? series : null
+})
 
 // Changing the interval changes the result set, so restart at the first page.
 watch(interval, resetPage)
@@ -76,7 +82,10 @@ watch(interval, resetPage)
       </div>
     </div>
 
-    <HealthRestingHeartRateChart v-if="showChart" :entries="entries" />
+    <HealthRestingHeartRateChart v-if="chartSeries" :series="chartSeries" />
+    <Alert v-else-if="chartQuery.isError.value" kind="error">
+      {{ t('health.chartError') }}
+    </Alert>
 
     <ListPanel
       v-model:page="page"

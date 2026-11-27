@@ -1,5 +1,8 @@
 """CRUD operations for activity stream data."""
 
+import uuid
+from typing import Any
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -15,7 +18,7 @@ logger = core_logger.get_logger(__name__)
 
 
 def get_activity_streams(
-    activity_id: int,
+    activity_id: uuid.UUID,
     db: Session,
 ) -> list[activity_streams_schema.ActivityStreamsRead]:
     """Get every stream belonging to an activity.
@@ -35,11 +38,11 @@ def get_activity_streams(
     )
     activity_streams: list[activity_streams_models.ActivityStreams] = list(db.scalars(stmt).all())
 
-    return activity_streams_serializers.to_read_schema(activity_streams)
+    return activity_streams_serializers.to_read_schemas(activity_streams)
 
 
 def get_activities_streams(
-    activity_ids: list[int],
+    activity_ids: list[uuid.UUID],
     db: Session,
 ) -> list[activity_streams_schema.ActivityStreamsRead]:
     """Get streams for multiple activities.
@@ -64,11 +67,11 @@ def get_activities_streams(
     if not all_streams:
         return []
 
-    return activity_streams_serializers.to_read_schema(all_streams)
+    return activity_streams_serializers.to_read_schemas(all_streams)
 
 
 def get_activity_stream_by_type(
-    activity_id: int,
+    activity_id: uuid.UUID,
     stream_type: int,
     db: Session,
 ) -> activity_streams_schema.ActivityStreamsRead | None:
@@ -98,9 +101,9 @@ def get_activity_stream_by_type(
 
 
 def get_gps_stream_waypoints_for_activities(
-    activity_ids: list[int],
+    activity_ids: list[uuid.UUID],
     db: Session,
-) -> dict[int, list]:
+) -> dict[uuid.UUID, list[dict[str, Any]]]:
     """Return each activity's GPS (map) stream waypoints, keyed by activity id.
 
     Batch helper for the reverse-geocoding backfill: it fetches only the
@@ -143,7 +146,7 @@ def create_activity_streams(
     if activity.user_id is None:
         logger.warning(
             "Failed to create activity streams: activity has no user_id",
-            extra=core_logger.context(activity_id=activity.id),
+            extra=core_logger.context(activity_id=str(activity.id)),
         )
         return
 

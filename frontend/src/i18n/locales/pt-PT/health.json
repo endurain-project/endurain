@@ -1,10 +1,16 @@
 {
   "title": "Saúde",
   "subtitle": "Vê todos os teus dados de saúde num só lugar",
+  "chartBucket": {
+    "week": "Médias semanais: cada barra é o dia médio dessa semana.",
+    "month": "Médias mensais: cada barra é o dia médio desse mês."
+  },
+  "targetInvalid": "Introduz um valor superior a 0 ou deixa vazio para remover o objetivo.",
+  "chartError": "Não foi possível carregar o gráfico para este intervalo de tempo.",
   "nav": {
     "label": "Secções de saúde",
     "soon": "Em breve",
-    "dashboard": "Dashboard",
+    "dashboard": "Painel",
     "sleep": "Sono",
     "rhr": "FC em repouso",
     "steps": "Passos",
@@ -14,7 +20,7 @@
     "poop": "Movimentos intestinais"
   },
   "dashboard": {
-    "title": "Dashboard",
+    "title": "Painel",
     "subtitle": "O teu bem-estar diário num relance",
     "sleep": "Sono",
     "restingHeartRate": "FC em repouso",
@@ -34,6 +40,7 @@
     "stepsTargetLabel": "passos",
     "poopTargetLabel": "/ dia",
     "noWeightData": "Sem dados de peso",
+    "noHeightData": "Adiciona a tua altura no perfil para ver o teu IMC.",
     "bmiUnderweight": "Abaixo do peso",
     "bmiNormalWeight": "Peso normal",
     "bmiOverweight": "Excesso de peso",
@@ -88,7 +95,6 @@
       "weightRequired": "Introduz o teu peso.",
       "weightInvalid": "Introduz um peso superior a zero.",
       "bodyComposition": "Composição corporal (opcional)",
-      "bmi": "IMC",
       "bodyFat": "Gordura corporal (%)",
       "bodyWater": "Água corporal (%)",
       "boneMass": "Massa óssea",
@@ -256,6 +262,8 @@
     "scorePoor": "Fraco",
     "detail": {
       "tabsLabel": "Secções de detalhes do sono",
+      "stagesLoading": "A carregar as fases do sono",
+      "stagesError": "Não foi possível carregar as fases do sono",
       "tabScore": "Pontuação do sono",
       "tabDetails": "Detalhes do sono",
       "deep": "Profundo",
@@ -301,6 +309,8 @@
     "form": {
       "addTitle": "Registar sono",
       "editTitle": "Editar entrada de sono",
+      "loading": "A carregar a entrada de sono",
+      "loadError": "Não foi possível carregar a entrada de sono",
       "description": "Regista a duração do sono e, opcionalmente, a desagregação de fases e métricas.",
       "date": "Data",
       "dateRequired": "Escolhe uma data.",
@@ -308,6 +318,8 @@
       "totalSleepRequired": "Introduz quanto tempo dormiste.",
       "hours": "Horas",
       "minutes": "Minutos",
+      "hoursOf": "{field}, horas",
+      "minutesOf": "{field}, minutos",
       "stageBreakdown": "Desagregação de fases (opcional)",
       "deep": "Sono profundo",
       "light": "Sono ligeiro",
@@ -350,7 +362,11 @@
       "close": "Fechar",
       "createSuccess": "Sono registado.",
       "updateSuccess": "Entrada de sono atualizada.",
-      "saveError": "Não foi possível guardar a entrada de sono. Tenta novamente."
+      "saveError": "Não foi possível guardar a entrada de sono. Tenta novamente.",
+      "numberRange": "Introduz um valor entre {min} e {max}.",
+      "numberMin": "Introduz {min} ou mais.",
+      "stagesExceedTotal": "O sono profundo, ligeiro e REM somam mais do que o total.",
+      "inconsistentError": "Estes valores de sono não batem certo. Verifica se as fases e o total cabem dentro dos horários de sono."
     },
     "target": {
       "title": "Definir objetivo de sono",
@@ -419,7 +435,8 @@
       "close": "Fechar",
       "createSuccess": "Água registada.",
       "updateSuccess": "Entrada de água atualizada.",
-      "saveError": "Não foi possível guardar a entrada de água. Tenta novamente."
+      "saveError": "Não foi possível guardar a entrada de água. Tenta novamente.",
+      "dayTakenError": "Já existe um registo de água para esse dia. Edita-o em vez de adicionar outro."
     },
     "target": {
       "title": "Definir objetivo de água",
@@ -596,6 +613,8 @@
       "startTime": "Hora de início",
       "startTimeRequired": "Escolhe uma hora de início.",
       "endTime": "Hora de fim",
+      "endBeforeStart": "A hora de fim não pode ser anterior à hora de início.",
+      "endWhileInProgress": "Um jejum em curso não pode ter hora de fim.",
       "status": "Estado",
       "notes": "Notas",
       "create": "Iniciar",
@@ -604,7 +623,9 @@
       "close": "Fechar",
       "createSuccess": "Jejum iniciado.",
       "updateSuccess": "Sessão de jejum atualizada.",
-      "saveError": "Não foi possível guardar a sessão de jejum. Tenta novamente."
+      "saveError": "Não foi possível guardar a sessão de jejum. Tenta novamente.",
+      "overlapError": "Este jejum sobrepõe-se a outra sessão de jejum, ou já existe outro jejum em curso.",
+      "invalidTimesError": "Um jejum não pode terminar antes de começar, um jejum concluído ou quebrado precisa de uma hora de fim e um jejum em curso não pode tê-la."
     },
     "target": {
       "title": "Definir objetivo de jejum",
@@ -621,6 +642,20 @@
     "complete": {
       "success": "Jejum terminado.",
       "error": "Não foi possível terminar o jejum. Tenta novamente."
+    },
+    "endConfirm": {
+      "broken": {
+        "title": "Quebrar este jejum?",
+        "body": "O jejum termina agora e fica guardado como quebrado. Não é possível anular.",
+        "confirm": "Quebrar jejum"
+      },
+      "cancelled": {
+        "title": "Cancelar este jejum?",
+        "body": "O jejum termina agora e fica guardado como cancelado. Não é possível anular.",
+        "confirm": "Cancelar jejum"
+      },
+      "cancel": "Continuar em jejum",
+      "close": "Fechar"
     },
     "empty": {
       "title": "Ainda sem jejuns",

@@ -110,6 +110,17 @@ describe('useForm', () => {
     expect(form.isDirty.value).toBe(true)
   })
 
+  it('measures dirtiness from the last markPristine() baseline', () => {
+    const form = createLoginForm()
+    form.values.email = 'user@example.com'
+    form.markPristine()
+    expect(form.isDirty.value).toBe(false)
+    form.values.email = 'other@example.com'
+    expect(form.isDirty.value).toBe(true)
+    form.reset()
+    expect(form.isDirty.value).toBe(false)
+  })
+
   it('merges server-side errors', () => {
     const form = createLoginForm()
     form.setErrors({ email: 'Already registered' })

@@ -1,44 +1,14 @@
 """Tests for the pure helpers behind ``activities.activity.crud``.
 
-Covers the LIKE-escaping condition in ``query`` and the schema→ORM
-transformation in ``serializers``; the query functions themselves live in
+Covers the schema→ORM transformation in ``serializers`` and the sort order; the query functions themselves live in
 ``test_crud.py``.
 """
 
+import uuid
 from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
-
-class TestEscapeLike:
-    def test_escape_percent(self):
-        from modules.activities.activity.query import escape_like
-
-        result = escape_like("100%")
-        assert result == "100\\%"
-
-    def test_escape_underscore(self):
-        from modules.activities.activity.query import escape_like
-
-        result = escape_like("test_name")
-        assert result == "test\\_name"
-
-    def test_escape_backslash(self):
-        from modules.activities.activity.query import escape_like
-
-        result = escape_like("foo\\bar")
-        assert result == "foo\\\\bar"
-
-    def test_no_escaping_needed(self):
-        from modules.activities.activity.query import escape_like
-
-        result = escape_like("hello")
-        assert result == "hello"
-
-    def test_escape_all(self):
-        from modules.activities.activity.query import escape_like
-
-        result = escape_like("a%b_c\\d")
-        assert result == "a\\%b\\_c\\\\d"
+_USER_1 = uuid.UUID(int=1)
 
 
 class TestTransformSchemaToModel:
@@ -46,7 +16,7 @@ class TestTransformSchemaToModel:
         from modules.activities.activity import schema as activities_schema
 
         defaults = dict(
-            user_id=1,
+            user_id=_USER_1,
             distance=10000,
             name="Morning Run",
             activity_type=1,
@@ -81,7 +51,7 @@ class TestTransformSchemaToModel:
 
         mock_model.assert_called_once()
         _, kwargs = mock_model.call_args
-        assert kwargs["user_id"] == 1
+        assert kwargs["user_id"] == _USER_1
         assert kwargs["distance"] == 10000
         assert kwargs["name"] == "Morning Run"
         assert kwargs["city"] == "Lisbon"

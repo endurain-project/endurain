@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { RouterLink, useRouter, type RouteLocationRaw } from 'vue-router'
+import { RouterLink, type RouteLocationRaw } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { Activity, Calendar, LogOut, Search, Settings, User } from '@lucide/vue'
 
@@ -12,11 +12,12 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { useCurrentUser } from '@/features/auth/composables/useCurrentUser'
 import { useAuthStore } from '@/features/auth/stores/auth'
+import { useSignOut } from '@/features/auth/composables/useSignOut'
 import { useUpdateCheck } from '@/features/core/composables/useUpdateCheck'
 
 const { t } = useI18n()
 const auth = useAuthStore()
-const router = useRouter()
+const { signOut } = useSignOut()
 const { data: currentUser } = useCurrentUser()
 const { updateAvailable, latestVersion } = useUpdateCheck()
 
@@ -29,12 +30,6 @@ const profileRoute = computed<RouteLocationRaw>(() =>
     ? { name: 'user', params: { id: currentUser.value.id } }
     : { name: 'settings-profile' },
 )
-
-/** Logs out and returns to the home screen. */
-async function signOut(): Promise<void> {
-  await auth.logout()
-  await router.push({ name: 'login', query: { logoutSuccess: 'true' } })
-}
 </script>
 
 <template>

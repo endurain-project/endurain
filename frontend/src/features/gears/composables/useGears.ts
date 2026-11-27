@@ -7,6 +7,7 @@ import type { Gear, GearDetail, GearInput } from '@/features/gears/types'
 import { queryKeys } from '@/services/queryKeys'
 import { useInvalidatingMutation } from '@/composables/useInvalidatingMutation'
 import { useAuthStore } from '@/features/auth/stores/auth'
+import { GEAR_QUERY_STALE_TIME_MS } from '@/features/gears/constants'
 import {
   createGear,
   deleteGear,
@@ -52,6 +53,7 @@ export function useGearsQuery(
         },
         signal,
       ),
+    staleTime: GEAR_QUERY_STALE_TIME_MS,
     placeholderData: keepPreviousData,
     enabled: isAuthenticated,
   })
@@ -71,6 +73,7 @@ export function useGearSearchQuery(term: MaybeRefOrGetter<string>) {
   return useQuery<Gear[]>({
     queryKey: computed(() => queryKeys.gears.search(trimmed.value)),
     queryFn: ({ signal }) => searchGearsByNickname(trimmed.value, signal),
+    staleTime: GEAR_QUERY_STALE_TIME_MS,
     enabled: computed(() => isAuthenticated.value && trimmed.value.length > 0),
   })
 }
@@ -81,22 +84,32 @@ export function useGearSearchQuery(term: MaybeRefOrGetter<string>) {
  * @param id - The reactive gear id, or `null` when none is selected.
  * @returns The TanStack Query result for the gear detail.
  */
-export function useGearQuery(id: MaybeRefOrGetter<number | null>) {
+export function useGearQuery(id: MaybeRefOrGetter<string | null>) {
   const { isAuthenticated } = storeToRefs(useAuthStore())
   const gearId = computed(() => toValue(id))
 
   return useQuery<GearDetail | null>({
-    queryKey: computed(() => queryKeys.gears.detail(gearId.value ?? -1)),
-    queryFn: ({ signal }) => fetchGearById(gearId.value as number, signal),
-    enabled: computed(
-      () => isAuthenticated.value && gearId.value !== null && Number.isFinite(gearId.value),
-    ),
+    queryKey: computed(() => queryKeys.gears.detail(gearId.value ?? '')),
+    queryFn: ({ signal }) => fetchGearById(gearId.value as string, signal),
+    staleTime: GEAR_QUERY_STALE_TIME_MS,
+    enabled: computed(() => isAuthenticated.value && gearId.value !== null),
   })
 }
 
 /**
+ * What a write to a gear itself cannot change: its components, the static
+ * component-type catalogue and the activity rows it is attached to. Excluded from
+ * the gears invalidation so editing a gear does not refetch them.
+ */
+const GEAR_WRITE_UNAFFECTED_KEYS = [
+  queryKeys.gears.componentsLists(),
+  queryKeys.gears.componentTypes(),
+  queryKeys.gears.activitiesLists(),
+] as const
+
+/**
  * Create mutation. Invalidation-based per the mutation reference: on settle it
- * invalidates the gears domain's broad key so every list, the nickname search,
+ * invalidates the gears domain, so every list, the nickname search, the pickers
  * and any detail view refetch the server-authoritative state.
  *
  * @returns The TanStack Query mutation for creating a gear.
@@ -104,6 +117,7 @@ export function useGearQuery(id: MaybeRefOrGetter<number | null>) {
 export function useCreateGearMutation() {
   return useInvalidatingMutation<Gear, GearInput>({
     mutationKey: queryKeys.gears.all(),
+    excludeKeys: GEAR_WRITE_UNAFFECTED_KEYS,
     mutationFn: (input) => createGear(input),
   })
 }
@@ -114,20 +128,24 @@ export function useCreateGearMutation() {
  * @returns The TanStack Query mutation for updating a gear.
  */
 export function useUpdateGearMutation() {
-  return useInvalidatingMutation<Gear, { id: number; input: GearInput }>({
+  return useInvalidatingMutation<Gear, { id: string; input: GearInput; version: number }>({
     mutationKey: queryKeys.gears.all(),
-    mutationFn: ({ id, input }) => updateGear(id, input),
+    excludeKeys: GEAR_WRITE_UNAFFECTED_KEYS,
+    mutationFn: ({ id, input, version }) => updateGear(id, input, version),
   })
 }
 
 /**
- * Delete mutation. Invalidates the gears domain on settle.
+ * Delete mutation. Invalidates the gears domain on settle, plus the default-gear
+ * assignments and the activities, whose versions the delete bumped.
  *
  * @returns The TanStack Query mutation for deleting a gear.
  */
 export function useDeleteGearMutation() {
-  return useInvalidatingMutation<void, number>({
+  return useInvalidatingMutation<void, { id: string; version: number }>({
     mutationKey: queryKeys.gears.all(),
-    mutationFn: (id) => deleteGear(id),
+    excludeKeys: GEAR_WRITE_UNAFFECTED_KEYS,
+    alsoInvalidate: [queryKeys.profile.defaultGear(), queryKeys.activities.all()],
+    mutationFn: ({ id, version }) => deleteGear(id, version),
   })
 }

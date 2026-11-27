@@ -10,6 +10,7 @@
   "settings": "Asetukset",
   "profile": "Profiili",
   "logout": "Kirjaudu ulos",
+  "logoutFailed": "Uloskirjautuminen epäonnistui. Tarkista yhteytesi ja yritä uudelleen.",
   "userMenu": "Käyttäjävalikko",
   "menu": "Valikko",
   "primary": "Päänavigointi",

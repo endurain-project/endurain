@@ -10,6 +10,7 @@
   "settings": "Ustawienia",
   "profile": "Profil",
   "logout": "Wyloguj się",
+  "logoutFailed": "Nie udało się wylogować. Sprawdź połączenie i spróbuj ponownie.",
   "userMenu": "Menu użytkownika",
   "menu": "Menu",
   "primary": "Nawigacja główna",

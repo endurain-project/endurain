@@ -15,15 +15,17 @@ Baseline numbers recorded on 2026-05-25:
 """
 
 import time
+from datetime import timedelta
 from unittest.mock import MagicMock
 
 import pytest
 
-import modules.auth._internal.password_hasher as auth_password_hasher
-import modules.auth._internal.token_manager as auth_token_manager
+import modules.auth.access_tokens.service as auth_token_manager
+import modules.auth.authentication.principal_service as principal_service
 import modules.users.users.schema as users_schema
-from modules.auth.identity_service import DefaultIdentityService
-from modules.auth.principal import AccessTokenCred
+from modules.auth.constants import ClientType
+from modules.auth.contracts import AccessTokenCred
+from tests._helpers.auth import MOCK_USER_ID
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -43,23 +45,26 @@ ITERATIONS = 100
 
 @pytest.fixture
 def token_manager() -> auth_token_manager.TokenManager:
-    """Real TokenManager with a test secret.
+    """Real TokenManager with test keys.
 
     Returns:
         auth_token_manager.TokenManager: Token manager.
     """
-    return auth_token_manager.TokenManager(secret_key="bench-secret-key-for-testing-only-min-32-chars")
+    return auth_token_manager.TokenManager(
+        access_keys=["bench-access-key-for-testing-only-min-32-chars"],
+        refresh_keys=["bench-refresh-key-for-testing-only-min-32-chars"],
+    )
 
 
 @pytest.fixture
-def sample_user_read() -> users_schema.UsersRead:
-    """Minimal UsersRead fixture.
+def sample_user_read() -> users_schema.UserRead:
+    """Minimal UserRead fixture.
 
     Returns:
-        users_schema.UsersRead: Sample user.
+        users_schema.UserRead: Sample user.
     """
-    return users_schema.UsersRead(
-        id=1,
+    return users_schema.UserRead(
+        id=MOCK_USER_ID,
         name="Bench User",
         username="benchuser",
         email="bench@example.com",
@@ -76,7 +81,7 @@ def mock_user_orm() -> MagicMock:
         MagicMock: Mock ORM user.
     """
     user = MagicMock()
-    user.id = 1
+    user.id = MOCK_USER_ID
     user.username = "benchuser"
     user.email = "bench@example.com"
     user.active = True
@@ -85,51 +90,41 @@ def mock_user_orm() -> MagicMock:
 
 
 @pytest.fixture
-def service_with_mocked_db(
-    token_manager: auth_token_manager.TokenManager,
-    mock_user_orm: MagicMock,
-) -> DefaultIdentityService:
-    """DefaultIdentityService whose DB lookups are mocked.
+def service_with_mocked_db(mock_user_orm: MagicMock) -> MagicMock:
+    """Principal service whose user lookups are mocked.
 
     Isolates pure resolution logic from real DB latency
     so the benchmark measures the code path, not I/O.
 
     Args:
-        token_manager: Real JWT token manager.
         mock_user_orm: Mock ORM user row.
 
     Returns:
-        DefaultIdentityService: Service under test.
+        MagicMock: Mock database session.
     """
     from unittest.mock import patch
 
     mock_db = MagicMock()
-    password_hasher = auth_password_hasher.get_password_hasher()
-    svc = DefaultIdentityService(
-        db=mock_db,
-        token_manager=token_manager,
-        password_hasher=password_hasher,
-    )
 
     # Patch DB utility used inside resolve_from_access_token
-    import modules.users.users.utils as users_utils
+    import modules.users.users.integration_service as users_integration
 
-    users_utils_patcher = patch.object(
-        users_utils,
-        "get_user_by_id_or_404",
+    users_patcher = patch.object(
+        users_integration,
+        "require_user",
         return_value=mock_user_orm,
     )
     check_patcher = patch.object(
-        users_utils,
-        "check_user_is_active",
+        users_integration,
+        "require_active_user",
         return_value=None,
     )
-    users_utils_patcher.start()
+    users_patcher.start()
     check_patcher.start()
 
-    yield svc
+    yield mock_db
 
-    users_utils_patcher.stop()
+    users_patcher.stop()
     check_patcher.stop()
 
 
@@ -143,27 +138,28 @@ class TestResolveFromAccessTokenBenchmark:
 
     def test_sequential_latency_under_limit(
         self,
-        service_with_mocked_db: DefaultIdentityService,
+        service_with_mocked_db: MagicMock,
         token_manager: auth_token_manager.TokenManager,
-        sample_user_read: users_schema.UsersRead,
+        sample_user_read: users_schema.UserRead,
     ):
         """100 sequential resolutions complete within WALL_CLOCK_LIMIT_S.
 
         Baseline (2026-05-25, mocked DB):
             100 calls < 0.05 s (WALL_CLOCK_LIMIT_S = 1.0)
 
-        This gate confirms that routing through IdentityService
-        does not introduce unexpected overhead on the hot path.
+        This gate confirms that principal resolution stays within the expected hot-path budget.
         """
         _, access_token = token_manager.create_token(
             "bench-session",
             sample_user_read,
+            ClientType.WEB,
             auth_token_manager.TokenType.ACCESS,
+            timedelta(minutes=15),
         )
 
         start = time.perf_counter()
         for _ in range(ITERATIONS):
-            principal = service_with_mocked_db.resolve_from_access_token(access_token)
+            principal = principal_service.resolve_from_access_token(access_token, token_manager, service_with_mocked_db)
         elapsed = time.perf_counter() - start
 
         assert principal.user_id == sample_user_read.id
@@ -175,7 +171,7 @@ class TestResolveFromAccessTokenBenchmark:
     def test_db_roundtrip_count(
         self,
         token_manager: auth_token_manager.TokenManager,
-        sample_user_read: users_schema.UsersRead,
+        sample_user_read: users_schema.UserRead,
         mock_user_orm: MagicMock,
     ):
         """Each resolve_from_access_token makes exactly 1 DB roundtrip.
@@ -186,36 +182,32 @@ class TestResolveFromAccessTokenBenchmark:
         """
         from unittest.mock import patch
 
-        import modules.users.users.utils as users_utils
+        import modules.users.users.integration_service as users_integration
 
         mock_db = MagicMock()
-        password_hasher = auth_password_hasher.get_password_hasher()
-        svc = DefaultIdentityService(
-            db=mock_db,
-            token_manager=token_manager,
-            password_hasher=password_hasher,
-        )
 
         _, access_token = token_manager.create_token(
             "bench-session",
             sample_user_read,
+            ClientType.WEB,
             auth_token_manager.TokenType.ACCESS,
+            timedelta(minutes=15),
         )
 
         with (
             patch.object(
-                users_utils,
-                "get_user_by_id_or_404",
+                users_integration,
+                "require_user",
                 return_value=mock_user_orm,
             ) as mock_get_user,
             patch.object(
-                users_utils,
-                "check_user_is_active",
+                users_integration,
+                "require_active_user",
                 return_value=None,
             ),
         ):
-            svc.resolve_from_access_token(access_token)
-            svc.resolve_from_access_token(access_token)
+            principal_service.resolve_from_access_token(access_token, token_manager, mock_db)
+            principal_service.resolve_from_access_token(access_token, token_manager, mock_db)
 
         # 2 calls → 2 DB roundtrips (caching is at the
         # request-state level, not the service level)

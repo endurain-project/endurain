@@ -12,9 +12,9 @@ Verifies:
 from unittest.mock import patch
 
 import pytest
-from cryptography.fernet import Fernet
-from fastapi import HTTPException
+from cryptography.fernet import Fernet, InvalidToken, MultiFernet
 
+import core.exceptions as core_exceptions
 from core import cryptography
 
 
@@ -29,7 +29,7 @@ class TestCreateFernetCipher:
 
         cipher = cryptography.create_fernet_cipher()
 
-        assert isinstance(cipher, Fernet)
+        assert isinstance(cipher, MultiFernet)
 
     def test_create_fernet_cipher_missing_key(self, monkeypatch):
         """Test Fernet cipher creation fails when FERNET_KEY is missing."""
@@ -38,7 +38,7 @@ class TestCreateFernetCipher:
         monkeypatch.delenv("FERNET_KEY_FILE", raising=False)
 
         with patch("core.config.read_secret", return_value=None):
-            with pytest.raises(HTTPException) as exc_info:
+            with pytest.raises(core_exceptions.CryptographyError) as exc_info:
                 cryptography.create_fernet_cipher()
 
             assert exc_info.value.status_code == 500
@@ -48,7 +48,7 @@ class TestCreateFernetCipher:
         """Test Fernet cipher creation fails with invalid key."""
         monkeypatch.setenv("FERNET_KEY", "invalid_key")
 
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.CryptographyError) as exc_info:
             cryptography.create_fernet_cipher()
 
         assert exc_info.value.status_code == 500
@@ -118,7 +118,7 @@ class TestEncryptTokenFernet:
         """Test encryption fails gracefully when cipher creation fails."""
         monkeypatch.setenv("FERNET_KEY", "invalid_key")
 
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.CryptographyError) as exc_info:
             cryptography.encrypt_token_fernet("test")
 
         assert exc_info.value.status_code == 500
@@ -152,7 +152,7 @@ class TestDecryptTokenFernet:
         """Test decryption fails with invalid encrypted data."""
         invalid_encrypted = "not_a_valid_encrypted_token"
 
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.UndecryptableError) as exc_info:
             cryptography.decrypt_token_fernet(invalid_encrypted)
 
         assert exc_info.value.status_code == 500
@@ -166,7 +166,7 @@ class TestDecryptTokenFernet:
         # Tamper with the encrypted data
         tampered = encrypted[:-5] + "XXXXX"
 
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.UndecryptableError) as exc_info:
             cryptography.decrypt_token_fernet(tampered)
 
         assert exc_info.value.status_code == 500
@@ -199,7 +199,7 @@ class TestDecryptTokenFernet:
         monkeypatch.setenv("FERNET_KEY", new_key)
 
         # Decryption should fail
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.UndecryptableError) as exc_info:
             cryptography.decrypt_token_fernet(encrypted)
 
         assert exc_info.value.status_code == 500
@@ -246,3 +246,138 @@ class TestEncryptDecryptRoundtrip:
         # Both should decrypt to the same original token
         assert cryptography.decrypt_token_fernet(encrypted1) == token
         assert cryptography.decrypt_token_fernet(encrypted2) == token
+
+
+class TestDecryptKeyFailure:
+    """A key that cannot be used is not an undecryptable value."""
+
+    def test_an_unusable_key_is_a_cryptography_error_not_an_undecryptable_value(self, monkeypatch):
+        monkeypatch.setenv("FERNET_KEY", "invalid_key")
+
+        with pytest.raises(core_exceptions.CryptographyError) as exc_info:
+            cryptography.decrypt_token_fernet("anything")
+
+        assert not isinstance(exc_info.value, core_exceptions.UndecryptableError)
+
+
+def _token(key: str, plaintext: str) -> str:
+    """Encrypt ``plaintext`` under ``key`` alone."""
+    return Fernet(key.encode()).encrypt(plaintext.encode()).decode()
+
+
+class TestKeyList:
+    """FERNET_KEY accepts a comma-separated list: the first key encrypts, every key decrypts."""
+
+    def setup_method(self):
+        self.new_key = Fernet.generate_key().decode()
+        self.old_key = Fernet.generate_key().decode()
+
+    def test_single_key_is_unchanged(self, monkeypatch):
+        monkeypatch.setenv("FERNET_KEY", self.new_key)
+
+        encrypted = cryptography.encrypt_token_fernet("secret")
+
+        assert Fernet(self.new_key.encode()).decrypt(encrypted.encode()) == b"secret"
+        assert cryptography.has_older_keys() is False
+
+    def test_first_key_encrypts(self, monkeypatch):
+        monkeypatch.setenv("FERNET_KEY", f"{self.new_key},{self.old_key}")
+
+        encrypted = cryptography.encrypt_token_fernet("secret")
+
+        assert Fernet(self.new_key.encode()).decrypt(encrypted.encode()) == b"secret"
+        with pytest.raises(InvalidToken):
+            Fernet(self.old_key.encode()).decrypt(encrypted.encode())
+
+    def test_every_key_decrypts(self, monkeypatch):
+        monkeypatch.setenv("FERNET_KEY", f"{self.new_key},{self.old_key}")
+
+        assert cryptography.decrypt_token_fernet(_token(self.new_key, "a")) == "a"
+        assert cryptography.decrypt_token_fernet(_token(self.old_key, "b")) == "b"
+
+    def test_whitespace_around_keys_is_trimmed(self, monkeypatch):
+        monkeypatch.setenv("FERNET_KEY", f"  {self.new_key} ,\n{self.old_key}  ")
+
+        assert cryptography.decrypt_token_fernet(_token(self.old_key, "b")) == "b"
+        assert cryptography.has_older_keys() is True
+
+    @pytest.mark.parametrize("template", ["{new},", ",{new}", "{new},,{old}", "{new}, ,{old}"])
+    def test_empty_entry_is_refused(self, monkeypatch, template):
+        monkeypatch.setenv("FERNET_KEY", template.format(new=self.new_key, old=self.old_key))
+
+        with pytest.raises(core_exceptions.CryptographyError):
+            cryptography.create_fernet_cipher()
+
+    def test_invalid_key_in_list_is_refused(self, monkeypatch):
+        monkeypatch.setenv("FERNET_KEY", f"{self.new_key},invalid_key")
+
+        with pytest.raises(core_exceptions.CryptographyError):
+            cryptography.create_fernet_cipher()
+
+
+class TestReencryptToPrimaryKey:
+    """reencrypt_to_primary_key moves a value from an older key to the first key."""
+
+    def setup_method(self):
+        self.new_key = Fernet.generate_key().decode()
+        self.old_key = Fernet.generate_key().decode()
+
+    def test_old_key_value_is_rewritten_under_first_key(self, monkeypatch):
+        monkeypatch.setenv("FERNET_KEY", f"{self.new_key},{self.old_key}")
+
+        rewritten = cryptography.reencrypt_to_primary_key(_token(self.old_key, "secret"))
+
+        assert rewritten is not None
+        assert Fernet(self.new_key.encode()).decrypt(rewritten.encode()) == b"secret"
+
+    def test_first_key_value_is_left_alone(self, monkeypatch):
+        monkeypatch.setenv("FERNET_KEY", f"{self.new_key},{self.old_key}")
+
+        assert cryptography.reencrypt_to_primary_key(_token(self.new_key, "secret")) is None
+
+    def test_undecryptable_value_raises(self, monkeypatch):
+        monkeypatch.setenv("FERNET_KEY", f"{self.new_key},{self.old_key}")
+
+        with pytest.raises(core_exceptions.UndecryptableError):
+            cryptography.reencrypt_to_primary_key(_token(Fernet.generate_key().decode(), "secret"))
+
+    def test_garbage_value_raises(self, monkeypatch):
+        monkeypatch.setenv("FERNET_KEY", f"{self.new_key},{self.old_key}")
+
+        with pytest.raises(core_exceptions.UndecryptableError):
+            cryptography.reencrypt_to_primary_key("not-a-token")
+
+
+class TestSameSecret:
+    """same_secret compares what two stored secrets decrypt to."""
+
+    def setup_method(self):
+        self.new_key = Fernet.generate_key().decode()
+        self.old_key = Fernet.generate_key().decode()
+
+    def test_rewrapped_value_is_the_same_secret(self, monkeypatch):
+        monkeypatch.setenv("FERNET_KEY", f"{self.new_key},{self.old_key}")
+        old = _token(self.old_key, "secret")
+        new = cryptography.reencrypt_to_primary_key(old)
+
+        assert new != old
+        assert cryptography.same_secret(old, new) is True
+
+    def test_different_values_differ(self, monkeypatch):
+        monkeypatch.setenv("FERNET_KEY", self.new_key)
+
+        assert cryptography.same_secret(_token(self.new_key, "a"), _token(self.new_key, "b")) is False
+
+    def test_none_handling(self, monkeypatch):
+        monkeypatch.setenv("FERNET_KEY", self.new_key)
+        token = _token(self.new_key, "a")
+
+        assert cryptography.same_secret(None, None) is True
+        assert cryptography.same_secret(token, None) is False
+        assert cryptography.same_secret(None, token) is False
+
+    def test_undecryptable_value_is_not_the_same(self, monkeypatch):
+        monkeypatch.setenv("FERNET_KEY", self.new_key)
+        stranger = _token(Fernet.generate_key().decode(), "a")
+
+        assert cryptography.same_secret(stranger, stranger) is False

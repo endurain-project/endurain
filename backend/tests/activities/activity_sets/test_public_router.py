@@ -1,3 +1,4 @@
+import uuid
 from datetime import datetime
 from unittest.mock import patch
 
@@ -26,7 +27,11 @@ class TestReadPublicActivitySets:
         mock_get.return_value = ActivitySetsPage.build(
             [
                 ActivitySetsRead(
-                    id=1, activity_id=1, duration=300.0, set_type="active", start_time=datetime(2024, 1, 15, 8, 0, 0)
+                    id=uuid.uuid4(),
+                    activity_id=uuid.uuid4(),
+                    duration=300.0,
+                    set_type="active",
+                    start_time=datetime(2024, 1, 15, 8, 0, 0),
                 )
             ],
             1,
@@ -34,7 +39,7 @@ class TestReadPublicActivitySets:
             200,
         )
 
-        response = client.get("/public/activities/1/sets")
+        response = client.get("/public/activities/00000000-0000-4000-8000-000000000001/sets")
         assert response.status_code == 200
 
     @patch("modules.activities.activity_sets.public_router.activity_sets_service.list_public_activity_sets")
@@ -42,6 +47,12 @@ class TestReadPublicActivitySets:
         client = TestClient(_build_app(mock_db))
         mock_get.return_value = ActivitySetsPage.build([], 0, 1, 200)
 
-        response = client.get("/public/activities/999/sets")
+        response = client.get("/public/activities/00000000-0000-4000-8000-000000000999/sets")
         assert response.status_code == 200
         assert response.json()["items"] == [] and response.json()["total"] == 0
+
+    def test_a_malformed_activity_id_answers_422(self, mock_db):
+        client = TestClient(_build_app(mock_db))
+
+        response = client.get("/public/activities/not-a-uuid/sets")
+        assert response.status_code == 422

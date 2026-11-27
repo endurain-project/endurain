@@ -1,34 +1,17 @@
 """CRUD operations for user weekly streak settings."""
 
+import uuid
+
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-import core.decorators as core_decorators
 import modules.users.users_streak_settings.models as streak_settings_models
 import modules.users.users_streak_settings.schema as streak_settings_schema
 
-# Private internal helpers
 
-
-def _transform(
-    settings: streak_settings_models.UsersStreakSettings,
-) -> streak_settings_schema.UsersStreakSettingsRead:
-    """
-    Transform a streak settings ORM instance to a Pydantic schema.
-
-    Args:
-        settings: The streak settings ORM instance.
-
-    Returns:
-        The streak settings as a read schema.
-    """
-    return streak_settings_schema.UsersStreakSettingsRead.model_validate(settings)
-
-
-def _get_model_by_user_id(user_id: int, db: Session) -> streak_settings_models.UsersStreakSettings | None:
-    """
-    Fetch the streak settings ORM row for a user.
+def _get_model_by_user_id(user_id: uuid.UUID, db: Session) -> streak_settings_models.UsersStreakSettings | None:
+    """Fetch the streak settings ORM row for a user.
 
     Args:
         user_id: Owner of the settings.
@@ -43,26 +26,23 @@ def _get_model_by_user_id(user_id: int, db: Session) -> streak_settings_models.U
     return db.execute(stmt).scalar_one_or_none()
 
 
-def _default_settings(user_id: int) -> streak_settings_schema.UsersStreakSettingsRead:
-    """
-    Build the default settings for a user without a stored row.
+def _apply(
+    db_settings: streak_settings_models.UsersStreakSettings,
+    settings: streak_settings_schema.UsersStreakSettingsUpdate,
+) -> None:
+    """Copy the new settings values onto an ORM row.
 
     Args:
-        user_id: Owner of the settings.
-
-    Returns:
-        Read schema populated with defaults.
+        db_settings: The row to update.
+        settings: New settings values.
     """
-    return streak_settings_schema.UsersStreakSettingsRead(user_id=user_id)
+    db_settings.min_activities_per_week = settings.min_activities_per_week
+    db_settings.activity_types = settings.activity_types
+    db_settings.show_on_profile = settings.show_on_profile
 
 
-# Public CRUD functions
-
-
-@core_decorators.handle_db_errors
-def get_streak_settings_by_user_id(user_id: int, db: Session) -> streak_settings_schema.UsersStreakSettingsRead:
-    """
-    Retrieve streak settings for a user, falling back to defaults.
+def get_streak_settings_by_user_id(user_id: uuid.UUID, db: Session) -> streak_settings_schema.UsersStreakSettingsRead:
+    """Retrieve streak settings for a user, falling back to defaults.
 
     No row is created on read; defaults are returned until the
     user saves their settings for the first time.
@@ -73,22 +53,19 @@ def get_streak_settings_by_user_id(user_id: int, db: Session) -> streak_settings
 
     Returns:
         The stored settings, or defaults when none exist.
-
-    Raises:
-        HTTPException: 500 error if database query fails.
     """
     db_settings = _get_model_by_user_id(user_id, db)
-    return _transform(db_settings) if db_settings else _default_settings(user_id)
+    if db_settings is None:
+        return streak_settings_schema.UsersStreakSettingsRead(user_id=user_id)
+    return streak_settings_schema.UsersStreakSettingsRead.model_validate(db_settings)
 
 
-@core_decorators.handle_db_errors
-def upsert_streak_settings(
-    user_id: int,
+def stage_streak_settings(
+    user_id: uuid.UUID,
     settings: streak_settings_schema.UsersStreakSettingsUpdate,
     db: Session,
 ) -> streak_settings_schema.UsersStreakSettingsRead:
-    """
-    Create or replace streak settings for a user.
+    """Stage a create or replace of a user's streak settings (flushed, not committed).
 
     Args:
         user_id: Owner of the settings.
@@ -96,32 +73,26 @@ def upsert_streak_settings(
         db: SQLAlchemy database session.
 
     Returns:
-        The stored settings.
-
-    Raises:
-        HTTPException: 500 error if database operation fails.
+        The staged settings.
     """
     db_settings = _get_model_by_user_id(user_id, db)
     if db_settings is None:
-        db_settings = streak_settings_models.UsersStreakSettings(user_id=user_id)
-        db.add(db_settings)
-
-    db_settings.min_activities_per_week = settings.min_activities_per_week
-    db_settings.activity_types = settings.activity_types
-    db_settings.show_on_profile = settings.show_on_profile
-
-    try:
-        db.commit()
-    except IntegrityError:
-        # A concurrent request created the row first: retry as an update.
-        db.rollback()
-        db_settings = _get_model_by_user_id(user_id, db)
-        if db_settings is None:
-            raise
-        db_settings.min_activities_per_week = settings.min_activities_per_week
-        db_settings.activity_types = settings.activity_types
-        db_settings.show_on_profile = settings.show_on_profile
-        db.commit()
+        try:
+            # A savepoint, so a concurrent first save only rolls back this insert.
+            with db.begin_nested():
+                db_settings = streak_settings_models.UsersStreakSettings(user_id=user_id)
+                _apply(db_settings, settings)
+                db.add(db_settings)
+        except IntegrityError:
+            # Another request created the row first: update it instead.
+            db_settings = _get_model_by_user_id(user_id, db)
+            if db_settings is None:
+                raise
+            _apply(db_settings, settings)
+            db.flush()
+    else:
+        _apply(db_settings, settings)
+        db.flush()
 
     db.refresh(db_settings)
-    return _transform(db_settings)
+    return streak_settings_schema.UsersStreakSettingsRead.model_validate(db_settings)
