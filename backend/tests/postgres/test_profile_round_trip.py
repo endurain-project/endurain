@@ -94,7 +94,7 @@ _OLDER_FIXTURE = Path(__file__).parent / "fixtures" / "profile_export_archive.js
 _USERNAME = "roundtrip"
 _EMAIL = "round.trip@example.com"
 
-#: Two items per file: the components are read ``batch_size // 2`` activities at a time.
+#: Small enough that the activities are exported and imported over more than one batch.
 _BATCH_SIZE = 4
 
 _ACTIVITY_FILE_AREA = activity_file_constants.ACTIVITY_FILE_STORAGE_AREA
@@ -155,6 +155,12 @@ def _small_export_batches(monkeypatch):
     monkeypatch.setattr(
         profile_export_service.ExportPerformanceConfig, "get_auto_config", classmethod(lambda cls: config)
     )
+
+
+@pytest.fixture(autouse=True)
+def _small_export_parts(monkeypatch):
+    """Close a part after every record, so the split components come in several files and an activity spans them."""
+    monkeypatch.setattr(profile_constants, "ARCHIVE_PART_TARGET_BYTES", 1)
 
 
 @pytest.fixture(autouse=True)

@@ -80,7 +80,7 @@ class ImportPerformanceConfig(profile_utils.BasePerformanceConfig):
         max_json_mb: int = 128,
         max_activities: int = 10000,
         max_entries: int = file_uploads.MAX_PROFILE_ARCHIVE_ENTRIES,
-        max_uncompressed_mb: int = 2048,
+        max_uncompressed_mb: int = file_uploads.MAX_PROFILE_ARCHIVE_UNCOMPRESSED_BYTES // (1024 * 1024),
         timeout_seconds: int = 3600,
         chunk_size: int = 8192,
         enable_memory_monitoring: bool = True,

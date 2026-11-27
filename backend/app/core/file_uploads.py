@@ -32,7 +32,7 @@ import shutil
 import tempfile
 import zipfile
 from collections.abc import Callable, Iterable, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from enum import StrEnum
 from pathlib import Path, PurePosixPath, PureWindowsPath
 from types import MappingProxyType
@@ -78,15 +78,22 @@ logger = core_logger.get_logger(__name__)
 _MAX_ACTIVITY_BYTES = 200 * 1024 * 1024
 _MAX_GZIP_BYTES = 200 * 1024 * 1024
 
-# Profile-import ZIPs can contain thousands of activity files. The
-# uncompressed/individual entry counts bound a profile import.
 _MAX_ZIP_BYTES = 500 * 1024 * 1024
 _MAX_UNCOMPRESSED_BYTES = 2 * 1024 * 1024 * 1024
 _MAX_FILES_SAME_TYPE = 2000
 
-#: A profile archive holds one original file per activity plus media, and the importer accepts up to this
-#: many entries, so no single extension can be capped lower than that.
+#: A profile archive holds one original file per activity plus media and the data entries, so it may hold this many
+#: entries, all of one extension if need be. The upload validator and the importer share the cap.
 MAX_PROFILE_ARCHIVE_ENTRIES = 100_000
+
+#: A profile archive's data is mostly the activity streams as JSON, so it may expand further than other archives.
+#: The upload byte cap and the compression-ratio cap still apply, and the importer reads one entry at a time.
+MAX_PROFILE_ARCHIVE_UNCOMPRESSED_BYTES = 8 * 1024 * 1024 * 1024
+
+#: Seconds checking a profile archive may take, per analysis pass and in all. The library's defaults end the check of
+#: an archive well below the entry cap, so these leave room for that many entries on a slow server.
+_PROFILE_ARCHIVE_ANALYSIS_SECONDS = 60.0
+_PROFILE_ARCHIVE_VALIDATION_SECONDS = 120.0
 
 # Default 20 MiB image cap from safeuploads is kept; explicitly
 # stated here so it appears alongside the other ceilings.
@@ -121,11 +128,8 @@ def _is_webp(data: bytes) -> bool:
     return data[:4] == b"RIFF" and data[8:12] == b"WEBP"
 
 
-def _build_security_config(max_files_same_type: int = _MAX_FILES_SAME_TYPE) -> FileSecurityConfig:
+def _build_security_config() -> FileSecurityConfig:
     """Build a :class:`FileSecurityConfig` with the Endurain-specific limits.
-
-    Args:
-        max_files_same_type: Most entries of one extension an archive may hold.
 
     Returns:
         Configured instance with Endurain-specific limits applied.
@@ -137,7 +141,7 @@ def _build_security_config(max_files_same_type: int = _MAX_FILES_SAME_TYPE) -> F
         max_activity_file_size=_MAX_ACTIVITY_BYTES,
         max_gzip_size=_MAX_GZIP_BYTES,
         max_uncompressed_size=_MAX_UNCOMPRESSED_BYTES,
-        max_number_files_same_type=max_files_same_type,
+        max_number_files_same_type=_MAX_FILES_SAME_TYPE,
         # Strava bulk exports store activities as ``.fit.gz`` entries inside the ZIP.
         allow_nested_archives=True,
         enable_audit_logging=True,
@@ -151,10 +155,28 @@ def _build_security_config(max_files_same_type: int = _MAX_FILES_SAME_TYPE) -> F
 #: safe to share. Do **not** instantiate ``FileValidator`` elsewhere.
 file_validator: FileValidator = FileValidator(config=_build_security_config())
 
-#: Validator for a profile export archive, which may hold far more files of one type than a bulk import.
-_profile_archive_validator: FileValidator = FileValidator(
-    config=_build_security_config(max_files_same_type=MAX_PROFILE_ARCHIVE_ENTRIES)
-)
+
+def _build_profile_archive_config() -> FileSecurityConfig:
+    """Build the limits of a profile export archive, which holds far more entries and data than other uploads.
+
+    Returns:
+        The shared limits with the profile archive's entry, uncompressed-size and checking-time caps.
+    """
+    config = _build_security_config()
+    config.limits = replace(
+        config.limits,
+        max_zip_entries=MAX_PROFILE_ARCHIVE_ENTRIES,
+        max_total_entries_recursive=MAX_PROFILE_ARCHIVE_ENTRIES,
+        max_number_files_same_type=MAX_PROFILE_ARCHIVE_ENTRIES,
+        max_uncompressed_size=MAX_PROFILE_ARCHIVE_UNCOMPRESSED_BYTES,
+        zip_analysis_timeout=_PROFILE_ARCHIVE_ANALYSIS_SECONDS,
+        max_validation_time_seconds=_PROFILE_ARCHIVE_VALIDATION_SECONDS,
+    )
+    return config
+
+
+#: Validator for a profile export archive.
+_profile_archive_validator: FileValidator = FileValidator(config=_build_profile_archive_config())
 
 #: Structured audit logger backing the ``safeuploads.audit`` Python
 #: logger. Records validation start/success/failure events with a

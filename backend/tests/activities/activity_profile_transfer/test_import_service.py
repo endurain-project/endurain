@@ -1,9 +1,12 @@
 """Tests for the activities' section of the profile data import."""
 
+import dataclasses
 import json
 import uuid
+import weakref
 import zipfile
 from io import BytesIO
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -17,7 +20,7 @@ import modules.users.users_profile.contracts as users_profile_contracts
 import modules.users.users_profile.utils as profile_utils
 from modules.users.users_profile.exceptions import (
     ActivityLimitError,
-    FileFormatError,
+    FileSizeError,
     MemoryAllocationError,
 )
 
@@ -192,7 +195,6 @@ class TestRestoreActivities:
             activity_patch,
             global_patch,
             patch.object(import_service.activity_integration, "restore_activity", return_value=restored),
-            patch.object(import_service, "_restore_activity_components"),
         ):
             import_service._restore_activities(ctx, {})
 
@@ -224,14 +226,12 @@ class TestRestoreActivities:
             activity_patch,
             global_patch,
             patch.object(import_service.activity_integration, "restore_activity", return_value=restored) as restore,
-            patch.object(import_service, "_restore_activity_components") as components,
         ):
             mapping = import_service._restore_activities(ctx, {_OLD_GEAR: _NEW_GEAR})
 
-        assert mapping == {_OLD_ACT: _NEW_ACT}
+        assert mapping == {_OLD_ACT: restored}
         assert ctx.counts["activities"] == 1
         assert restore.call_args.args[0].gear_id == _NEW_GEAR
-        components.assert_called_once()
         # The restore functions only stage; the import commits once at the end.
         ctx.db.commit.assert_not_called()
 
@@ -258,11 +258,10 @@ class TestRestoreActivities:
             activity_patch,
             global_patch,
             patch.object(import_service.activity_integration, "restore_activity", return_value=restored) as restore,
-            patch.object(import_service, "_restore_activity_components"),
         ):
             mapping = import_service._restore_activities(ctx, {})
 
-        assert mapping == {_OLD_ACT: _NEW_ACT}
+        assert mapping == {_OLD_ACT: restored}
         imported = restore.call_args.args[0]
         assert (imported.user_id, imported.name) == (MOCK_USER_ID, "Morning Run")
 
@@ -276,13 +275,11 @@ class TestRestoreActivities:
             activity_patch,
             global_patch,
             patch.object(import_service.activity_integration, "restore_activity", return_value=restored),
-            patch.object(import_service, "_restore_activity_components") as components,
         ):
             mapping = import_service._restore_activities(ctx, {})
 
         assert mapping == {}
         assert ctx.counts["activities"] == 1
-        components.assert_not_called()
 
     def test_an_activity_without_an_id_is_restored_but_gets_no_components(self) -> None:
         ctx = _ctx(
@@ -307,74 +304,152 @@ class TestRestoreActivities:
             activity_patch,
             global_patch,
             patch.object(import_service.activity_integration, "restore_activity", return_value=restored),
-            patch.object(import_service, "_restore_activity_components") as components,
         ):
             mapping = import_service._restore_activities(ctx, {_OLD_GEAR: _NEW_GEAR})
 
         assert mapping == {}
         assert ctx.counts["activities"] == 1
-        components.assert_not_called()
+
+
+def _restored(activity_id: uuid.UUID = _NEW_ACT) -> MagicMock:
+    return MagicMock(id=activity_id, user_id=MOCK_USER_ID)
+
+
+def _contributor(key: str = "laps", *, split: bool = True) -> MagicMock:
+    """A contributor that restores every record it is handed."""
+    contributor = MagicMock(key=key, archive_path=f"data/activity_{key}.json", count_key=f"activity_{key}", split=split)
+    contributor.restore.side_effect = lambda records, *_: len(records)
+    return contributor
+
+
+def _restore_components(ctx, restored, *contributors) -> None:
+    for contributor in contributors:
+        ctx.counts.setdefault(contributor.count_key, 0)
+    with patch.object(
+        import_service.activities_contributor_registry, "profile_activity_contributors", return_value=contributors
+    ):
+        import_service._restore_activity_components(ctx, restored)
+
+
+def _lap(activity_id: uuid.UUID, index: int) -> dict[str, object]:
+    return {"activity_id": str(activity_id), "lap_index": index}
 
 
 class TestRestoreActivityComponents:
-    @pytest.mark.parametrize(
-        ("key", "count_key"),
-        [
-            ("laps", "activity_laps"),
-            ("sets", "activity_sets"),
-            ("streams", "activity_streams"),
-            ("workout_steps", "activity_workout_steps"),
-        ],
-    )
-    def test_the_contributor_restores_and_its_count_is_kept(self, key: str, count_key: str) -> None:
-        ctx = _ctx()
-        ctx.counts[count_key] = 0
-        contributor = MagicMock(key=key, count_key=count_key)
-        contributor.restore.return_value = 1
-        records = [{"activity_id": str(_OLD_ACT)}]
-        new_activity = MagicMock(id=_NEW_ACT, user_id=MOCK_USER_ID)
+    @pytest.mark.parametrize("key", ["laps", "sets", "streams", "workout_steps"])
+    def test_each_activity_gets_its_own_records_and_the_count_is_kept(self, key: str) -> None:
+        ctx = _ctx({f"data/activity_{key}.json": [_lap(_OLD_ACT, 1), _lap(_OTHER_ACT, 1), _lap(_OLD_ACT, 2)]})
+        contributor = _contributor(key, split=False)
+        first, second = _restored(), _restored(uuid.uuid4())
 
-        with patch.object(
-            import_service.activities_contributor_registry, "profile_activity_contributors", return_value=(contributor,)
-        ):
-            import_service._restore_activity_components(ctx, {key: records}, _OLD_ACT, new_activity)
+        _restore_components(ctx, {_OLD_ACT: first, _OTHER_ACT: second}, contributor)
 
-        contributor.restore.assert_called_once_with(records, _OLD_ACT, new_activity, ctx.db)
-        assert ctx.counts[count_key] == 1
+        assert [call.args for call in contributor.restore.call_args_list] == [
+            ([_lap(_OLD_ACT, 1), _lap(_OLD_ACT, 2)], _OLD_ACT, first, ctx.db),
+            ([_lap(_OTHER_ACT, 1)], _OTHER_ACT, second, ctx.db),
+        ]
+        assert ctx.counts[f"activity_{key}"] == 3
+        ctx.db.commit.assert_not_called()
 
-    def test_a_contributor_without_records_gets_an_empty_list(self) -> None:
-        ctx = _ctx()
-        ctx.counts["activity_laps"] = 0
-        contributor = MagicMock(key="laps", count_key="activity_laps")
-        contributor.restore.return_value = 0
-        new_activity = MagicMock(id=_NEW_ACT, user_id=MOCK_USER_ID)
+    def test_records_of_an_activity_that_was_not_restored_are_ignored(self) -> None:
+        ctx = _ctx({"data/activity_laps_000.json": [_lap(_UNKNOWN_ACT, 1), {"activity_id": 7}, {}]})
+        contributor = _contributor()
 
-        with patch.object(
-            import_service.activities_contributor_registry, "profile_activity_contributors", return_value=(contributor,)
-        ):
-            import_service._restore_activity_components(ctx, {}, _OLD_ACT, new_activity)
+        _restore_components(ctx, {_OLD_ACT: _restored()}, contributor)
 
-        contributor.restore.assert_called_once_with([], _OLD_ACT, new_activity, ctx.db)
+        contributor.restore.assert_not_called()
         assert ctx.counts["activity_laps"] == 0
+
+    def test_an_activity_spread_over_two_parts_gets_every_record_in_part_order(self) -> None:
+        ctx = _ctx(
+            {
+                "data/activity_laps_001.json": [_lap(_OLD_ACT, 2)],
+                "data/activity_laps_000.json": [_lap(_OLD_ACT, 1)],
+            }
+        )
+        contributor = _contributor()
+
+        _restore_components(ctx, {_OLD_ACT: _restored()}, contributor)
+
+        assert [call.args[0] for call in contributor.restore.call_args_list] == [
+            [_lap(_OLD_ACT, 1)],
+            [_lap(_OLD_ACT, 2)],
+        ]
+        assert ctx.counts["activity_laps"] == 2
+
+    def test_nothing_is_read_when_no_activity_was_restored(self) -> None:
+        ctx = _ctx({"data/activity_laps_000.json": [_lap(_OLD_ACT, 1)]})
+
+        with patch.object(profile_utils.ZipArchiveReader, "_read") as read:
+            _restore_components(ctx, {}, _contributor())
+
+        read.assert_not_called()
+
+    def test_a_parts_records_are_released_before_the_next_part_is_read(self) -> None:
+        class Record(dict):
+            """A record that can be weakly referenced."""
+
+        read: list[weakref.ref[Record]] = []
+        still_held: list[bool] = []
+
+        def load(_reader, _path):
+            still_held.extend(earlier() is not None for earlier in read)
+            record = Record(_lap(_OLD_ACT, 1))
+            read.append(weakref.ref(record))
+            return [record]
+
+        ctx = _ctx({"data/activity_laps_000.json": [], "data/activity_laps_001.json": []})
+        # Not a mock, which would keep the records it was called with.
+        contributor = SimpleNamespace(
+            key="laps",
+            archive_path="data/activity_laps.json",
+            count_key="activity_laps",
+            split=True,
+            restore=lambda records, *_: len(records),
+        )
+
+        with patch.object(profile_utils.ZipArchiveReader, "load_json_part", load):
+            _restore_components(ctx, {_OLD_ACT: _restored()}, contributor)
+
+        assert still_held == [False]
+        assert ctx.counts["activity_laps"] == 2
+
+    def test_each_part_is_followed_by_the_time_and_memory_checks(self) -> None:
+        checks: list[str] = []
+        ctx = _ctx(
+            {"data/activity_laps_000.json": [], "data/activity_laps_001.json": []},
+            check_memory=checks.append,
+            check_timeout=lambda: checks.append("time"),
+        )
+
+        _restore_components(ctx, {_OLD_ACT: _restored()}, _contributor())
+
+        assert checks == ["time", "laps part 1", "time", "laps part 2"]
+
+    def test_a_part_that_is_not_json_is_skipped_and_the_others_are_restored(self) -> None:
+        ctx = _ctx(
+            {"data/activity_laps_000.json": b"not-valid-json", "data/activity_laps_001.json": [_lap(_OLD_ACT, 1)]}
+        )
+
+        _restore_components(ctx, {_OLD_ACT: _restored()}, _contributor())
+
+        assert ctx.counts["activity_laps"] == 1
+
+    @pytest.mark.parametrize("error", [FileSizeError("too big"), MemoryAllocationError("oom")])
+    def test_a_limit_fails_the_restore_instead_of_dropping_records(self, error: Exception) -> None:
+        ctx = _ctx({"data/activity_laps_000.json": [_lap(_OLD_ACT, 1)]})
+
+        with patch.object(profile_utils.ZipArchiveReader, "_read", side_effect=error), pytest.raises(type(error)):
+            _restore_components(ctx, {_OLD_ACT: _restored()}, _contributor())
 
     @staticmethod
     def _media_restore(records):
         import modules.activities.activity_media.integration_service as media_integration
 
-        ctx = _ctx()
-        ctx.counts["activity_media"] = 0
-        contributor = media_integration.profile_contributor()
-        with (
-            patch.object(
-                import_service.activities_contributor_registry,
-                "profile_activity_contributors",
-                return_value=(contributor,),
-            ),
-            patch.object(media_integration, "_restore_media_records") as restore_media,
-        ):
-            import_service._restore_activity_components(
-                ctx, {"media": records}, _OLD_ACT, MagicMock(id=_NEW_ACT, user_id=MOCK_USER_ID)
-            )
+        ctx = _ctx({"data/activity_media.json": records})
+        with patch.object(media_integration, "_restore_media_records") as restore_media:
+            contributor = media_integration.profile_contributor()
+            _restore_components(ctx, {_OLD_ACT: _restored()}, contributor)
         return ctx, restore_media
 
     def test_media_with_a_valid_key_is_restored(self) -> None:
@@ -412,6 +487,44 @@ class TestRestoreActivityComponents:
         )
 
         assert ctx.counts["activity_media"] == 2
+
+
+class TestComponentsAcrossActivityBatches:
+    def test_every_component_entry_is_read_once_within_a_cap_that_fits_one_reading(self) -> None:
+        """Reading a part again for each activity batch would spend the archive-wide cap on repeats."""
+        ids = [uuid.uuid4() for _ in range(3)]
+        files = {
+            "data/activities.json": [{**_ACTIVITY, "id": str(activity_id)} for activity_id in ids],
+            "data/activity_laps_000.json": [_lap(ids[0], 1), _lap(ids[1], 1)],
+            "data/activity_laps_001.json": [_lap(ids[2], 1)],
+        }
+        ctx = _ctx(files, batch_size=1)
+        archive = profile_utils.ZipArchiveReader(
+            _zip(files),
+            max_json_bytes=1024 * 1024,
+            max_uncompressed_bytes=sum(len(json.dumps(data)) for data in files.values()),
+            max_memory_mb=1024,
+            enable_memory_monitoring=False,
+        )
+        ctx = dataclasses.replace(ctx, archive=archive)
+        contributor = _contributor()
+        ctx.counts.update({"activities": 0, "activity_laps": 0})
+        activity_patch, global_patch = _no_contributors()
+        with (
+            activity_patch,
+            global_patch,
+            patch.object(
+                import_service.activities_contributor_registry,
+                "profile_activity_contributors",
+                return_value=(contributor,),
+            ),
+            patch.object(
+                import_service.activity_integration, "restore_activity", side_effect=lambda *_: _restored(uuid.uuid4())
+            ),
+        ):
+            import_service.restore_profile(ctx)
+
+        assert ctx.counts["activity_laps"] == 3
 
 
 class TestRestoreGlobalComponents:
@@ -473,47 +586,6 @@ class TestSplitFiles:
 
     def test_no_files_gives_an_empty_list(self) -> None:
         assert import_service._get_split_files_list(frozenset(), "data/activity_laps") == []
-
-
-class TestLoadComponentsForBatch:
-    def test_no_files_gives_an_empty_list(self) -> None:
-        assert import_service._load_components_for_batch(_ctx(), [], [], "laps") == []
-
-    def test_only_the_components_of_the_batch_are_kept(self) -> None:
-        ctx = _ctx(
-            {
-                "data/activity_laps_000.json": [
-                    {"activity_id": str(_OLD_ACT), "lap_index": 1},
-                    {"activity_id": str(_OTHER_ACT), "lap_index": 1},
-                ]
-            }
-        )
-        result = import_service._load_components_for_batch(
-            ctx, ["data/activity_laps_000.json"], [{"id": str(_OLD_ACT)}, {"id": _UNKNOWN_ACT}], "laps"
-        )
-
-        assert len(result) == 1
-        assert result[0]["activity_id"] == str(_OLD_ACT)
-
-    def test_a_part_that_is_not_json_is_skipped(self) -> None:
-        ctx = _ctx({"data/bad.json": b"not-valid-json"})
-        assert import_service._load_components_for_batch(ctx, ["data/bad.json"], [{"id": str(_OLD_ACT)}], "laps") == []
-
-    def test_a_part_the_reader_cannot_read_is_skipped(self) -> None:
-        ctx = _ctx({"data/laps.json": b"x" * 2048})
-        with patch.object(profile_utils.ZipArchiveReader, "_read", side_effect=FileFormatError("bad format")):
-            assert (
-                import_service._load_components_for_batch(ctx, ["data/laps.json"], [{"id": str(_OLD_ACT)}], "laps")
-                == []
-            )
-
-    def test_a_memory_error_propagates(self) -> None:
-        ctx = _ctx({"data/laps.json": [{"activity_id": str(_OLD_ACT)}]})
-        with (
-            patch.object(profile_utils.ZipArchiveReader, "_read", side_effect=MemoryAllocationError("oom")),
-            pytest.raises(MemoryAllocationError),
-        ):
-            import_service._load_components_for_batch(ctx, ["data/laps.json"], [{"id": str(_OLD_ACT)}], "laps")
 
 
 class TestRestoreActivityFiles:

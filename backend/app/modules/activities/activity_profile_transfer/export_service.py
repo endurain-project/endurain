@@ -6,7 +6,6 @@ memory stays bounded however many activities the user has. The retained source f
 blobs are read from storage after the export's read transaction is committed.
 """
 
-import itertools
 import uuid
 from collections.abc import Callable, Iterator, Sequence
 
@@ -155,17 +154,10 @@ def _write_activity_components(
         ctx: The export context.
         activity_ids: IDs of the exported activities.
     """
-    half_page = ctx.batch_size // 2
-
     for contributor in activities_contributor_registry.profile_activity_contributors():
         if contributor.split:
             _write_component_split(
-                ctx,
-                contributor.count_key,
-                contributor.archive_path,
-                contributor.export,
-                activity_ids,
-                part_size=half_page,
+                ctx, contributor.count_key, contributor.archive_path, contributor.export, activity_ids
             )
         else:
             _write_component_simple(
@@ -174,21 +166,9 @@ def _write_activity_components(
                 contributor.archive_path,
                 contributor.export,
                 activity_ids,
-                batch_size=half_page,
+                # Smaller batches than the activities' own pages
+                batch_size=ctx.batch_size // 2,
             )
-
-
-def _part_path(base_filename: str, part: int) -> str:
-    """Name one part of a split component entry.
-
-    Args:
-        base_filename: Archive path of the unsplit entry.
-        part: Index of the part.
-
-    Returns:
-        The part's archive path.
-    """
-    return f"{base_filename.removesuffix('.json')}_{part:03d}.json"
 
 
 def _write_component_split(
@@ -197,37 +177,30 @@ def _write_component_split(
     base_filename: str,
     export: Callable[[list[uuid.UUID], Session], Sequence[BaseModel]],
     activity_ids: list[uuid.UUID],
-    part_size: int,
 ) -> None:
-    """Write a split component as numbered parts of ``part_size`` records, reading one activity at a time.
+    """Write a split component in parts, reading one activity at a time.
 
     Only the activity being written is held, so memory is bounded by the largest activity rather than the
-    component; an activity's records continue into the next part once one is full. A component without records is
-    written as the plain entry holding an empty array, so the archive still names it.
-    """
-    total_items = 0
+    component. The archive decides where a part ends.
 
-    def read_records() -> Iterator[BaseModel]:
+    Args:
+        ctx: The export context.
+        component_key: Component type identifier.
+        base_filename: Archive path of the unsplit entry.
+        export: Reads the component's records for some activities.
+        activity_ids: List of activity IDs.
+    """
+
+    def read_activities() -> Iterator[Sequence[BaseModel]]:
         """Yield the component's records, one activity's at a time."""
-        nonlocal total_items
         for index, activity_id in enumerate(activity_ids, 1):
             ctx.check_memory(f"{component_key} activity {index}")
-            for record in export([activity_id], ctx.db):
-                total_items += 1
-                yield record
+            yield export([activity_id], ctx.db)
 
-    records = read_records()
-    parts = 0
-    while (first := next(records, None)) is not None:
-        part = itertools.chain([first], itertools.islice(records, part_size - 1))
-        ctx.archive.write_json_stream(_part_path(base_filename, parts), ([record] for record in part))
-        parts += 1
-
-    if parts == 0:
-        ctx.archive.write_json(base_filename, [])
+    total_items = ctx.archive.write_json_parts(base_filename, read_activities())
     logger.debug(
         "Written component items to the archive",
-        extra=core_logger.context(component_key=component_key, total_items=total_items, parts=parts),
+        extra=core_logger.context(component_key=component_key, total_items=total_items),
     )
     ctx.counts[component_key] = total_items
 

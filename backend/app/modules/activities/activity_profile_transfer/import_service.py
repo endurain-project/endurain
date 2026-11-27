@@ -1,12 +1,13 @@
 """Activity restore for the profile data import.
 
-Stages the archived activities and their components in batches, so memory stays bounded however many
-activities the archive lists. The retained source files and the media are written after the import has
-committed, because their storage keys name the restored activity ids.
+Stages the archived activities, then their components one archive entry at a time, so a single entry of
+component records is held however many activities the archive lists. The retained source files and the media are
+written after the import has committed, because their storage keys name the restored activity ids.
 """
 
 import os
 import uuid
+from collections import defaultdict
 from typing import Any
 
 import core.exceptions as core_exceptions
@@ -19,6 +20,7 @@ import modules.activities.activity_file_storage.integration_service as activity_
 import modules.activities.activity_media.integration_service as activity_media_integration
 import modules.activities.activity_profile_transfer.constants as constants
 import modules.activities.contributor_registry as activities_contributor_registry
+import modules.activities.contributors as activities_contributors
 import modules.gears.gear.constants as gear_constants
 import modules.users.users_profile.contracts as users_profile_contracts
 
@@ -37,6 +39,7 @@ def restore_profile(ctx: users_profile_contracts.ProfileImportContext) -> users_
 
     Raises:
         ActivityLimitError: If the archive lists too many activities.
+        FileSizeError: If an entry or the archive exceeds the allowed size.
         ImportTimeoutError: If the import runs out of time.
         MemoryAllocationError: If the memory limit is exceeded.
     """
@@ -44,7 +47,9 @@ def restore_profile(ctx: users_profile_contracts.ProfileImportContext) -> users_
     _restore_global_components(ctx)
 
     ctx.check_timeout()
-    activities_id_mapping = _restore_activities(ctx, ctx.ids.get(gear_constants.PROFILE_ARCHIVE_KEY, {}))
+    restored = _restore_activities(ctx, ctx.ids.get(gear_constants.PROFILE_ARCHIVE_KEY, {}))
+    _restore_activity_components(ctx, restored)
+    activities_id_mapping = {archived_id: activity.id for archived_id, activity in restored.items()}
 
     folders = (constants.ACTIVITY_FILES_FOLDER, constants.ACTIVITY_MEDIA_FOLDER)
     if not any(name.startswith(folders) for name in ctx.archive.names):
@@ -85,103 +90,36 @@ def _restore_global_components(ctx: users_profile_contracts.ProfileImportContext
     logger.debug("Restored the global activity components", extra=core_logger.context(user_id=ctx.user_id))
 
 
-def _restore_activity_components(
-    ctx: users_profile_contracts.ProfileImportContext,
-    component_data: dict[str, list[dict[str, Any]]],
-    original_activity_id: uuid.UUID,
-    new_activity: activity_schema.ActivityRead,
-) -> None:
-    """Restore the contributed components for a single restored activity.
-
-    Args:
-        ctx: The import context.
-        component_data: Records keyed by profile contributor key.
-        original_activity_id: Archived ID of the activity.
-        new_activity: New activity object.
-    """
-    for contributor in activities_contributor_registry.profile_activity_contributors():
-        ctx.counts[contributor.count_key] += contributor.restore(
-            component_data.get(contributor.key, []),
-            original_activity_id,
-            new_activity,
-            ctx.db,
-        )
-
-
 def _restore_activities(
     ctx: users_profile_contracts.ProfileImportContext, gears_id_mapping: dict[uuid.UUID, uuid.UUID]
-) -> dict[uuid.UUID, uuid.UUID]:
-    """Restore the archived activities in batches to manage memory.
+) -> dict[uuid.UUID, activity_schema.ActivityRead]:
+    """Restore the archived activities, without their components.
 
     Args:
         ctx: The import context.
         gears_id_mapping: Mapping of old to new gear IDs.
 
     Returns:
-        Dictionary mapping old activity IDs to new IDs.
+        The restored activities, keyed by their archived IDs.
 
     Raises:
         ActivityLimitError: If too many activities.
         ImportTimeoutError: If operation times out.
     """
-    activities_id_mapping: dict[uuid.UUID, uuid.UUID] = {}
+    restored: dict[uuid.UUID, activity_schema.ActivityRead] = {}
 
     activities_data = ctx.archive.load_json(constants.ACTIVITIES_PATH)
     if not activities_data:
         logger.debug("No activities data to import")
-        return activities_id_mapping
+        return restored
 
     ctx.check_activity_count(len(activities_data))
-
-    contributors = activities_contributor_registry.profile_activity_contributors()
-    component_files: dict[str, list[str]] = {}
-    component_records: dict[str, list[dict[str, Any]]] = {}
-    for contributor in contributors:
-        if contributor.split:
-            component_files[contributor.key] = _get_split_files_list(
-                ctx.archive.names,
-                contributor.archive_path.removesuffix(".json"),
-            )
-        else:
-            component_records[contributor.key] = ctx.archive.load_json(
-                contributor.archive_path,
-                check_memory=False,
-            )
-
-    logger.debug(
-        "Importing activities with batched component loading", extra=core_logger.context(count=len(activities_data))
-    )
 
     batch_size = ctx.batch_size
     for batch_start in range(0, len(activities_data), batch_size):
         ctx.check_timeout()
 
-        batch_end = min(batch_start + batch_size, len(activities_data))
-        activities_batch = activities_data[batch_start:batch_end]
-
-        logger.debug(
-            "Processing an activities batch",
-            extra=core_logger.context(
-                batch_number=batch_start // batch_size + 1, batch_start=batch_start, batch_end=batch_end
-            ),
-        )
-
-        batch_components: dict[str, list[dict[str, Any]]] = {}
-        for contributor in contributors:
-            if contributor.split:
-                batch_components[contributor.key] = _load_components_for_batch(
-                    ctx,
-                    component_files[contributor.key],
-                    activities_batch,
-                    contributor.key,
-                )
-            else:
-                batch_components[contributor.key] = _filter_components_for_batch(
-                    component_records.get(contributor.key, []),
-                    activities_batch,
-                )
-
-        for activity_data in activities_batch:
+        for activity_data in activities_data[batch_start : batch_start + batch_size]:
             archived_gear_id = users_profile_contracts.archived_id(activity_data.get("gear_id"))
             activity_data["gear_id"] = gears_id_mapping.get(archived_gear_id) if archived_gear_id else None
 
@@ -198,41 +136,91 @@ def _restore_activities(
             new_activity = activity_integration.restore_activity(activity, ctx.db)
 
             if original_activity_id is not None and new_activity.id is not None:
-                activities_id_mapping[original_activity_id] = new_activity.id
-                _restore_activity_components(ctx, batch_components, original_activity_id, new_activity)
+                restored[original_activity_id] = new_activity
 
             ctx.counts["activities"] += 1
 
-        del batch_components
         ctx.check_memory(f"activities batch {batch_start // batch_size + 1}")
 
     logger.debug("Imported activities", extra=core_logger.context(count=ctx.counts["activities"]))
-    return activities_id_mapping
+    return restored
 
 
-def _filter_components_for_batch(
-    records: list[dict[str, Any]],
-    activities_batch: list[dict[str, Any]],
-) -> list[dict[str, Any]]:
-    """Filter in-memory component records to the current activity batch.
+def _restore_activity_components(
+    ctx: users_profile_contracts.ProfileImportContext, restored: dict[uuid.UUID, activity_schema.ActivityRead]
+) -> None:
+    """Restore the contributed components of the restored activities.
+
+    Each archive entry is read once and held alone: reading it again would count it again against the archive-wide
+    size limit.
 
     Args:
-        records: Every archived record of the component.
-        activities_batch: Activities in the current batch.
+        ctx: The import context.
+        restored: The restored activities, keyed by their archived IDs.
+
+    Raises:
+        FileSizeError: If an entry or the archive exceeds the allowed size.
+        ImportTimeoutError: If operation times out.
+        MemoryAllocationError: If the memory limit is exceeded.
+    """
+    if not restored:
+        return
+
+    for contributor in activities_contributor_registry.profile_activity_contributors():
+        if contributor.split:
+            entries = _get_split_files_list(ctx.archive.names, contributor.archive_path.removesuffix(".json"))
+        else:
+            entries = [contributor.archive_path]
+
+        for position, entry in enumerate(entries, start=1):
+            ctx.check_timeout()
+            _restore_component_entry(ctx, contributor, entry, restored)
+            ctx.check_memory(f"{contributor.key} part {position}")
+
+
+def _restore_component_entry(
+    ctx: users_profile_contracts.ProfileImportContext,
+    contributor: activities_contributors.ProfileActivityContributor,
+    entry: str,
+    restored: dict[uuid.UUID, activity_schema.ActivityRead],
+) -> None:
+    """Restore the records one archive entry holds for the restored activities.
+
+    The records are released when this returns, before the next entry is read.
+
+    Args:
+        ctx: The import context.
+        contributor: The component the entry belongs to.
+        entry: Entry path inside the archive.
+        restored: The restored activities, keyed by their archived IDs.
+
+    Raises:
+        FileSizeError: If the entry or the archive exceeds the allowed size.
+    """
+    records = (
+        ctx.archive.load_json_part(entry) if contributor.split else ctx.archive.load_json(entry, check_memory=False)
+    )
+    for archived_id, activity_records in _group_by_activity(records).items():
+        if new_activity := restored.get(archived_id):
+            ctx.counts[contributor.count_key] += contributor.restore(
+                activity_records, archived_id, new_activity, ctx.db
+            )
+
+
+def _group_by_activity(records: list[dict[str, Any]]) -> dict[uuid.UUID, list[dict[str, Any]]]:
+    """Group component records by the archived activity they belong to.
+
+    Args:
+        records: The records of one archive entry.
 
     Returns:
-        The records that belong to the batch's activities.
+        The records of each activity, in the order the entry lists them; a record naming no activity is left out.
     """
-    activity_ids = {
-        archived
-        for activity in activities_batch
-        if (archived := users_profile_contracts.archived_id(activity.get("id")))
-    }
-    return [
-        record
-        for record in records
-        if isinstance(record, dict) and users_profile_contracts.archived_id(record.get("activity_id")) in activity_ids
-    ]
+    grouped: defaultdict[uuid.UUID, list[dict[str, Any]]] = defaultdict(list)
+    for record in records:
+        if archived_id := users_profile_contracts.archived_id(record.get("activity_id")):
+            grouped[archived_id].append(record)
+    return grouped
 
 
 def _get_split_files_list(file_list: frozenset[str], base_filename: str) -> list[str]:
@@ -253,58 +241,6 @@ def _get_split_files_list(file_list: frozenset[str], base_filename: str) -> list
     if single_file in file_list:
         return [single_file]
     return []
-
-
-def _load_components_for_batch(
-    ctx: users_profile_contracts.ProfileImportContext,
-    component_files: list[str],
-    activities_batch: list[dict[str, Any]],
-    component_name: str,
-) -> list[dict[str, Any]]:
-    """Load components only for activities in current batch.
-
-    Args:
-        ctx: The import context.
-        component_files: List of component file paths.
-        activities_batch: Activities in current batch.
-        component_name: Name of component type.
-
-    Returns:
-        List of component data for batch activities.
-    """
-    if not component_files:
-        return []
-
-    batch_activity_ids = {
-        archived
-        for activity in activities_batch
-        if (archived := users_profile_contracts.archived_id(activity.get("id")))
-    }
-
-    all_components = []
-
-    for filename in component_files:
-        components = ctx.archive.load_json_part(filename)
-        # Only keep components for activities in this batch
-        filtered = [
-            component
-            for component in components
-            if users_profile_contracts.archived_id(component.get("activity_id")) in batch_activity_ids
-        ]
-        all_components.extend(filtered)
-
-        if filtered:
-            logger.debug(
-                "Loaded components for the batch",
-                extra=core_logger.context(
-                    count=len(filtered),
-                    total_count=len(components),
-                    component_name=component_name,
-                    filename=filename,
-                ),
-            )
-
-    return all_components
 
 
 def _restore_activity_files(

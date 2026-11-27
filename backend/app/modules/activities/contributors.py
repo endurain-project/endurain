@@ -271,7 +271,7 @@ def child_profile_contributor[R](
         key: The contribution key.
         archive_path: The member of the profile archive that holds the records.
         count_key: The key the restored count is reported under.
-        split: Whether the archive stores one file per activity.
+        split: Whether the records are large: exported one activity at a time and stored in parts.
         export: Reads the rows for the given activities.
         store: Stages the restored rows for an activity.
         parse_record: Validates one archived record for the restored activity.

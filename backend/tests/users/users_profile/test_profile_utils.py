@@ -11,6 +11,7 @@ from unittest.mock import MagicMock, PropertyMock, patch
 import pytest
 from pydantic import BaseModel
 
+import modules.users.users_profile.constants as profile_constants
 import modules.users.users_profile.utils as profile_utils
 from modules.users.users_profile.exceptions import FileSizeError, JSONParseError, MemoryAllocationError
 
@@ -451,6 +452,72 @@ class TestZipArchiveWriter:
         assert counts == {}
 
 
+class TestWriteJsonParts:
+    """A split entry is written as parts that close once they reach the target size."""
+
+    @staticmethod
+    def _write(batches, target: int, monkeypatch) -> tuple[dict[str, list], dict[str, int], int]:
+        monkeypatch.setattr(profile_constants, "ARCHIVE_PART_TARGET_BYTES", target)
+        buf = io.BytesIO()
+        counts: dict[str, int] = {}
+        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+            total = profile_utils.ZipArchiveWriter(z, counts).write_json_parts("data/items.json", batches)
+        with zipfile.ZipFile(buf) as z:
+            return {name: json.loads(z.read(name)) for name in z.namelist()}, counts, total
+
+    def test_batches_fill_a_part_until_it_reaches_the_target(self, monkeypatch):
+        row = len(json.dumps({"id": str(_ROW_A)}))
+
+        entries, counts, total = self._write(
+            [[_Row(id=_ROW_A)], [_Row(id=_ROW_B)], [_Row(id=_ROW_C)]], row + 1, monkeypatch
+        )
+
+        assert entries == {
+            "data/items_000.json": [{"id": str(_ROW_A)}, {"id": str(_ROW_B)}],
+            "data/items_001.json": [{"id": str(_ROW_C)}],
+        }
+        assert counts == {"items_000": 2, "items_001": 1}
+        assert total == 3
+
+    def test_a_batch_larger_than_a_part_is_divided_between_its_records(self, monkeypatch):
+        """One activity's records can outgrow what an import accepts for one entry."""
+        row = len(json.dumps({"id": str(_ROW_A)}))
+
+        entries, counts, total = self._write(
+            [[_Row(id=_ROW_A), _Row(id=_ROW_B), _Row(id=_ROW_C)]], row + 1, monkeypatch
+        )
+
+        assert entries == {
+            "data/items_000.json": [{"id": str(_ROW_A)}, {"id": str(_ROW_B)}],
+            "data/items_001.json": [{"id": str(_ROW_C)}],
+        }
+        assert counts == {"items_000": 2, "items_001": 1}
+        assert total == 3
+
+    @pytest.mark.parametrize("batches", [[], [[], []]])
+    def test_no_records_write_an_empty_array_under_the_plain_name(self, batches, monkeypatch):
+        entries, counts, total = self._write(batches, 100, monkeypatch)
+
+        assert entries == {"data/items.json": []}
+        assert counts == {"items": 0}
+        assert total == 0
+
+    def test_a_full_part_is_closed_before_the_next_batch_is_read(self, monkeypatch):
+        monkeypatch.setattr(profile_constants, "ARCHIVE_PART_TARGET_BYTES", 1)
+        seen: list[list[str]] = []
+
+        with zipfile.ZipFile(io.BytesIO(), "w") as z:
+
+            def batches():
+                for row in (_ROW_A, _ROW_B):
+                    seen.append(list(z.namelist()))
+                    yield [_Row(id=row)]
+
+            profile_utils.ZipArchiveWriter(z, {}).write_json_parts("data/items.json", batches())
+
+        assert seen == [[], ["data/items_000.json"]]
+
+
 class TestZipArchiveReader:
     def test_names_lists_the_entries(self):
         reader = _reader(_zip_of({"data/a.json": b"[]", "user_images/1.png": b"x"}))
@@ -531,12 +598,13 @@ class TestZipArchiveReader:
     def test_a_bad_part_is_skipped(self, content):
         assert _reader(_zip_of({"data/laps_000.json": content})).load_json_part("data/laps_000.json") == []
 
-    def test_a_part_over_the_cap_is_skipped(self):
+    def test_a_part_over_the_cap_is_refused(self):
         reader = _reader(_zip_of({"data/laps_000.json": b'[{"activity_id": 1}]'}), max_json_bytes=5)
 
-        assert reader.load_json_part("data/laps_000.json") == []
+        with pytest.raises(FileSizeError, match="exceeds maximum"):
+            reader.load_json_part("data/laps_000.json")
 
-    def test_a_part_that_breaks_the_archive_cap_is_skipped(self):
+    def test_a_part_that_breaks_the_archive_cap_is_refused(self):
         reader = _reader(
             _zip_of({"data/a.json": b'["' + b"x" * 60 + b'"]', "data/laps_000.json": b'[{"activity_id": 1}]'}),
             max_uncompressed_bytes=70,
@@ -544,7 +612,8 @@ class TestZipArchiveReader:
 
         reader.load_json("data/a.json")
 
-        assert reader.load_json_part("data/laps_000.json") == []
+        with pytest.raises(FileSizeError, match="uncompressed"):
+            reader.load_json_part("data/laps_000.json")
 
     def test_a_memory_error_while_reading_a_part_propagates(self):
         reader = _reader(_zip_of({"data/laps_000.json": b"[]"}))

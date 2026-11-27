@@ -83,6 +83,22 @@ class ProfileArchiveWriter(Protocol):
         """
         ...
 
+    def write_json_parts(self, path: str, batches: Iterable[Sequence[BaseModel]]) -> int:
+        """Write records as numbered JSON array entries of bounded size, holding one batch at a time.
+
+        The parts of ``data/name.json`` are ``data/name_000.json`` onwards; without any record, ``path`` itself is
+        written as an empty array. A part is closed by the record that fills it, so a batch may be divided between
+        parts. Nothing else may be written to the archive while ``batches`` is consumed.
+
+        Args:
+            path: Entry path of the unsplit entry.
+            batches: The records to serialize, read lazily.
+
+        Returns:
+            The number of records written.
+        """
+        ...
+
     def write_bytes(self, path: str, data: bytes) -> None:
         """Write one entry as it is.
 
@@ -119,13 +135,16 @@ class ProfileArchiveReader(Protocol):
         ...
 
     def load_json_part(self, path: str) -> list[dict[str, Any]]:
-        """Load one part of a split JSON array entry, tolerating a bad part.
+        """Load one part of a split JSON array entry, tolerating a malformed part.
 
         Args:
             path: Entry path inside the archive.
 
         Returns:
-            The objects the part lists; a part that is too large or not a JSON list is logged and gives an empty list.
+            The objects the part lists; a part that is not a JSON list is logged and gives an empty list.
+
+        Raises:
+            FileSizeError: If the part or the archive exceeds the allowed size.
         """
         ...
 
