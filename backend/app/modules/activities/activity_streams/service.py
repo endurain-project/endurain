@@ -238,10 +238,11 @@ def list_activity_streams(
         return _page_of([], page_number, num_records)
 
     streams = activity_streams_crud.get_activity_streams(activity_id, db)
-    if requester_user_id != activity.user_id:
-        streams = _without_sample_times(_filter_visible_streams(streams, activity), activity)
-
-    return _page_of(_with_zones(streams, activity, db), page_number, num_records)
+    if requester_user_id == activity.user_id:
+        return _page_of(_with_zones(streams, activity, db), page_number, num_records)
+    # Zones need the sample times, so they are computed before a hidden start time takes them off.
+    visible = _with_zones(_filter_visible_streams(streams, activity), activity, db)
+    return _page_of(_without_sample_times(visible, activity), page_number, num_records)
 
 
 def get_activity_stream(
@@ -274,12 +275,12 @@ def get_activity_stream(
     if stream is None:
         raise core_exceptions.NotFoundError("Activity stream not found")
 
-    if requester_user_id != activity.user_id:
-        if _is_stream_hidden(activity, stream.stream_type):
-            raise core_exceptions.NotFoundError("Activity stream not found")
-        [stream] = _without_sample_times([stream], activity)
-
-    return _with_zones([stream], activity, db)[0]
+    if requester_user_id == activity.user_id:
+        return _with_zones([stream], activity, db)[0]
+    if _is_stream_hidden(activity, stream.stream_type):
+        raise core_exceptions.NotFoundError("Activity stream not found")
+    # Zones need the sample times, so they are computed before a hidden start time takes them off.
+    return _without_sample_times(_with_zones([stream], activity, db), activity)[0]
 
 
 def list_public_activity_streams(

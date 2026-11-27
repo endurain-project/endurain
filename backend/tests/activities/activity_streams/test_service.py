@@ -223,6 +223,29 @@ class TestHeartRateZones:
         assert stream.zone_percentages is not None
         assert stream.zone_percentages.hr["zone_1"]["hr"] == "< 120"
 
+    def test_a_follower_gets_the_zones_when_the_start_time_is_hidden(self, db, owner, follower):
+        activity = _hr_stream_of(db, owner, visibility=_VISIBILITY.FOLLOWERS, hide_start_time=True)
+
+        stream = streams_service.get_activity_stream(activity.id, _TYPE.HEART_RATE.stored, follower.id, db)
+        [listed] = streams_service.list_activity_streams(activity.id, follower.id, db).items
+
+        for read in (stream, listed):
+            assert "time" not in read.stream_waypoints[0]
+            assert read.zone_percentages is not None
+            assert read.zone_percentages.hr["zone_1"] == {"percent": 20.0, "hr": "< 120", "time_seconds": 1}
+
+    def test_a_public_reader_gets_the_zones_when_the_start_time_is_hidden(self, db, owner):
+        edit_server_settings(db, public_shareable_links=True)
+        activity = _hr_stream_of(db, owner, visibility=_VISIBILITY.PUBLIC, hide_start_time=True)
+
+        stream = streams_service.get_public_activity_stream(activity.id, _TYPE.HEART_RATE.stored, db)
+        [listed] = streams_service.list_public_activity_streams(activity.id, db).items
+
+        for read in (stream, listed):
+            assert "time" not in read.stream_waypoints[0]
+            assert read.zone_percentages is not None
+            assert read.zone_percentages.hr["zone_1"] == {"percent": 20.0, "hr": "< 120", "time_seconds": 1}
+
 
 class TestPublic:
     @pytest.fixture(autouse=True)
