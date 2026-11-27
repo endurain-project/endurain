@@ -1,6 +1,7 @@
 """Uniqueness constraints, row versions and server settings
 
-The steps run in this order.
+The steps run in this order. The three gear steps are skipped on a database that already has them: v0.21.0 committed
+them on their own, so an upgrade it did not finish left them in place without recording this revision.
 
 Enforce gear nickname uniqueness per user
 -----------------------------------------
@@ -19,8 +20,9 @@ that ordering and covers the lookups the single ``user_id`` index served, so it 
 dropped. A partial index on the creation date of read rows serves the daily retention
 purge, which would otherwise scan the table for every batch.
 
-Both indexes are built ``CONCURRENTLY`` outside the migration transaction, so writes to
-``notifications`` are not blocked while they build.
+The indexes are built in the migration transaction, so a failed upgrade rolls back whole; writes to
+``notifications`` wait until the upgrade commits. An index of either name that already exists is rebuilt,
+because a build v0.21.0 did not finish leaves an invalid index behind.
 
 Store the mail server settings in the database
 ----------------------------------------------
@@ -221,46 +223,19 @@ def downgrade_gear_provider_ids_unique_per_user() -> None:
 
 def upgrade_notifications_user_created_index() -> None:
     """Swap the user index for the user and creation date index and add the purge index."""
-    with op.get_context().autocommit_block():
-        op.create_index(
-            "ix_notifications_user_id_created_at",
-            "notifications",
-            ["user_id", "created_at"],
-            postgresql_concurrently=True,
-            if_not_exists=True,
-        )
-        op.create_index(
-            "ix_notifications_read_created_at",
-            "notifications",
-            ["created_at"],
-            postgresql_where=sa.text("read"),
-            postgresql_concurrently=True,
-            if_not_exists=True,
-        )
-        op.drop_index(
-            "ix_notifications_user_id", table_name="notifications", postgresql_concurrently=True, if_exists=True
-        )
+    for name in ("ix_notifications_user_id_created_at", "ix_notifications_read_created_at", "ix_notifications_user_id"):
+        op.drop_index(name, table_name="notifications", if_exists=True)
+    op.create_index("ix_notifications_user_id_created_at", "notifications", ["user_id", "created_at"])
+    op.create_index(
+        "ix_notifications_read_created_at", "notifications", ["created_at"], postgresql_where=sa.text("read")
+    )
 
 
 def downgrade_notifications_user_created_index() -> None:
     """Restore the single-column user index."""
-    with op.get_context().autocommit_block():
-        op.create_index(
-            "ix_notifications_user_id",
-            "notifications",
-            ["user_id"],
-            postgresql_concurrently=True,
-            if_not_exists=True,
-        )
-        op.drop_index(
-            "ix_notifications_read_created_at", table_name="notifications", postgresql_concurrently=True, if_exists=True
-        )
-        op.drop_index(
-            "ix_notifications_user_id_created_at",
-            table_name="notifications",
-            postgresql_concurrently=True,
-            if_exists=True,
-        )
+    op.create_index("ix_notifications_user_id", "notifications", ["user_id"])
+    op.drop_index("ix_notifications_read_created_at", table_name="notifications")
+    op.drop_index("ix_notifications_user_id_created_at", table_name="notifications")
 
 
 def upgrade_add_mail_settings() -> None:
@@ -603,11 +578,17 @@ def downgrade_users_version() -> None:
         op.drop_column(table, "version")
 
 
+def _has_committed_gear_steps() -> bool:
+    """Whether the gear steps are already applied; they are committed together, so the version column shows it."""
+    return any(column["name"] == "version" for column in sa.inspect(op.get_bind()).get_columns("gear"))
+
+
 def upgrade() -> None:
-    """Run every step in order."""
-    upgrade_gear_nickname_unique_per_user()
-    upgrade_gear_version()
-    upgrade_gear_provider_ids_unique_per_user()
+    """Run every step in order, leaving out the gear steps a database already has."""
+    if not _has_committed_gear_steps():
+        upgrade_gear_nickname_unique_per_user()
+        upgrade_gear_version()
+        upgrade_gear_provider_ids_unique_per_user()
     upgrade_notifications_user_created_index()
     upgrade_add_mail_settings()
     upgrade_add_geocoding_settings()

@@ -8,6 +8,7 @@ directory instead of the active one. These assertions move that failure to the
 test run.
 """
 
+import ast
 from pathlib import Path
 
 import pytest
@@ -69,3 +70,21 @@ def test_registered_data_migration_ids_are_unique() -> None:
             seen[migration_id] = path
     assert "11" in seen, "Migration 11 must be registered by an Alembic revision"
     assert "12" in seen, "Migration 12 must be registered by an Alembic revision"
+
+
+def _opens_an_autocommit_block(path: Path) -> bool:
+    return any(
+        isinstance(node, ast.Attribute) and node.attr == "autocommit_block"
+        for node in ast.walk(ast.parse(path.read_text()))
+    )
+
+
+def test_no_revision_commits_in_the_middle_of_an_upgrade() -> None:
+    """``autocommit_block`` commits the whole upgrade so far, before the revision is recorded.
+
+    A later failure then leaves the schema ahead of ``alembic_version``, and every following start fails on what is
+    already there. ``CREATE INDEX CONCURRENTLY`` needs such a block, so a revision builds its indexes plainly.
+    """
+    revisions = (_APP_DIR / "alembic" / "versions").rglob("*.py")
+
+    assert [path.name for path in revisions if _opens_an_autocommit_block(path)] == []
