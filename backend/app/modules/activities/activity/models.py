@@ -347,7 +347,7 @@ class Activity(UpdatedAtMixin, Base):
     is_hidden: Mapped[bool] = mapped_column(
         nullable=False,
         default=False,
-        comment=("Indicates if the activity is hidden (e.g., duplicate activity waiting to be reviewed by the user)"),
+        comment="Whether the owner hides the activity from everyone else",
     )
     hide_start_time: Mapped[bool] = mapped_column(
         nullable=False,

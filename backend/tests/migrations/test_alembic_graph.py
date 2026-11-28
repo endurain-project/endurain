@@ -33,13 +33,14 @@ def test_revision_graph_has_exactly_one_head(script_directory: ScriptDirectory) 
     )
 
 
-def test_the_head_is_the_v0_22_duplicate_notification_revision() -> None:
-    assert alembic_chain.script_directory().get_heads() == ["6a1d9c4e7b25"]
+def test_the_head_is_the_v0_22_is_hidden_comment_revision() -> None:
+    assert alembic_chain.script_directory().get_heads() == ["2b7e5f0c9d31"]
 
 
-def test_the_history_is_the_baseline_and_the_thirteen_v0_22_revisions() -> None:
+def test_the_history_is_the_baseline_and_the_fourteen_v0_22_revisions() -> None:
     script = alembic_chain.script_directory()
     assert [revision.revision for revision in script.walk_revisions()] == [
+        "2b7e5f0c9d31",
         "6a1d9c4e7b25",
         "4f8c2b6d1a93",
         "9e3b7a2c5d18",
@@ -72,6 +73,7 @@ def test_the_v0_22_chain_starts_from_the_v0_21_head() -> None:
     assert script.get_revision("9e3b7a2c5d18").down_revision == "7d4a9c1e6b52"
     assert script.get_revision("4f8c2b6d1a93").down_revision == "9e3b7a2c5d18"
     assert script.get_revision("6a1d9c4e7b25").down_revision == "4f8c2b6d1a93"
+    assert script.get_revision("2b7e5f0c9d31").down_revision == "6a1d9c4e7b25"
 
 
 def test_the_baseline_is_the_only_revision_without_a_parent() -> None:

@@ -26,7 +26,7 @@ Each group counts a set of [activity types](../integrate/supported-types.md):
 | Strength | General workout and strength training |
 | Cardio | Crossfit, cardio training, HIIT and jump rope |
 
-An activity you [hid from everyone](activities.md#visibility-and-hiding-details), including one Endurain hid because it looked like a duplicate import, does not count. This keeps a file imported twice from counting twice.
+An activity you [hid from everyone](activities.md#visibility-and-hiding-details) does not count.
 
 ## How progress is measured
 
