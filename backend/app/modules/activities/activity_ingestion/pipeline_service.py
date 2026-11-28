@@ -41,6 +41,7 @@ import modules.activities.activity_file_import.integration_service as activity_f
 import modules.activities.activity_file_storage.integration_service as activity_file_storage_integration
 import modules.activities.activity_ingestion.contracts as activity_ingestion_contracts
 import modules.activities.activity_ingestion.enrichment_service as activity_ingestion_enrichment_service
+import modules.activities.activity_ingestion.recompute_service as activity_ingestion_recompute_service
 import modules.activities.contributor_registry as activities_contributor_registry
 import modules.server_settings.schema as server_settings_schema
 import modules.users.users.integration_service as users_integration
@@ -383,10 +384,14 @@ def store_activities_from_file(
             parent.source = dataclasses.replace(import_source, retained_file_id=retained.stage(db))
             for leg in parsed_file.activities:
                 leg.source = import_source
-            created_activities = activity_integration.store_parsed_group(parent, parsed_file.activities, db)
+            result = activity_integration.ingest_parsed_group(parent, parsed_file.activities, db, allow_recompute=True)
+            if result.outcome is activity_contracts.IngestOutcome.BETTER_SOURCE:
+                result = _recompute_or_attach(result, parent, parsed_file, db)
+            created_activities = result.activities
             retained.attach_if_referenced(db)
             # One commit per group: the parent, its legs, the file's attachment and their events land together.
             db.commit()
+            _release_replaced_file(result, storage)
     else:
         # Read through the narrowed source rather than a separate boolean: only ``GarminSource`` carries gear.
         activity_gear = (
@@ -407,11 +412,15 @@ def store_activities_from_file(
                 bulk_source.apply_metadata(parsed.activity, activity_metadata)
 
             parsed.source = dataclasses.replace(import_source, retained_file_id=retained.stage(db))
-            created_activities.append(activity_integration.store_parsed_activity(parsed, db))
+            result = activity_integration.ingest_parsed_activity(parsed, db, allow_recompute=True)
+            if result.outcome is activity_contracts.IngestOutcome.BETTER_SOURCE:
+                result = _recompute_or_attach(result, parsed, parsed_file, db)
+            created_activities.append(result.activity)
             retained.attach_if_referenced(db)
             # One commit per activity: the row, its components, the file's attachment and the event
             # land together, and a later file failing does not undo this one.
             db.commit()
+            _release_replaced_file(result, storage)
 
     retained.release_if_unused(db)
     retained.consume()
@@ -420,6 +429,60 @@ def store_activities_from_file(
         _finish_bulk_import_file(bulk_source, created_activities, file_base_name, db)
 
     return created_activities
+
+
+def _recompute_or_attach(
+    result: activity_contracts.IngestResult,
+    parsed: activity_contracts.ParsedActivity,
+    parsed_file: activity_contracts.ParsedFile,
+    db: Session,
+) -> activity_contracts.IngestResult:
+    """Recompute the activity a better source matched from the source, or attach the source when that cannot be.
+
+    Runs in the transaction, under the lock, that matched. The recompute is refused when the activity changed since or
+    its structure differs from the file's; the source is then attached, and the activity keeps its data.
+
+    Args:
+        result: The ``BETTER_SOURCE`` outcome naming the activity and the source.
+        parsed: The recording: the session, or for a multisport file its parent.
+        parsed_file: The file.
+        db: The ingestion's session; the caller commits.
+
+    Returns:
+        ``BETTER_SOURCE`` with the replaced file row when recomputed, ``ATTACHED`` when the source was attached.
+    """
+    activity = result.activity
+    source = result.source
+    if source is None or activity.user_id is None or activity.id is None:
+        raise core_exceptions.ProcessingError("Error recomputing an activity")
+    new_file_id = parsed.source.retained_file_id if parsed.source is not None else None
+    if activity_ingestion_recompute_service.stage_recompute(
+        activity.id, parsed, parsed_file, source, result.replaced_file_id, new_file_id, db
+    ):
+        recomputed = activity_integration.get_activity(activity.id, db)
+        return dataclasses.replace(result, activities=[recomputed if recomputed is not None else activity])
+    attached = activity_integration.attach_source(activity.id, activity.user_id, source, db)
+    return activity_contracts.IngestResult([attached], activity_contracts.IngestOutcome.ATTACHED, source=source)
+
+
+def _release_replaced_file(
+    result: activity_contracts.IngestResult, storage: platform_providers.StorageProvider
+) -> None:
+    """Remove the file a recompute replaced, now that the recompute is committed.
+
+    The file has a row to release (kept while another activity references it), or none: a file stored before rows
+    existed is removed by the activity's id.
+
+    Args:
+        result: The outcome of the ingestion.
+        storage: The blob-storage provider.
+    """
+    if result.outcome is not activity_contracts.IngestOutcome.BETTER_SOURCE:
+        return
+    if result.replaced_file_id is not None:
+        activity_file_storage_integration.release_unreferenced(result.replaced_file_id, storage)
+    else:
+        activity_file_storage_integration.delete_legacy_activity_file(result.activity.id, storage)
 
 
 def _leg_gear(

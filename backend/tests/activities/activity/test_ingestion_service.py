@@ -8,6 +8,7 @@ from pydantic import ValidationError
 from sqlalchemy import func, select
 
 import core.exceptions as core_exceptions
+import modules.activities.activity.constants as activity_constants
 import modules.activities.activity.contracts as activity_contracts
 import modules.activities.activity.events as activity_events
 import modules.activities.activity.ingestion_service as ingestion_service
@@ -52,7 +53,8 @@ class TestStoring:
 
         [event] = published[activity_events.ACTIVITY_CREATED]
         assert event.payload["activity_id"] == str(stored.id)
-        assert (event.payload["user_id"], event.payload["duplicate_start_time"]) == (str(owner.id), False)
+        assert event.payload["user_id"] == str(owner.id)
+        assert "duplicate_start_time" not in event.payload
         assert event.source == "ingest:upload"
 
     def test_an_activity_with_no_source_is_published_from_an_unknown_source(self, db, published):
@@ -63,16 +65,21 @@ class TestStoring:
 
         assert [e.source for e in published[activity_events.ACTIVITY_CREATED]] == ["ingest:unknown"]
 
-    def test_a_second_activity_at_the_same_start_is_stored_hidden_and_published_as_a_duplicate(self, db, published):
+    def test_an_activity_of_another_sport_at_the_same_start_is_stored_visible_and_published_as_new(self, db, published):
         owner = make_user(db)
-        ingestion_service.store_parsed_activity(make_parsed_activity(owner.id), db)
+        first = ingestion_service.store_parsed_activity(make_parsed_activity(owner.id), db)
 
-        duplicate = ingestion_service.store_parsed_activity(make_parsed_activity(owner.id, name="Again"), db)
+        other = ingestion_service.store_parsed_activity(
+            make_parsed_activity(
+                owner.id, name="Swim", activity_type=activity_constants.ActivityType.LAP_SWIMMING.stored
+            ),
+            db,
+        )
         db.commit()
 
-        assert duplicate.is_hidden is True
-        flags = [e.payload["duplicate_start_time"] for e in published[activity_events.ACTIVITY_CREATED]]
-        assert flags == [False, True]
+        assert other.id != first.id
+        assert (first.is_hidden, other.is_hidden) == (False, False)
+        assert len(published[activity_events.ACTIVITY_CREATED]) == 2
 
 
 class TestFailures:

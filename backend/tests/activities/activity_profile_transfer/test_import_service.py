@@ -90,8 +90,9 @@ class TestRestoreProfile:
         restored = support.import_activities(db, user.id, storage, {"data/activities.json": []})
 
         assert restored.after_commit is None
-        assert set(restored.counts) >= support.COUNT_KEYS
-        assert all(restored.counts[key] == 0 for key in support.COUNT_KEYS)
+        keys = support.COUNT_KEYS | support.IMPORT_ONLY_COUNT_KEYS
+        assert set(restored.counts) >= keys
+        assert all(restored.counts[key] == 0 for key in keys)
         assert _restored(db, user.id) == []
 
     def test_an_archive_that_carries_other_files_has_no_deferred_work(self, db: Session, storage) -> None:

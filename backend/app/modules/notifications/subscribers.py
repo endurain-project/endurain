@@ -97,7 +97,6 @@ def notify_activity_created_for_event(event: Event) -> None:
         lambda db: notifications_service.create_activity_created_notification(
             payload.user_id,
             payload.activity_id,
-            payload.duplicate_start_time,
             event.event_id,
             db,
         ),

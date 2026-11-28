@@ -24,6 +24,8 @@ class NotificationType(StoredStrEnum):
     """
 
     NEW_ACTIVITY = ("new_activity", 1)
+    # Nothing produces it any more: an effort a user already has is merged, not stored as a hidden duplicate. Stored
+    # notifications of the type are still read, so the type goes in the release that deletes them (6f-3).
     DUPLICATE_ACTIVITY = ("duplicate_activity", 2)
     NEW_FOLLOWER_REQUEST = ("new_follower_request", 11)
     NEW_FOLLOWER_REQUEST_ACCEPTED = ("new_follower_request_accepted", 12)
@@ -39,6 +41,7 @@ class NotificationType(StoredStrEnum):
 
 # Websocket message types pushed to the browser alongside a stored notification.
 NEW_ACTIVITY_WS_MESSAGE = "NEW_ACTIVITY_NOTIFICATION"
+# Unproduced, like the notification type it goes with; both go in 6f-3.
 DUPLICATE_ACTIVITY_WS_MESSAGE = "NEW_DUPLICATE_ACTIVITY_START_TIME_NOTIFICATION"
 NEW_FOLLOWER_REQUEST_WS_MESSAGE = "NEW_FOLLOWER_REQUEST_NOTIFICATION"
 NEW_FOLLOWER_REQUEST_REMOVED_WS_MESSAGE = "NEW_FOLLOWER_REQUEST_REMOVED_NOTIFICATION"

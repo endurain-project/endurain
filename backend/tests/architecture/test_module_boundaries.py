@@ -446,13 +446,23 @@ _SURFACE_UNITS_OF_WORK: dict[str, str] = {
     ),
     "activity.integration_service.store_parsed_activity": (
         "Stages the activity, its components and activity.created, and the caller commits. It rolls back "
-        "only on failure: a lost race on the dedup key leaves the session unusable until it is rolled "
+        "only on failure: a lost race on the source leaves the session unusable until it is rolled "
         "back, and it has to look up the winner before returning it."
     ),
-    "activity.integration_service.store_parsed_group": (
+    "activity.integration_service.ingest_parsed_activity": (
+        "Stages the activity or the source of an effort the owner has, and the caller commits. It rolls back "
+        "only on failure: a lost race on the source leaves the session unusable until it is rolled "
+        "back, and it has to look up the winner before returning it."
+    ),
+    "activity.integration_service.ingest_parsed_group": (
         "Stages a multisport activity, its legs, their components and the events, and the caller commits once. It "
-        "rolls back only on failure: a lost race on the parent's dedup key leaves the session unusable until it is "
+        "rolls back only on failure: a lost race on the parent's source leaves the session unusable until it is "
         "rolled back, and it has to look up the winner before returning it."
+    ),
+    "activity_file_storage.integration_service.release_unreferenced": (
+        "Commits the row's move to deleting before the blob is removed, and the row's removal after, so no session "
+        "is open across the storage call; it opens its own sessions because the caller's recompute is already "
+        "committed."
     ),
     "activity_ingestion.integration_service.ingest_activity_file": (
         "The background ingestion entry for provider syncs: it commits each activity and rolls back "

@@ -105,6 +105,8 @@ class Activity(UpdatedAtMixin, Base):
         # column.
         Index("uq_activities_user_dedup_key", "user_id", "dedup_key", unique=True),
         Index("ix_activities_user_id_updated_at_id", "user_id", "updated_at", "id"),
+        # The look for the same effort reads a user's activities by the window their start falls in.
+        Index("ix_activities_user_id_start_time", "user_id", "start_time"),
         # Strava ids are looked up for the owner only; two accounts may link the same Strava athlete.
         Index("ix_activities_user_id_strava_activity_id", "user_id", "strava_activity_id"),
         # The legs of a multisport parent are read through it.

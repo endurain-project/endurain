@@ -29,7 +29,6 @@ def publish_activity_created(
     db: Session,
     *,
     source: str,
-    duplicate_start_time: bool = False,
     parent_activity_id: uuid.UUID | None = None,
 ) -> None:
     """Publish ``activity.created`` for a freshly stored activity.
@@ -44,17 +43,12 @@ def publish_activity_created(
             durable jobs are enabled.
         source: Where the activity came from (e.g. ``ingest:upload``), for event-log
             correlation.
-        duplicate_start_time: Whether the activity duplicates an existing
-            activity's start time (marked hidden on store). Carried in the
-            payload so the notification subscriber can raise the duplicate
-            variant instead of the new-activity notification.
         parent_activity_id: The multisport activity the stored activity is a leg
             of, so a subscriber can tell a leg from the activity the athlete sees.
     """
     payload = activity_events.ActivityCreatedPayload(
         activity_id=activity_id,
         user_id=user_id,
-        duplicate_start_time=duplicate_start_time,
         parent_activity_id=parent_activity_id,
     )
     metadata = {

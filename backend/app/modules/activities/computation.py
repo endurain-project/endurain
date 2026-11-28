@@ -587,3 +587,42 @@ def double_running_cadence(cadence: float | None, fractional: float | None = 0.0
     if cadence is None:
         return None
     return round((float(cadence) + float(fractional or 0.0)) * 2)
+
+
+#: The share of the shorter of two recordings that must overlap for them to be one effort.
+SAME_EFFORT_OVERLAP = 0.8
+
+
+def overlap_seconds(start_a: datetime, end_a: datetime, start_b: datetime, end_b: datetime) -> float:
+    """Return how long two recordings run at the same time.
+
+    Args:
+        start_a: Start of the first recording.
+        end_a: End of the first recording.
+        start_b: Start of the second recording.
+        end_b: End of the second recording.
+
+    Returns:
+        The seconds both are running, ``0`` when they do not overlap.
+    """
+    return max(0.0, (min(end_a, end_b) - max(start_a, start_b)).total_seconds())
+
+
+def is_same_effort(start_a: datetime, end_a: datetime, start_b: datetime, end_b: datetime) -> bool:
+    """Return whether two recordings are of one effort: they overlap by at least 80 % of the shorter.
+
+    A recording of no length matches only one that starts in the same second, as there is nothing to overlap.
+
+    Args:
+        start_a: Start of the first recording.
+        end_a: End of the first recording.
+        start_b: Start of the second recording.
+        end_b: End of the second recording.
+
+    Returns:
+        ``True`` when they are one effort.
+    """
+    shorter = min((end_a - start_a).total_seconds(), (end_b - start_b).total_seconds())
+    if shorter <= 0:
+        return start_a.replace(microsecond=0) == start_b.replace(microsecond=0)
+    return overlap_seconds(start_a, end_a, start_b, end_b) >= SAME_EFFORT_OVERLAP * shorter

@@ -75,20 +75,12 @@ class TestSameStart:
         assert [row.is_hidden for row in _rows(db, parent, leg)] == [False, False]
         assert _rows(db, leg)[0].parent_activity_id == parent.id
 
-    def test_an_unrelated_activity_at_the_same_instant_still_makes_a_duplicate(self, db, owner):
+    def test_an_unrelated_activity_at_the_same_instant_hides_nothing(self, db, owner):
         alone = make_activity_at(db, owner.id, _START)
 
         parent, legs = make_multisport(db, owner.id, start=_START)
 
-        assert _rows(db, alone)[0].is_hidden is False
-        assert [row.is_hidden for row in _rows(db, parent, legs[0])] == [True, True]
-
-    def test_an_activity_at_the_instant_a_group_started_is_a_duplicate_of_it(self, db, owner):
-        make_multisport(db, owner.id, start=_START)
-
-        late = make_activity_at(db, owner.id, _START)
-
-        assert _rows(db, late)[0].is_hidden is True
+        assert [row.is_hidden for row in _rows(db, alone, parent, legs[0])] == [False, False, False]
 
     def test_creating_a_leg_names_its_parent_on_the_row(self, db, owner):
         parent = make_activity(db, owner.id, activity_type=48)

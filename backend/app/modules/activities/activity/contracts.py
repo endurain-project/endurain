@@ -20,6 +20,7 @@ Neither group is ever serialized to a client, so keeping them out of
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
+from enum import StrEnum
 from typing import Literal, NamedTuple
 
 from pydantic import BaseModel, Field, field_validator, model_validator
@@ -270,6 +271,67 @@ class SourceRead:
     session_start: datetime | None
     precedence: int
     received_at: datetime
+
+
+class IngestOutcome(StrEnum):
+    """What storing a parsed activity did.
+
+    Attributes:
+        CREATED: A new activity was stored, with its source.
+        EXISTING: The owner already held the activity's source (or the recording has none and matches an effort), so
+            nothing was stored.
+        ATTACHED: The recording is of an effort the owner already has, so its source was added to that activity and the
+            activity's data is as it was.
+        BETTER_SOURCE: The recording is of an effort the owner already has and is a better record of it than any
+            source the activity holds. Nothing was staged: the caller recomputes the activity from it, or attaches it.
+    """
+
+    CREATED = "created"
+    EXISTING = "existing"
+    ATTACHED = "attached"
+    BETTER_SOURCE = "better_source"
+
+
+@dataclass(frozen=True)
+class IngestResult:
+    """The outcome of storing a parsed activity, with the activities the athlete sees.
+
+    Attributes:
+        activities: The stored activity, the existing one it was merged into, or for a file whose legs were stored on
+            their own before groups existed, those legs.
+        outcome: What was done.
+        source: The source the recording identifies as, ``None`` when it has none.
+        replaced_file_id: For ``BETTER_SOURCE``, the retained file row the activity references now.
+        best_precedence: For ``BETTER_SOURCE``, the best precedence of the activity's sources when it was matched.
+    """
+
+    activities: list[activity_schema.ActivityRead]
+    outcome: IngestOutcome
+    source: NewSource | None = None
+    replaced_file_id: uuid.UUID | None = None
+    best_precedence: int | None = None
+
+    @property
+    def activity(self) -> activity_schema.ActivityRead:
+        """The first activity: the one a single recording stored or merged into."""
+        return self.activities[0]
+
+
+@dataclass(frozen=True)
+class EffortCandidate:
+    """A stored top-level activity that may be the same effort as a recording.
+
+    Attributes:
+        id: The activity.
+        start_time: When it starts.
+        end_time: When it ends.
+        activity_type: Its stored sport type.
+    """
+
+    id: uuid.UUID
+    start_time: datetime
+    end_time: datetime
+    activity_type: int
 
 
 class SourceArchiveRecord(BaseModel):

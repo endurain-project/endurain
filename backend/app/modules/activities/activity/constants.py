@@ -164,6 +164,25 @@ ACTIVITY_TYPES_BY_SPORT: dict[str, tuple[int, ...]] = {
     "inline_skating": (45,),
 }
 
+
+def sports_compatible(activity_type_a: int, activity_type_b: int) -> bool:
+    """Return whether two activity types can be recordings of one effort.
+
+    The same type, two types of one sport, or a multisport activity with any type: a multisport recording covers
+    the sports of its legs. A type that belongs to no sport matches only itself.
+
+    Args:
+        activity_type_a: The stored id of the first type.
+        activity_type_b: The stored id of the second type.
+
+    Returns:
+        ``True`` when the types are compatible.
+    """
+    if activity_type_a == activity_type_b or ActivityType.MULTISPORT.stored in (activity_type_a, activity_type_b):
+        return True
+    return any(activity_type_a in types and activity_type_b in types for types in ACTIVITY_TYPES_BY_SPORT.values())
+
+
 #: Running/foot activity types whose cadence may be reported as a single-leg rate
 #: (revolutions per minute) rather than steps per minute (spm). Mirrors the
 #: frontend ``RUNNING_TYPES`` set (``activityType.ts``).

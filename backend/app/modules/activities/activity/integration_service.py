@@ -245,6 +245,174 @@ def get_user_profile_summary(
     return activity_service.user_profile_summary(user_id, requester_user_id, db, anchor=anchor)
 
 
+def ingest_parsed_activity(
+    parsed: activity_contracts.ParsedActivity, db: Session, *, allow_recompute: bool = False
+) -> activity_contracts.IngestResult:
+    """Stage a parsed activity, or merge it into the effort of the owner's it records; the caller commits.
+
+    Takes the owner's matching lock first, so the caller should commit promptly.
+
+    Args:
+        parsed: The canonical parsed activity.
+        db: Database session.
+        allow_recompute: Whether the caller can recompute an activity from a better source.
+
+    Returns:
+        The outcome and the activity it concerns.
+    """
+    return activity_ingestion_service.ingest(parsed, db, allow_recompute=allow_recompute)
+
+
+def ingest_parsed_group(
+    parent: activity_contracts.ParsedActivity,
+    legs: list[activity_contracts.ParsedActivity],
+    db: Session,
+    *,
+    allow_recompute: bool = False,
+) -> activity_contracts.IngestResult:
+    """Stage a multisport activity and its legs, or merge it into the effort it records; the caller commits.
+
+    Args:
+        parent: The multisport activity.
+        legs: Its legs, in time order.
+        db: Database session.
+        allow_recompute: Whether the caller can recompute an activity from a better source.
+
+    Returns:
+        The outcome and the activities the athlete sees.
+    """
+    return activity_ingestion_service.ingest_group(parent, legs, db, allow_recompute=allow_recompute)
+
+
+def attach_source(
+    activity_id: uuid.UUID, user_id: uuid.UUID, source: activity_contracts.NewSource, db: Session
+) -> activity_schema.ActivityRead:
+    """Stage a source on an activity a recording of the same effort came from; the caller commits.
+
+    Args:
+        activity_id: The activity.
+        user_id: The owner.
+        source: The source to add.
+        db: Database session.
+
+    Returns:
+        The activity as it reads now.
+    """
+    return activity_crud.attach_source(activity_id, user_id, source, db)
+
+
+def attach_if_same_effort(
+    user_id: uuid.UUID, source: activity_contracts.NewSource, sport: int, start: datetime, end: datetime, db: Session
+) -> bool:
+    """Attach a source to the owner's activity of the same effort, if they have one; the caller commits.
+
+    Args:
+        user_id: The owner.
+        source: The recording's source.
+        sport: The recording's stored sport type.
+        start: When the recording starts, aware.
+        end: When the recording ends, aware.
+        db: Database session.
+
+    Returns:
+        ``True`` when the owner held the source or it was attached; ``False`` when the effort is new to them.
+    """
+    return activity_ingestion_service.attach_if_same_effort(user_id, source, sport, start, end, db)
+
+
+def restore_matches_existing(
+    user_id: uuid.UUID,
+    activity: activity_contracts.ActivityCore,
+    sources: Collection[activity_contracts.NewSource],
+    db: Session,
+    *,
+    exclude: Collection[uuid.UUID] = (),
+) -> bool:
+    """Return whether the owner already has an activity an archive restores, by a source or the same effort.
+
+    Args:
+        user_id: The owner.
+        activity: The archived activity.
+        sources: Its archived sources.
+        db: Database session.
+        exclude: Activities the restore has stored itself, which do not count.
+
+    Returns:
+        ``True`` when the owner has it.
+    """
+    return activity_ingestion_service.restore_matches_existing(user_id, activity, sources, db, exclude=exclude)
+
+
+def lock_for_recompute(
+    activity_id: uuid.UUID, expected_file_id: uuid.UUID | None, incoming_precedence: int, db: Session
+) -> bool:
+    """Lock an activity and check it may still be recomputed from a better source; the lock lasts to the commit.
+
+    Args:
+        activity_id: The activity.
+        expected_file_id: The file row it referenced when matched.
+        incoming_precedence: The precedence of the better source.
+        db: Database session.
+
+    Returns:
+        ``True`` when it still references that file and holds no source as good as the incoming one.
+    """
+    return activity_service.lock_for_recompute(activity_id, expected_file_id, incoming_precedence, db)
+
+
+def apply_recomputed_analysis(
+    activity_id: uuid.UUID,
+    parsed: activity_contracts.ActivityCore,
+    analysis_version: int,
+    *,
+    take_text: bool,
+    db: Session,
+) -> bool:
+    """Stage the values a better source of the activity computed, and its start; the caller commits.
+
+    Args:
+        activity_id: The activity.
+        parsed: The activity as the better source parsed it; its ``user_id`` must be the owner's.
+        analysis_version: The version of the analysis that computed the values.
+        take_text: Whether the activity also takes the source's name and description, bumping ``version``.
+        db: Database session.
+
+    Returns:
+        ``True`` when the owner's activity exists and was updated.
+    """
+    return activity_crud.update_recomputed_values(activity_id, parsed, analysis_version, take_text=take_text, db=db)
+
+
+def replace_file_id(
+    activity_id: uuid.UUID, expected_file_id: uuid.UUID | None, file_id: uuid.UUID, db: Session
+) -> bool:
+    """Stage the retained file row an activity references, while it references the expected one; the caller commits.
+
+    Args:
+        activity_id: The activity.
+        expected_file_id: The row it must reference now.
+        file_id: The row it references from now on.
+        db: Database session.
+
+    Returns:
+        ``True`` when it did and was updated.
+    """
+    return activity_crud.replace_file_id(activity_id, expected_file_id, file_id, db)
+
+
+def is_live_strava_activity(activity_id: uuid.UUID, db: Session) -> bool:
+    """Return whether an activity's only sources are Strava's.
+
+    Args:
+        activity_id: The activity.
+        db: Database session.
+
+    Returns:
+        ``True`` when it has a Strava source and no other.
+    """
+    return activity_crud.is_live_strava_activity(activity_id, db)
+
+
 def _list_sources_for_profile(
     activity_ids: list[uuid.UUID], db: Session
 ) -> Sequence[activity_contracts.SourceArchiveRecord]:
@@ -372,27 +540,6 @@ def store_parsed_activity(
     return activity_ingestion_service.store_parsed_activity(parsed, db)
 
 
-def store_parsed_group(
-    parent: activity_contracts.ParsedActivity,
-    legs: list[activity_contracts.ParsedActivity],
-    db: Session,
-) -> list[activity_schema.ActivityRead]:
-    """Stage a multisport activity and its legs through the ingestion seam, in one unit of work.
-
-    The parent, the legs, their components and the ``activity.created`` events are staged together; the caller commits
-    once.
-
-    Args:
-        parent: The parsed multisport activity.
-        legs: Its parsed legs, in time order.
-        db: Database session.
-
-    Returns:
-        The stored parent, or, for a file whose legs were stored on their own before groups existed, those legs.
-    """
-    return activity_ingestion_service.store_parsed_group(parent, legs, db)
-
-
 def list_standalone_activities_starting_between(
     user_id: uuid.UUID, earliest: datetime, latest: datetime, db: Session
 ) -> list[activity_schema.ActivityRead]:
@@ -467,6 +614,7 @@ def apply_reprocessed_analysis(
     activity_id: uuid.UUID,
     parsed: activity_contracts.ActivityCore,
     analysis_version: int,
+    expected_file_id: uuid.UUID | None,
     db: Session,
 ) -> bool:
     """Stage the values a fresh analysis of the activity's file computed, and stamp the analysis version.
@@ -479,12 +627,14 @@ def apply_reprocessed_analysis(
         activity_id: ID of the activity.
         parsed: The activity as the analysis parsed it; its ``user_id`` must be the activity's owner.
         analysis_version: The version of the analysis that computed the values.
+        expected_file_id: The file row the analysis read; the write is refused when the activity references another
+            since, which a better source recomputed it from.
         db: Database session.
 
     Returns:
-        True when the owner's activity exists and was updated, False otherwise.
+        True when the owner's activity exists, still references that file and was updated, False otherwise.
     """
-    return activity_crud.update_derived_values(activity_id, parsed, analysis_version, db)
+    return activity_crud.update_derived_values(activity_id, parsed, analysis_version, expected_file_id, db)
 
 
 def list_ids_below_analysis_version(analysis_version: int, limit: int, db: Session) -> list[uuid.UUID]:

@@ -3,7 +3,7 @@
 import uuid
 from collections import defaultdict
 from collections.abc import Collection, Mapping, Sequence
-from datetime import UTC, date, datetime
+from datetime import date, datetime, timedelta
 from typing import Any
 
 from sqlalchemy import (
@@ -32,6 +32,7 @@ import core.etag as core_etag
 import core.exceptions as core_exceptions
 import core.logger as core_logger
 import core.pagination as core_pagination
+import core.sanitization as core_sanitization
 import core.sync as core_sync
 import core.timezone as core_timezone
 import modules.activities.activity.constants as activity_constants
@@ -1040,47 +1041,6 @@ def get_activity_by_id(activity_id: uuid.UUID, db: Session) -> activity_schema.A
     return activity_serializers.to_read_schema(activity)
 
 
-def get_activity_by_start_time(
-    start_time: str | datetime, user_id: uuid.UUID, db: Session, *, ignoring_family_of: uuid.UUID | None = None
-) -> activity_schema.ActivityRead | None:
-    """Get a user's activity matching a specific start time.
-
-    Args:
-        start_time: ISO-format string or datetime.
-        user_id: Owner user ID.
-        db: Database session.
-        ignoring_family_of: A multisport activity whose own row and legs do not count as a match, because its
-            first leg starts at the instant it does.
-
-    Returns:
-        Activity schema or None when not found.
-    """
-    if isinstance(start_time, str):
-        start_time = datetime.fromisoformat(start_time)
-    if start_time.tzinfo is None:
-        start_time = start_time.replace(tzinfo=UTC)
-    # ``first`` rather than ``scalar_one_or_none``: a start-time duplicate is
-    # stored (hidden), not rejected, so several rows can share the instant and
-    # the lookup would otherwise raise on the third import.
-    stmt = (
-        select(activity_models.Activity)
-        .where(
-            activity_models.Activity.user_id == user_id,
-            activity_models.Activity.start_time == start_time,
-        )
-        .order_by(activity_models.Activity.id)
-    )
-    if ignoring_family_of is not None:
-        stmt = stmt.where(
-            activity_models.Activity.id != ignoring_family_of,
-            activity_models.Activity.parent_activity_id.is_distinct_from(ignoring_family_of),
-        )
-    activity = db.scalars(stmt).first()
-    if not activity:
-        return None
-    return activity_serializers.to_read_schema(activity)
-
-
 def get_leg_ids_by_parent(parent_ids: Sequence[uuid.UUID], db: Session) -> dict[uuid.UUID, list[uuid.UUID]]:
     """Get the legs of several multisport activities, each parent's in start order.
 
@@ -1288,17 +1248,16 @@ def create_activity(
     *,
     source: activity_contracts.NewSource | None = None,
     parent_activity_id: uuid.UUID | None = None,
-    detect_duplicate_start: bool = True,
     analysis_version: int = 0,
     activity_id: uuid.UUID | None = None,
     file_id: uuid.UUID | None = None,
 ) -> activity_schema.ActivityRead:
-    """Stage a new activity; duplicate start-times are marked hidden.
+    """Stage a new activity.
 
     Pure persistence: notifications and derived work (thumbnails, HR zones) are
     decoupled to ``activity.created`` subscribers. The caller publishes
     the event after the activity's children are stored; this function only stages
-    the row (flushed, not committed) and flags start-time duplicates as hidden.
+    the row (flushed, not committed).
 
     Args:
         activity: Strict ``ActivityCore`` ingestion schema to persist.
@@ -1306,8 +1265,6 @@ def create_activity(
         source: The source to store with the row, so a re-import of the same provider activity or file is recognised.
             Stored in the same flush as the activity: the unique indexes on sources then settle two imports racing.
         parent_activity_id: The multisport activity the new activity is a leg of, or ``None`` for any other.
-        detect_duplicate_start: Whether to hide the activity when another one starts at the same instant. ``False``
-            for a leg stored with its parent, which takes the parent's ``is_hidden`` from the caller.
         analysis_version: The version of the file analysis that computed the activity's values, 0 for a row that no
             analysis computed. The server owns it, so it is not part of ``activity``.
         activity_id: The ID to store the activity under, for a caller that must name it before the row exists (a file
@@ -1316,10 +1273,7 @@ def create_activity(
             not part of ``activity``.
 
     Returns:
-        The stored activity as the read schema, with the generated ``id`` and
-        ``created_at`` populated from the row. ``is_hidden`` is ``True`` when the
-        start time duplicates an existing activity — the signal the caller
-        forwards to the ``activity.created`` notification subscriber.
+        The stored activity as the read schema, with the generated ``id`` and ``created_at`` populated from the row.
     """
     if activity.user_id is None:
         raise core_exceptions.InvalidInputError("Activity user_id is required")
@@ -1328,26 +1282,12 @@ def create_activity(
     # boundary. Parsers emit naive UTC wall-clock values and providers emit
     # ISO strings; to_utc_aware coerces both to aware UTC and returns None for
     # a missing value, so we never persist or compare a naive/absent start
-    # time (this is also what keeps get_activity_by_start_time from being
-    # handed a None).
+    # time.
     normalized_start_time = core_timezone.to_utc_aware(activity.start_time)
     if normalized_start_time is None:
         raise core_exceptions.InvalidInputError("Activity start_time is required and must be a valid datetime")
 
-    # Best-effort: this check and the insert below are not atomic, so two concurrent
-    # imports with the same start time can both stay visible. Idempotency does not
-    # rest on it; the unique indexes on ``activity_sources`` do.
-    activity_start_time_exists = detect_duplicate_start and get_activity_by_start_time(
-        normalized_start_time, activity.user_id, db, ignoring_family_of=parent_activity_id
-    )
-
     new_activity = activity_serializers.to_orm(activity)
-    # Flagged on the ORM row rather than on the caller's input: ``create_activity``
-    # takes the write contract and must not mutate it (nor could it set the read
-    # model's ``id``/``created_at`` there — those fields do not exist on the
-    # ingestion shape at all).
-    if activity_start_time_exists:
-        new_activity.is_hidden = True
     if source is not None:
         new_activity.sources.append(activity_source_crud.to_orm(activity.user_id, source))
     new_activity.parent_activity_id = parent_activity_id
@@ -1417,6 +1357,7 @@ def update_derived_values(
     activity_id: uuid.UUID,
     parsed: activity_contracts.ActivityCore,
     analysis_version: int,
+    expected_file_id: uuid.UUID | None,
     db: Session,
 ) -> bool:
     """Stage the columns a file analysis computed and the version of that analysis.
@@ -1424,24 +1365,210 @@ def update_derived_values(
     Derived values, so they are written with a Core ``UPDATE`` that leaves ``version`` alone: a client mid-edit
     keeps a valid ``ETag``. ``updated_at`` is stamped, so a syncing client refetches.
 
+    The write holds only while the activity still references the file the analysis read, so a reprocess that read
+    an old file cannot overwrite what a better source recomputed the activity from since.
+
     Args:
         activity_id: Target activity ID.
         parsed: The activity as the analysis parsed it. Only its derived columns are written, and its ``user_id``
             must be the activity's owner, so another user's activity is never written.
         analysis_version: The version of the analysis that computed them.
+        expected_file_id: The retained file row the analysis read the activity's file from; ``None`` for an activity
+            with no file row.
+        db: Database session.
+
+    Returns:
+        True when the owner's activity exists, still references that file and was updated, False otherwise.
+    """
+    matched = core_database.rowcount(
+        db,
+        sa_update(activity_models.Activity)
+        .where(
+            activity_models.Activity.id == activity_id,
+            activity_models.Activity.user_id == parsed.user_id,
+            activity_models.Activity.file_id.is_not_distinct_from(expected_file_id),
+        )
+        .values(**activity_serializers.to_derived_values(parsed), analysis_version=analysis_version),
+    )
+    db.flush()
+    return matched > 0
+
+
+def update_recomputed_values(
+    activity_id: uuid.UUID,
+    parsed: activity_contracts.ActivityCore,
+    analysis_version: int,
+    *,
+    take_text: bool,
+    db: Session,
+) -> bool:
+    """Stage what a better source of an activity computed: its derived columns and its start.
+
+    Every derived column is written, a value the source lacks included, and so is ``start_time``, which the next
+    reprocess of the new file matches. ``version`` stays unless ``take_text``: the name and the description are
+    client-editable, so taking the source's bumps it and a stale client write is refused.
+
+    Args:
+        activity_id: Target activity ID.
+        parsed: The activity as the better source parsed it; its ``user_id`` must be the activity's owner.
+        analysis_version: The version of the analysis that computed the values.
+        take_text: Whether the activity also takes the source's name and description.
         db: Database session.
 
     Returns:
         True when the owner's activity exists and was updated, False otherwise.
     """
+    values: dict[str, object] = {
+        **activity_serializers.to_derived_values(parsed),
+        "start_time": core_timezone.to_utc_aware(parsed.start_time),
+        "analysis_version": analysis_version,
+    }
+    if take_text:
+        values.update(
+            name=parsed.name,
+            description=core_sanitization.sanitize_markdown(parsed.description),
+            version=activity_models.Activity.version + 1,
+        )
     matched = core_database.rowcount(
         db,
         sa_update(activity_models.Activity)
         .where(activity_models.Activity.id == activity_id, activity_models.Activity.user_id == parsed.user_id)
-        .values(**activity_serializers.to_derived_values(parsed), analysis_version=analysis_version),
+        .values(**values),
     )
     db.flush()
     return matched > 0
+
+
+def lock_file_id(activity_id: uuid.UUID, db: Session) -> tuple[bool, uuid.UUID | None]:
+    """Lock an activity row until the transaction ends and read the file row it references.
+
+    Args:
+        activity_id: The activity.
+        db: Database session.
+
+    Returns:
+        Whether the activity exists, and its file row id (``None`` when it has none).
+    """
+    row = db.execute(
+        select(activity_models.Activity.file_id).where(activity_models.Activity.id == activity_id).with_for_update()
+    ).first()
+    return (row is not None, row[0] if row is not None else None)
+
+
+def replace_file_id(
+    activity_id: uuid.UUID, expected_file_id: uuid.UUID | None, file_id: uuid.UUID, db: Session
+) -> bool:
+    """Stage the retained file row an activity references, while it references the one the caller expects.
+
+    A derived value, so it is written with a Core ``UPDATE`` that leaves ``version`` alone.
+
+    Args:
+        activity_id: Target activity ID.
+        expected_file_id: The row it must reference now; ``None`` for an activity with no file row.
+        file_id: The row it references from now on.
+        db: Database session.
+
+    Returns:
+        ``True`` when the activity referenced the expected row and was updated, ``False`` otherwise.
+    """
+    matched = core_database.rowcount(
+        db,
+        sa_update(activity_models.Activity)
+        .where(
+            activity_models.Activity.id == activity_id,
+            activity_models.Activity.file_id.is_not_distinct_from(expected_file_id),
+        )
+        .values(file_id=file_id),
+    )
+    db.flush()
+    return matched == 1
+
+
+def attach_source(
+    activity_id: uuid.UUID, user_id: uuid.UUID, source: activity_contracts.NewSource, db: Session
+) -> activity_schema.ActivityRead:
+    """Stage a source on an activity a recording of the same effort came from, and note the change.
+
+    The source joins the activity's loaded collection, so a read in this transaction sees it. The change is one a
+    client reads and does not edit, so ``updated_at`` moves and ``version`` does not.
+
+    Args:
+        activity_id: The activity.
+        user_id: The owner.
+        source: The source to add.
+        db: Database session; the caller commits.
+
+    Returns:
+        The activity as it reads now.
+
+    Raises:
+        NotFoundError: When the activity is gone.
+    """
+    row = db.get(activity_models.Activity, activity_id)
+    if row is None:
+        raise core_exceptions.NotFoundError(f"Activity with id {activity_id} not found")
+    row.sources.append(activity_source_crud.to_orm(user_id, source))
+    db.flush()
+    touch_activity(activity_id, db)
+    db.refresh(row)
+    return activity_serializers.to_read_schema(row)
+
+
+def is_live_strava_activity(activity_id: uuid.UUID, db: Session) -> bool:
+    """Return whether an activity's only sources are Strava's.
+
+    Args:
+        activity_id: The activity.
+        db: Database session.
+
+    Returns:
+        ``True`` when it has a Strava source and no other.
+    """
+    return (
+        db.scalars(
+            select(activity_models.Activity.id).where(
+                activity_models.Activity.id == activity_id, activity_query.is_live_strava_data()
+            )
+        ).first()
+        is not None
+    )
+
+
+def list_effort_candidates(
+    user_id: uuid.UUID, start: datetime, end: datetime, lookback: timedelta, db: Session
+) -> list[activity_contracts.EffortCandidate]:
+    """List a user's top-level activities that overlap a recording, or lie so close to it that they may.
+
+    A multisport leg is never a candidate: its parent stands for it. The window reads the ``(user_id, start_time)``
+    index: an activity that starts up to ``lookback`` before the recording and no later than its end.
+
+    Args:
+        user_id: The owner.
+        start: When the recording starts.
+        end: When the recording ends.
+        lookback: How long before the recording's start a candidate may start.
+        db: Database session.
+
+    Returns:
+        The candidates, earliest start first.
+    """
+    rows = db.execute(
+        select(
+            activity_models.Activity.id,
+            activity_models.Activity.start_time,
+            activity_models.Activity.end_time,
+            activity_models.Activity.activity_type,
+        )
+        .where(
+            activity_models.Activity.user_id == user_id,
+            activity_query.is_top_level(),
+            activity_models.Activity.start_time >= start - lookback,
+            activity_models.Activity.start_time <= end,
+            activity_models.Activity.end_time >= start,
+        )
+        .order_by(activity_models.Activity.start_time, activity_models.Activity.id)
+    ).all()
+    return [activity_contracts.EffortCandidate(row.id, row.start_time, row.end_time, row.activity_type) for row in rows]
 
 
 def list_ids_below_analysis_version(analysis_version: int, limit: int, db: Session) -> list[uuid.UUID]:

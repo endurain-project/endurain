@@ -68,6 +68,7 @@ def _report_zero_counts(counts: dict[str, int]) -> None:
         counts: Imported item counts.
     """
     counts["activities"] = 0
+    counts["activities_skipped"] = 0
     counts["activity_files"] = 0
     counts["media"] = 0
     for contributor in activities_contributor_registry.profile_activity_contributors():
@@ -119,6 +120,11 @@ def _restore_activities(
     The activities that are not legs are restored first, so each leg finds its parent's new id in the mapping. A
     leg whose parent is not in the archive is restored as a top-level activity.
 
+    An activity the account already has is skipped, with its legs and components: one that holds one of its sources
+    (the same file or provider activity), or that is of the same effort as an activity of the account's own, as an
+    import of a file would see it. What a restore stored itself does not count, so an archive that lists one effort
+    twice restores both. The skips are counted as ``activities_skipped``.
+
     Args:
         ctx: The import context.
         gears_id_mapping: Mapping of old to new gear IDs.
@@ -131,6 +137,8 @@ def _restore_activities(
         ImportTimeoutError: If operation times out.
     """
     activities_id_mapping: dict[uuid.UUID, uuid.UUID] = {}
+    #: The archived ids of the activities the account already has, which are not restored.
+    skipped: set[uuid.UUID] = set()
 
     activities_data = ctx.archive.load_json(constants.ACTIVITIES_PATH)
     if not activities_data:
@@ -203,6 +211,20 @@ def _restore_activities(
             }
 
             activity = activity_contracts.ActivityCore(**fields, user_id=ctx.user_id)
+            if _is_already_held(
+                ctx,
+                activity,
+                original_activity_id,
+                archived_parent_id,
+                batch_components,
+                activities_id_mapping,
+                skipped,
+            ):
+                # The account has this activity, so neither it nor what hangs off it is restored.
+                if original_activity_id is not None:
+                    skipped.add(original_activity_id)
+                ctx.counts["activities_skipped"] += 1
+                continue
             # Bulk restore deliberately does not publish activity.created;
             # see integration_service.restore_activity for why.
             new_activity = activity_integration.restore_activity(
@@ -222,6 +244,52 @@ def _restore_activities(
 
     logger.debug("Imported activities", extra=core_logger.context(count=ctx.counts["activities"]))
     return activities_id_mapping
+
+
+def _is_already_held(
+    ctx: users_profile_contracts.ProfileImportContext,
+    activity: activity_contracts.ActivityCore,
+    original_activity_id: uuid.UUID | None,
+    archived_parent_id: uuid.UUID | None,
+    batch_components: dict[str, list[dict[str, Any]]],
+    activities_id_mapping: dict[uuid.UUID, uuid.UUID],
+    skipped: set[uuid.UUID],
+) -> bool:
+    """Tell whether the account already has an archived activity.
+
+    A leg follows its parent: it is skipped with a skipped parent and restored with a restored one. Any other
+    activity, a leg whose parent is not in the archive included, is matched by its sources and by its effort.
+
+    Args:
+        ctx: The import context.
+        activity: The archived activity.
+        original_activity_id: Its archived id.
+        archived_parent_id: The archived id of its multisport parent, if it is a leg.
+        batch_components: Records of the batch keyed by profile contributor key, with the sources of its activities.
+        activities_id_mapping: The archived ids restored so far, and their new ids.
+        skipped: The archived ids skipped so far.
+
+    Returns:
+        ``True`` when the account has it.
+    """
+    if archived_parent_id is not None and archived_parent_id in skipped:
+        return True
+    if archived_parent_id is not None and archived_parent_id in activities_id_mapping:
+        return False
+    sources = [
+        activity_contracts.NewSource(
+            record.kind, record.provider_id, record.file_sha256, record.session_start, record.precedence
+        )
+        for record in (
+            activity_contracts.SourceArchiveRecord.model_validate(raw)
+            for raw in batch_components.get(constants.SOURCES_COMPONENT_KEY, [])
+            if original_activity_id is not None
+            and users_profile_contracts.archived_id(raw.get("activity_id")) == original_activity_id
+        )
+    ]
+    return activity_integration.restore_matches_existing(
+        ctx.user_id, activity, sources, ctx.db, exclude=set(activities_id_mapping.values())
+    )
 
 
 def _derive_provider_sources(

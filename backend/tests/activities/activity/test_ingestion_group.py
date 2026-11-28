@@ -155,20 +155,9 @@ class TestStoringAGroup:
         assert [leg.activity.hide_hr for leg in legs] == [False, False, False]
 
 
-class TestSameStart:
-    def test_the_parent_alone_is_checked_and_the_legs_take_its_hidden_flag(self, db, owner):
-        make_activity_at(db, owner.id, DEFAULT_START)
-        make_activity_at(db, owner.id, DEFAULT_START + timedelta(minutes=20))
-        parent, legs = _group(owner.id)
-
-        ingestion_service.store_parsed_group(parent, legs, db)
-
-        group = _group_rows(db)
-        assert len(group) == 4
-        assert all(row.is_hidden for row in group)
-
-    def test_a_group_with_no_look_alike_has_nothing_hidden(self, db, owner):
-        make_activity_at(db, owner.id, DEFAULT_START + timedelta(minutes=20), name="elsewhere")
+class TestAnActivityElsewhereInTime:
+    def test_a_group_is_stored_whole_and_visible_beside_an_activity_a_day_away(self, db, owner):
+        make_activity_at(db, owner.id, DEFAULT_START + timedelta(days=1), name="elsewhere")
         parent, legs = _group(owner.id)
 
         ingestion_service.store_parsed_group(parent, legs, db)
@@ -200,16 +189,13 @@ class TestEvents:
         [event] = published[activity_events.ACTIVITY_CREATED]
         assert event.payload["parent_activity_id"] is None
 
-    def test_a_duplicate_start_is_flagged_on_the_parents_event_only(self, db, owner, published):
-        make_activity_at(db, owner.id, DEFAULT_START)
+    def test_no_event_carries_a_duplicate_flag(self, db, owner, published):
         parent, legs = _group(owner.id)
 
         ingestion_service.store_parsed_group(parent, legs, db)
         db.commit()
 
-        events = published[activity_events.ACTIVITY_CREATED]
-        flagged = [event.payload["parent_activity_id"] for event in events if event.payload["duplicate_start_time"]]
-        assert flagged == [None]
+        assert all("duplicate_start_time" not in event.payload for event in published[activity_events.ACTIVITY_CREATED])
 
 
 class TestReimport:

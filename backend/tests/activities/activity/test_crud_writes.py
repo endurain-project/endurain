@@ -117,17 +117,12 @@ class TestCreate:
         with pytest.raises(ValueError):
             _core(owner.id, start_time=None)
 
-    def test_the_second_activity_with_the_same_start_is_stored_hidden_and_so_is_the_third(self, db, owner):
+    def test_an_activity_is_never_hidden_for_starting_with_another(self, db, owner):
         first = activity_crud.create_activity(_core(owner.id), db)
         second = activity_crud.create_activity(_core(owner.id, name="Same start"), db)
         third = activity_crud.create_activity(_core(owner.id, name="Again"), db)
 
-        assert [first.is_hidden, second.is_hidden, third.is_hidden] == [False, True, True]
-
-    def test_the_same_start_of_another_user_is_not_a_duplicate(self, db, owner, other):
-        activity_crud.create_activity(_core(owner.id), db)
-
-        assert activity_crud.create_activity(_core(other.id), db).is_hidden is False
+        assert [first.is_hidden, second.is_hidden, third.is_hidden] == [False, False, False]
 
     def test_a_source_is_stored_with_the_activity_and_read_back_as_its_provider_id(self, db, owner):
         source = activity_contracts.NewSource("strava", 1, None, None, 0)
@@ -142,14 +137,6 @@ class TestCreate:
         activity_crud.create_activity(_core(owner.id), db, source=source)
 
         assert activity_source_crud.get_activity_id_by_source(other.id, source, db) is None
-
-    def test_the_activity_at_a_start_time_is_found_for_its_owner_only(self, db, owner, other):
-        created = activity_crud.create_activity(_core(owner.id), db)
-        start = datetime(2026, 7, 28, 9)
-
-        assert activity_crud.get_activity_by_start_time(start, owner.id, db).id == created.id
-        assert activity_crud.get_activity_by_start_time("2026-07-28T09:00:00", owner.id, db).id == created.id
-        assert activity_crud.get_activity_by_start_time(start, other.id, db) is None
 
 
 class TestEdit:

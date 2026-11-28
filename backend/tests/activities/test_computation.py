@@ -622,3 +622,46 @@ class TestMovingSteps:
         assert durations == [0.0, 1.0, 1.0, 0.0, 1.0]
         assert sum(distances) == activities_computation.moving_distance(times, lats, lons, speeds, 15.0, {3})
         assert sum(durations) == activities_computation.moving_time(times, speeds, 15.0)
+
+
+class TestSameEffort:
+    _START = datetime(2026, 7, 1, 8, 0, tzinfo=UTC)
+
+    def _at(self, start_minutes: float, end_minutes: float) -> tuple[datetime, datetime]:
+        return self._START + timedelta(minutes=start_minutes), self._START + timedelta(minutes=end_minutes)
+
+    def test_the_overlap_is_how_long_both_are_running(self):
+        assert activities_computation.overlap_seconds(*self._at(0, 60), *self._at(30, 90)) == 30 * 60
+        assert activities_computation.overlap_seconds(*self._at(0, 10), *self._at(20, 30)) == 0
+        assert activities_computation.overlap_seconds(*self._at(0, 10), *self._at(10, 20)) == 0
+
+    def test_eighty_percent_of_the_shorter_is_one_effort_and_less_is_not(self):
+        shorter = self._at(0, 10)
+
+        assert activities_computation.is_same_effort(*shorter, *self._at(2, 60)) is True
+        assert activities_computation.is_same_effort(*shorter, *self._at(2.1, 60)) is False
+
+    def test_the_share_is_of_the_shorter_whichever_comes_first(self):
+        assert activities_computation.is_same_effort(*self._at(2, 60), *self._at(0, 10)) is True
+        assert activities_computation.is_same_effort(*self._at(2.1, 60), *self._at(0, 10)) is False
+
+    def test_a_recording_inside_another_is_one_effort(self):
+        assert activities_computation.is_same_effort(*self._at(0, 120), *self._at(30, 40)) is True
+
+    def test_two_recordings_that_only_touch_are_not(self):
+        assert activities_computation.is_same_effort(*self._at(0, 10), *self._at(10, 20)) is False
+
+    def test_a_recording_of_no_length_matches_only_the_one_that_starts_in_its_second(self):
+        instant = self._START
+        assert activities_computation.is_same_effort(instant, instant, instant, instant + timedelta(hours=1)) is True
+        assert (
+            activities_computation.is_same_effort(instant, instant, instant + timedelta(milliseconds=900), instant)
+            is True
+        )
+        assert activities_computation.is_same_effort(instant, instant, instant + timedelta(seconds=1), instant) is False
+        assert (
+            activities_computation.is_same_effort(
+                instant, instant, instant + timedelta(minutes=5), instant + timedelta(hours=1)
+            )
+            is False
+        )

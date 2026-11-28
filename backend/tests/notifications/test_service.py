@@ -189,32 +189,19 @@ class TestRecordedEvents:
         activity_id = uuid.uuid4()
 
         notification, ws_message, created = notifications_service.create_activity_created_notification(
-            user.id, activity_id, False, str(uuid.uuid4()), db
+            user.id, activity_id, str(uuid.uuid4()), db
         )
 
         assert (notification.type, ws_message, created) == (_TYPES.NEW_ACTIVITY, "NEW_ACTIVITY_NOTIFICATION", True)
         assert self._options(db, user.id, _TYPES.NEW_ACTIVITY) == {"activity_id": str(activity_id)}
 
-    def test_an_activity_sharing_a_start_time_is_the_duplicate_variant(self, db):
-        user = make_user(db)
-
-        notification, ws_message, created = notifications_service.create_activity_created_notification(
-            user.id, uuid.uuid4(), True, str(uuid.uuid4()), db
-        )
-
-        assert notification.type == _TYPES.DUPLICATE_ACTIVITY
-        assert ws_message == notifications_constants.DUPLICATE_ACTIVITY_WS_MESSAGE
-        assert created is True
-
     def test_a_redelivered_event_reports_not_created_and_stores_nothing_more(self, db):
         user = make_user(db)
         event_id = str(uuid.uuid4())
-        first, *_ = notifications_service.create_activity_created_notification(
-            user.id, uuid.uuid4(), False, event_id, db
-        )
+        first, *_ = notifications_service.create_activity_created_notification(user.id, uuid.uuid4(), event_id, db)
 
         replay, _, created = notifications_service.create_activity_created_notification(
-            user.id, uuid.uuid4(), False, event_id, db
+            user.id, uuid.uuid4(), event_id, db
         )
 
         assert created is False

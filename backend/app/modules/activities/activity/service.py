@@ -976,7 +976,6 @@ def regroup_legs(
         activity,
         db,
         source=parent_source,
-        detect_duplicate_start=False,
         analysis_version=activities_computation.ANALYSIS_VERSION,
         activity_id=activity_id,
         file_id=file_id,
@@ -985,6 +984,32 @@ def regroup_legs(
     for before, after in activity_crud.adopt_legs(user_id, leg_ids, created.id, privacy, db):
         _stage_visibility_update(after.id, user_id, before, after, visibility_fields, db)
     return created
+
+
+def lock_for_recompute(
+    activity_id: uuid.UUID, expected_file_id: uuid.UUID | None, incoming_precedence: int, db: Session
+) -> bool:
+    """Lock an activity and check it is still what a better source was matched against.
+
+    The row is locked until the transaction ends. It must still reference the file row the match saw, and none of its
+    sources may have caught up with the incoming one since: otherwise the caller attaches the source instead.
+
+    Args:
+        activity_id: The activity to recompute.
+        expected_file_id: The file row it referenced when matched; ``None`` for one with no file row.
+        incoming_precedence: The precedence of the better source.
+        db: Database session, in the transaction that recomputes.
+
+    Returns:
+        ``True`` when the activity may be recomputed from the source.
+    """
+    exists, file_id = activity_crud.lock_file_id(activity_id, db)
+    if not exists or file_id != expected_file_id:
+        return False
+    best = activity_source_crud.best_precedences([activity_id], db).get(
+        activity_id, activity_constants.SOURCE_PRECEDENCE_DEVICE_FILE
+    )
+    return incoming_precedence > best
 
 
 def export_sources(activity_ids: Collection[uuid.UUID], db: Session) -> list[activity_contracts.SourceArchiveRecord]:

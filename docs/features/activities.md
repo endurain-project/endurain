@@ -15,7 +15,7 @@ flowchart LR
     N --> D[Thumbnail, location and notifications follow in the background]
 ```
 
-Whatever the source, an activity goes through the same steps, so duplicates are caught the same way. The thumbnail, the reverse-geocoded location and notifications arrive a little later, because they are produced in the background (see [Background work and failure handling](../getting-started/background-work-by-module.md)).
+Whatever the source, an activity goes through the same steps, so duplicates are caught the same way: the same effort recorded twice becomes one activity, with each recording kept as a source (see [Duplicate detection](importing.md#duplicate-detection)). The thumbnail, the reverse-geocoded location and notifications arrive a little later, because they are produced in the background (see [Background work and failure handling](../getting-started/background-work-by-module.md)).
 
 ## The activity page
 

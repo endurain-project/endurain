@@ -131,17 +131,6 @@ class TestImport:
         assert _sources_of(db, target.id) == _sources_of(db, source_user.id)
         assert restored.counts["activity_sources"] == 3
 
-    def test_a_source_the_account_already_holds_is_left_out_and_the_import_goes_on(self, db: Session, storage) -> None:
-        source_user = make_user(db)
-        make_activity(db, source_user.id, name="one", strava_activity_id=7)
-        entries = support.export_activities(db, source_user.id, storage).entries
-
-        restored = support.import_activities(db, source_user.id, storage, entries)
-
-        assert restored.counts["activities"] == 1
-        assert restored.counts["activity_sources"] == 0
-        assert len(_sources_of(db, source_user.id)) == 1
-
     def test_the_restored_activity_reads_its_provider_ids_from_the_restored_sources(self, db: Session, storage) -> None:
         source_user = make_user(db)
         make_activity(db, source_user.id, strava_activity_id=7, garminconnect_activity_id=8)
@@ -263,3 +252,144 @@ class TestAnOlderArchive:
         support.import_activities(db, target.id, storage, entries)
 
         assert len(_sources_of(db, target.id)) == 1
+
+
+def _count(db: Session) -> int:
+    return len(db.scalars(select(activity_models.Activity.id)).all())
+
+
+class TestAnAccountThatAlreadyHasWhatTheArchiveHolds:
+    def test_importing_the_same_archive_twice_creates_nothing_the_second_time(self, db: Session, storage) -> None:
+        source_user = make_user(db)
+        merged = make_activity(db, source_user.id, name="merged", strava_activity_id=7)
+        make_source(db, merged, kind="file", file_sha256=_SHA, session_start=DEFAULT_START)
+        make_activity_at(db, source_user.id, DEFAULT_START + timedelta(days=1), name="plain")
+        entries = support.export_activities(db, source_user.id, storage).entries
+        target = make_user(db)
+        first = support.import_activities(db, target.id, storage, entries)
+        rows = _count(db)
+        sources = len(_sources_of(db, target.id))
+
+        second = support.import_activities(db, target.id, storage, entries)
+
+        assert (first.counts["activities"], first.counts["activities_skipped"]) == (2, 0)
+        assert (second.counts["activities"], second.counts["activities_skipped"]) == (0, 2)
+        assert second.counts["activity_sources"] == 0
+        assert _count(db) == rows
+        assert len(_sources_of(db, target.id)) == sources
+
+    def test_an_activity_holding_a_source_the_account_has_is_skipped_with_its_components(
+        self, db: Session, storage
+    ) -> None:
+        target = make_user(db)
+        held = make_activity(
+            db, target.id, name="held", strava_activity_id=7, start_time=DEFAULT_START + timedelta(days=9)
+        )
+        entries = {
+            "data/activities.json": [_row(name="archived", strava_activity_id=7)],
+            "data/activity_laps.json": [
+                {"activity_id": str(_ARCHIVED), "start_time": "2024-01-01T08:00:00", "total_distance": 1000.0}
+            ],
+        }
+
+        restored = support.import_activities(db, target.id, storage, entries)
+
+        assert restored.counts["activities_skipped"] == 1
+        assert restored.counts["activities"] == 0
+        assert restored.counts["activity_laps"] == 0
+        assert [
+            a.id for a in activity_integration.list_user_activities_page(target.id, db, page_number=1, num_records=9)
+        ] == [held.id]
+
+    def test_an_activity_of_the_same_effort_as_one_the_account_has_is_skipped(self, db: Session, storage) -> None:
+        target = make_user(db)
+        make_activity(
+            db,
+            target.id,
+            name="mine",
+            start_time=datetime(2024, 1, 1, 8, 5, tzinfo=UTC),
+            end_time=datetime(2024, 1, 1, 9, 5, tzinfo=UTC),
+        )
+        entries = {"data/activities.json": [_row(name="archived")]}
+
+        restored = support.import_activities(db, target.id, storage, entries)
+
+        assert (restored.counts["activities"], restored.counts["activities_skipped"]) == (0, 1)
+        assert _count(db) == 1
+
+    def test_an_activity_of_another_sport_at_the_same_time_is_restored(self, db: Session, storage) -> None:
+        target = make_user(db)
+        make_activity(
+            db,
+            target.id,
+            start_time=datetime(2024, 1, 1, 8, 0, tzinfo=UTC),
+            end_time=datetime(2024, 1, 1, 9, 0, tzinfo=UTC),
+            activity_type=activity_constants.ActivityType.LAP_SWIMMING.stored,
+        )
+
+        restored = support.import_activities(db, target.id, storage, {"data/activities.json": [_row()]})
+
+        assert (restored.counts["activities"], restored.counts["activities_skipped"]) == (1, 0)
+
+    def test_the_legs_of_a_skipped_group_are_skipped_and_the_legs_of_a_restored_one_are_not(
+        self, db: Session, storage
+    ) -> None:
+        target = make_user(db)
+        multisport = activity_constants.ActivityType.MULTISPORT.stored
+        make_activity(
+            db,
+            target.id,
+            name="held group",
+            start_time=datetime(2024, 1, 1, 8, 0, tzinfo=UTC),
+            end_time=datetime(2024, 1, 1, 9, 0, tzinfo=UTC),
+            activity_type=multisport,
+        )
+        entries = {
+            "data/activities.json": [
+                _row(name="parent", activity_type=multisport),
+                _row(_ARCHIVED_LEG, name="leg", parent_activity_id=str(_ARCHIVED)),
+            ]
+        }
+
+        skipped = support.import_activities(db, target.id, storage, entries)
+        far = {
+            "data/activities.json": [
+                _row(
+                    name="parent",
+                    activity_type=multisport,
+                    start_time="2025-05-01T08:00:00",
+                    end_time="2025-05-01T09:00:00",
+                ),
+                _row(
+                    _ARCHIVED_LEG,
+                    name="leg",
+                    parent_activity_id=str(_ARCHIVED),
+                    start_time="2025-05-01T08:00:00",
+                    end_time="2025-05-01T09:00:00",
+                ),
+            ]
+        }
+        restored = support.import_activities(db, target.id, storage, far)
+
+        assert (skipped.counts["activities"], skipped.counts["activities_skipped"]) == (0, 2)
+        assert (restored.counts["activities"], restored.counts["activities_skipped"]) == (2, 0)
+
+    def test_an_archive_that_lists_one_effort_twice_restores_both(self, db: Session, storage) -> None:
+        target = make_user(db)
+        entries = {"data/activities.json": [_row(name="one"), _row(_ARCHIVED_LEG, name="two")]}
+
+        restored = support.import_activities(db, target.id, storage, entries)
+
+        assert (restored.counts["activities"], restored.counts["activities_skipped"]) == (2, 0)
+
+    def test_a_restored_activity_keeps_the_hidden_flag_it_was_archived_with(self, db: Session, storage) -> None:
+        target = make_user(db)
+        entries = {"data/activities.json": [_row(name="shown"), _row(_ARCHIVED_LEG, name="hidden", is_hidden=True)]}
+
+        support.import_activities(db, target.id, storage, entries)
+
+        rows = {
+            a.name: a.is_hidden
+            for a in activity_integration.list_user_activities_page(target.id, db, page_number=1, num_records=9)
+        }
+        assert rows == {"shown": False, "hidden": True}

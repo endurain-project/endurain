@@ -269,3 +269,6 @@ GPX = (
     b'<trkpt lat="38.8" lon="-9.2"><ele>12</ele><time>2026-07-28T09:00:10Z</time></trkpt>'
     b"</trkseg></trk></gpx>"
 )
+
+#: The counts only an import reports.
+IMPORT_ONLY_COUNT_KEYS = frozenset({"activities_skipped"})

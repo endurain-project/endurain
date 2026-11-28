@@ -664,6 +664,23 @@ def save_activity_streams_laps(
     return stored
 
 
+def _summary_window(activity: SummaryActivity) -> tuple[int, datetime, datetime] | None:
+    """Read from a listed activity when it ran and its sport, without fetching it.
+
+    Args:
+        activity: The Strava summary activity.
+
+    Returns:
+        The stored sport type, the start and the end, or ``None`` when the listing lacks any of them.
+    """
+    start = core_timezone.to_utc_second(activity.start_date)
+    elapsed = activity.elapsed_time
+    if start is None or elapsed is None or activity.sport_type is None:
+        return None
+    seconds = elapsed.total_seconds() if isinstance(elapsed, timedelta) else float(elapsed)
+    return activity_constants.define_activity_type(activity.sport_type.root), start, start + timedelta(seconds=seconds)
+
+
 def process_activity(
     activity: SummaryActivity,
     user_id: uuid.UUID,
@@ -676,7 +693,7 @@ def process_activity(
     """Parse one Strava activity and store it, unless it is already stored.
 
     The Strava calls inside :func:`parse_activity` run with no session open. The
-    duplicate check and the store each use a short session, and the store
+    check for what the user has already and the store each use a short session, and the store
     publishes ``activity.created`` on this worker thread, where its subscribers
     run inline without touching the request path. The store is idempotent on the
     activity's source, so two workers racing on one activity store it once.
@@ -697,13 +714,23 @@ def process_activity(
         DependencyFailedError: When Strava sent the activity without an id.
     """
     strava_activity_id = _strava_activity_id(activity, user_id)
+    window = _summary_window(activity)
     with core_database.SessionLocal() as db:
-        already_stored = activity_ingestion_integration.is_provider_activity_stored(
-            user_id, activity_constants.SOURCE_KIND_STRAVA, strava_activity_id, db
-        )
-    if already_stored:
+        if window is None:
+            already_known = activity_ingestion_integration.is_provider_activity_stored(
+                user_id, activity_constants.SOURCE_KIND_STRAVA, strava_activity_id, db
+            )
+        else:
+            # The listing says when the activity ran and what sport it was, which is enough to know the user has the
+            # effort already, from a source that ranks above Strava's: then nothing is fetched.
+            sport, start, end = window
+            already_known = activity_ingestion_integration.attach_strava_activity_if_known(
+                user_id, strava_activity_id, sport, start, end, db
+            )
+        db.commit()
+    if already_known:
         logger.debug(
-            "Strava activity already exists, skipping",
+            "Strava activity already exists, or is of an effort the user has, skipping",
             extra=core_logger.context(user_id=user_id, strava_activity_id=strava_activity_id),
         )
         return None

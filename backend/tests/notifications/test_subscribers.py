@@ -81,14 +81,6 @@ _DELIVERIES = {
         notifications_constants.NEW_ACTIVITY_WS_MESSAGE,
         lambda _named, _idp_name: {"activity_id": _ACTIVITY_ID},
     ),
-    "duplicate-activity": Delivery(
-        activity_events.ACTIVITY_CREATED,
-        notifications_subscribers.ACTIVITY_NOTIFICATION_SUBSCRIBER_ID,
-        lambda me, _other, _idp: {"activity_id": _ACTIVITY_ID, "user_id": me, "duplicate_start_time": True},
-        _TYPES.DUPLICATE_ACTIVITY,
-        notifications_constants.DUPLICATE_ACTIVITY_WS_MESSAGE,
-        lambda _named, _idp_name: {"activity_id": _ACTIVITY_ID},
-    ),
     "follow-requested": Delivery(
         followers_events.FOLLOWER_REQUESTED,
         notifications_subscribers.FOLLOWER_REQUESTED_NOTIFICATION_SUBSCRIBER_ID,

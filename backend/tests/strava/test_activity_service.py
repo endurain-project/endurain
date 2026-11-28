@@ -18,6 +18,7 @@ import modules.strava.client_service as strava_client_service
 import modules.users.users_integrations.integration_service as user_integrations_integration
 import modules.users.users_privacy_settings.models as privacy_models
 from tests._factories import strava as strava_factories
+from tests._factories.activities import make_activity, make_source
 from tests._factories.gears import gear_payload
 from tests._factories.users import make_user
 
@@ -954,3 +955,86 @@ class TestLapsThroughTheSharedAnalysis:
         # The 3 m hysteresis confirms the climb up to 157 m (57 m) and the descent from there down to 100 m (57 m).
         assert (first["total_ascent"], first["total_descent"]) == (57, 0)
         assert (second["total_ascent"], second["total_descent"]) == (0, 57)
+
+
+class TestAnEffortTheUserAlreadyHas:
+    """A listed activity of an effort a file already recorded is attached to it, and never fetched."""
+
+    @staticmethod
+    def _recorded(db, user, *, sport=activity_constants.ActivityType.RUN, precedence=2):
+        activity = make_activity(
+            db,
+            user.id,
+            start_time=datetime(2025, 3, 10, 8, 0, tzinfo=UTC),
+            end_time=datetime(2025, 3, 10, 9, 0, tzinfo=UTC),
+            activity_type=sport.stored,
+            name="From my watch",
+        )
+        make_source(
+            db, activity, kind="file", file_sha256="e" * 64, session_start=activity.start_time, precedence=precedence
+        )
+        db.commit()
+        return activity
+
+    def test_the_listing_is_enough_to_attach_it_and_no_detail_streams_or_laps_are_fetched(
+        self, db, strava, rate_limits
+    ):
+        user = _linked(db)
+        recorded = self._recorded(db, user)
+        _list(strava, 1001)
+        _activity(strava, 1001)
+
+        stored = _sync(user, rate_limits)
+
+        assert stored == []
+        assert [call.path for call in strava.calls] == ["/athlete/activities"]
+        (activity,) = _stored(user.id)
+        assert (activity.id, activity.name, activity.strava_activity_id) == (recorded.id, "From my watch", 1001)
+        assert sorted((source.kind, source.precedence) for source in activity.sources) == [("file", 2), ("strava", 0)]
+        assert activity.version == 1, "a source is not an edit"
+
+    def test_the_next_sync_asks_nothing_more_of_it(self, db, strava, rate_limits):
+        user = _linked(db)
+        self._recorded(db, user)
+        _list(strava, 1001)
+        _sync(user, rate_limits)
+        strava.calls.clear()
+
+        assert _sync(user, rate_limits) == []
+
+        assert [call.path for call in strava.calls] == ["/athlete/activities"]
+        assert len(_stored(user.id)) == 1
+
+    def test_an_activity_of_another_sport_at_the_same_time_is_fetched_and_stored(self, db, strava, rate_limits):
+        user = _linked(db)
+        self._recorded(db, user, sport=activity_constants.ActivityType.LAP_SWIMMING)
+        _list(strava, 1001)
+        _activity(strava, 1001)
+
+        stored = _sync(user, rate_limits)
+
+        assert len(stored) == 1
+        assert len(_stored(user.id)) == 2
+
+    def test_an_effort_another_user_has_is_not_this_users(self, db, strava, rate_limits):
+        user, other = _linked(db), _linked(db)
+        self._recorded(db, other)
+        _list(strava, 1001)
+        _activity(strava, 1001)
+
+        assert len(_sync(user, rate_limits)) == 1
+        assert strava.made("GET", "/activities/1001")
+
+    def test_a_listing_without_its_length_falls_back_to_the_fetch(self, db, strava, rate_limits):
+        user = _linked(db)
+        self._recorded(db, user)
+        strava.on(
+            "GET",
+            "/athlete/activities",
+            strava_factories.ok([{**strava_factories.summary_activity(1001), "elapsed_time": None}]),
+        )
+        _activity(strava, 1001)
+
+        _sync(user, rate_limits)
+
+        assert strava.made("GET", "/activities/1001")

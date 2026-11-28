@@ -73,6 +73,19 @@ def release_unattached(file_id: uuid.UUID, storage: platform_providers.StoragePr
     activity_file_storage_service.release_unattached(file_id, storage)
 
 
+def release_unreferenced(file_id: uuid.UUID, storage: platform_providers.StorageProvider) -> None:
+    """Remove a file row an activity no longer references, with its blob, unless another activity still does.
+
+    For the file a better source replaced. Commits its own short transactions and deletes the blob with no session open;
+    raises on a storage failure, and a retry finishes the removal.
+
+    Args:
+        file_id: The file row the activity referenced.
+        storage: The blob-storage provider.
+    """
+    activity_file_storage_service.release_unreferenced(file_id, storage)
+
+
 def resolve_refs(
     file_ids: Sequence[uuid.UUID], db: Session
 ) -> dict[uuid.UUID, activity_file_storage_contracts.ActivityFileRef]:

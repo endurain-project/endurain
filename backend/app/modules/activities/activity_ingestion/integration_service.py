@@ -17,6 +17,8 @@ from sqlalchemy.orm import Session
 import core.job_status as core_job_status
 import core.logger as core_logger
 import core.sync_runner as core_sync_runner
+import modules.activities.activity.constants as activity_constants
+import modules.activities.activity.contracts as activity_contracts
 import modules.activities.activity.integration_service as activity_integration
 import modules.activities.activity.schema as activity_schema
 import modules.activities.activity_ingestion.background as activity_ingestion_background
@@ -60,6 +62,38 @@ def is_provider_activity_stored(user_id: uuid.UUID, kind: str, provider_id: int,
         ``True`` when a source of that provider activity is stored, whichever recording of it.
     """
     return activity_integration.is_provider_activity_stored(user_id, kind, provider_id, db)
+
+
+def attach_strava_activity_if_known(
+    user_id: uuid.UUID,
+    strava_activity_id: int,
+    sport: int,
+    start: datetime,
+    end: datetime,
+    db: Session,
+) -> bool:
+    """Attach a listed Strava activity to the activity the user already has of the same effort, before fetching it.
+
+    Fetching a Strava activity costs rate-limited calls, and its data never ranks above another source's. Its listing
+    says enough (start, length, sport) to know the user has the effort. Takes the user's matching lock and does not
+    commit; the caller does, at once.
+
+    Args:
+        user_id: The owner.
+        strava_activity_id: The Strava activity id.
+        sport: The activity's stored sport type.
+        start: When it starts, aware.
+        end: When it ends, aware.
+        db: Database session.
+
+    Returns:
+        ``True`` when the user already held the activity or it was attached to one; ``False`` when the effort is new
+        to them and the caller fetches it.
+    """
+    source = activity_contracts.NewSource(
+        activity_constants.SOURCE_KIND_STRAVA, strava_activity_id, None, None, activity_constants.SOURCE_PRECEDENCE_API
+    )
+    return activity_integration.attach_if_same_effort(user_id, source, sport, start, end, db)
 
 
 def ingest_activity_file(

@@ -237,7 +237,6 @@ def _record_event_notification(
 def create_activity_created_notification(
     user_id: uuid.UUID,
     activity_id: uuid.UUID,
-    duplicate_start_time: bool,
     source_event_id: str,
     db: Session,
 ) -> tuple[notifications_schema.NotificationRead, str, bool]:
@@ -246,8 +245,6 @@ def create_activity_created_notification(
     Args:
         user_id: The owner to notify.
         activity_id: The stored activity.
-        duplicate_start_time: Whether the activity duplicates an existing
-            activity's start time, which selects the duplicate variant.
         source_event_id: Stable durable event identifier.
         db: Database session.
 
@@ -255,12 +252,8 @@ def create_activity_created_notification(
         The notification, the websocket message type the caller should push, and
         whether this call created it (False for a redelivered event).
     """
-    if duplicate_start_time:
-        notification_type = notifications_constants.NotificationType.DUPLICATE_ACTIVITY
-        ws_message = notifications_constants.DUPLICATE_ACTIVITY_WS_MESSAGE
-    else:
-        notification_type = notifications_constants.NotificationType.NEW_ACTIVITY
-        ws_message = notifications_constants.NEW_ACTIVITY_WS_MESSAGE
+    notification_type = notifications_constants.NotificationType.NEW_ACTIVITY
+    ws_message = notifications_constants.NEW_ACTIVITY_WS_MESSAGE
     return _record_event_notification(
         user_id, notification_type, ws_message, {"activity_id": str(activity_id)}, source_event_id, db
     )

@@ -13,6 +13,7 @@ import pytest
 from sqlalchemy import delete, select, update
 from sqlalchemy.orm import Session
 
+import core.database as core_database
 import core.exceptions as core_exceptions
 import modules.activities.activity.audit_actions as activity_audit_actions
 import modules.activities.activity.constants as activity_constants
@@ -319,6 +320,53 @@ class TestReprocessingOneActivity:
         assert after.version == version
         assert after.analysis_version == activities_computation.ANALYSIS_VERSION
         assert after.updated_at > OLD
+
+    def test_a_walk_that_read_the_old_file_cannot_overwrite_what_a_recompute_wrote_meanwhile(
+        self, db, owner, storage, tmp_path, monkeypatch
+    ):
+        [activity_id] = import_fixture(db, owner.id, RUN, tmp_path, storage)
+        degrade(db, activity_id)
+        old_file = _row(db, activity_id).file_id
+        parse = pipeline_service.parse_file
+
+        def parse_while_a_better_source_recomputes(*args, **kwargs):
+            parsed = parse(*args, **kwargs)
+            staged = file_storage.stage_file(owner.id, "9" * 64, ".fit", b"better", storage)
+            with core_database.SessionLocal() as other_session:
+                assert activity_integration.replace_file_id(activity_id, old_file, staged.ref.file_id, other_session)
+                other_session.execute(
+                    update(activity_models.Activity)
+                    .where(activity_models.Activity.id == activity_id)
+                    .values(distance=424242, analysis_version=activities_computation.ANALYSIS_VERSION)
+                )
+                other_session.commit()
+            return parsed
+
+        monkeypatch.setattr(pipeline_service, "parse_file", parse_while_a_better_source_recomputes)
+
+        outcome = migration_service.reprocess_activity(activity_id, storage)
+
+        assert outcome is migration_service.ReprocessOutcome.NO_FILE
+        row = _row(db, activity_id)
+        assert row.distance == 424242, "the walk's values from the old file were not written"
+        assert row.file_id != old_file
+
+    def test_a_walk_over_an_activity_with_no_file_row_writes_while_it_still_has_none(
+        self, db, owner, storage, tmp_path, monkeypatch
+    ):
+        [activity_id] = import_fixture(db, owner.id, RUN, tmp_path, storage)
+        degrade(db, activity_id)
+        db.execute(
+            update(activity_models.Activity).where(activity_models.Activity.id == activity_id).values(file_id=None)
+        )
+        db.commit()
+        data = retained_file(activity_id, storage)
+        if data is None:
+            store_legacy_file(activity_id, RUN.read_bytes(), storage)
+
+        outcome = migration_service.reprocess_activity(activity_id, storage)
+
+        assert outcome is migration_service.ReprocessOutcome.REPROCESSED
 
     def test_is_idempotent(self, db, owner, storage, tmp_path):
         [activity_id] = import_fixture(db, owner.id, STRENGTH, tmp_path, storage)

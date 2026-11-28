@@ -8,7 +8,7 @@ import uuid
 from collections.abc import Sequence
 from datetime import datetime
 
-from sqlalchemy import ColumnElement, select
+from sqlalchemy import ColumnElement, func, select, text
 from sqlalchemy import delete as sa_delete
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
@@ -234,3 +234,39 @@ def floor_to_second(start: datetime) -> datetime:
         The start in whole seconds.
     """
     return start.replace(microsecond=0)
+
+
+def lock_user_matching(user_id: uuid.UUID, db: Session) -> None:
+    """Take the user's matching lock until the transaction ends.
+
+    Two imports of one user that are about to look for the same effort take turns: the second finds what the first
+    stored. The lock is held in the database, so it holds across replicas, and ends with the transaction.
+
+    Args:
+        user_id: The owner whose imports take turns.
+        db: Database session, in the transaction that matches and stores.
+    """
+    db.execute(
+        text("SELECT pg_advisory_xact_lock(hashtextextended('activity_match:' || :user_id, 0))"),
+        {"user_id": str(user_id)},
+    )
+
+
+def best_precedences(activity_ids: Sequence[uuid.UUID], db: Session) -> dict[uuid.UUID, int]:
+    """Read the best precedence among the sources of each of the given activities.
+
+    Args:
+        activity_ids: The activities.
+        db: Database session.
+
+    Returns:
+        The best precedence by activity; an activity with no source is absent.
+    """
+    if not activity_ids:
+        return {}
+    rows = db.execute(
+        select(activity_models.ActivitySource.activity_id, func.max(activity_models.ActivitySource.precedence))
+        .where(activity_models.ActivitySource.activity_id.in_(activity_ids))
+        .group_by(activity_models.ActivitySource.activity_id)
+    ).all()
+    return {activity_id: precedence for activity_id, precedence in rows}

@@ -10,7 +10,7 @@ import migrations.startup as migrations_startup
 from tests._helpers import alembic_chain
 
 _RETIREMENT_REVISION = "50ac9225ce4f"
-_HEAD_REVISION = "9e3b7a2c5d18"
+_HEAD_REVISION = "4f8c2b6d1a93"
 _REPROCESS_MIGRATION = {15: False}
 _DATA_MIGRATIONS = (11, 12, 13, 14)
 _SUBSTRATE_TABLES = ("event_log", "event_outbox", "processing_jobs", "job_attempts", "job_workers")
@@ -154,6 +154,7 @@ def test_the_baseline_alone_differs_from_the_models_only_where_v0_22_changes_the
         ("add_index", "uq_activity_sources_provider"),
         ("add_index", "uq_activity_sources_file"),
         ("add_index", "ix_activity_sources_activity_id_kind"),
+        ("add_index", "ix_activities_user_id_start_time"),
     }
     # The baseline has no multisport parent column, nor the key on it, no analysis version and no retained files.
     assert added == {
