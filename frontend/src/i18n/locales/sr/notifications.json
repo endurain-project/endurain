@@ -25,10 +25,6 @@
       "title": "Nova aktivnost",
       "body": "Nova aktivnost je dodata na vaš nalog."
     },
-    "duplicateActivity": {
-      "title": "Moguća duplirana aktivnost",
-      "body": "Aktivnost sa istim vremenom početka možda već postoji."
-    },
     "newFollowerRequest": {
       "title": "Novi zahtev za praćenje",
       "body": "{name} ({'@'}{username}) želi da vas prati."

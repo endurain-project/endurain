@@ -5230,7 +5230,7 @@ export interface components {
         };
         /**
          * ActivityNotificationOptions
-         * @description Options of a new or duplicate activity notification.
+         * @description Options of a new-activity notification.
          *
          *     Attributes:
          *         activity_id: The stored activity.
@@ -5245,7 +5245,7 @@ export interface components {
         };
         /**
          * ActivityNotificationRead
-         * @description A new-activity or duplicate-activity notification.
+         * @description A new-activity notification.
          */
         ActivityNotificationRead: {
             /**
@@ -5271,7 +5271,7 @@ export interface components {
              * @description Type of the notification (enum property replaced by openapi-typescript)
              * @enum {string}
              */
-            type: "duplicate_activity" | "new_activity";
+            type: "new_activity";
             /**
              * User Id
              * Format: uuid

@@ -79,7 +79,6 @@ class TestTypedOptions:
         ("notification_type", "options"),
         [
             ("new_activity", {"activity_id": "11111111-1111-4111-8111-111111111111"}),
-            ("duplicate_activity", {"activity_id": "11111111-1111-4111-8111-111111111111"}),
             ("new_follower_request", {"user_id": str(_ID_2), "user_name": "A", "user_username": "a"}),
             ("new_follower_request_accepted", {"user_id": str(_ID_2), "user_name": "A", "user_username": "a"}),
             ("admin_new_sign_up_approval_request", {"user_id": str(_ID_2), "user_name": "A", "user_username": "a"}),
@@ -127,6 +126,15 @@ class TestTypedOptions:
         assert isinstance(read.options, notifications_schema.IdpLinkedNotificationOptions)
         assert read.options.idp_name == "Keycloak"
         assert read.options.idp_id == IDP_ID
+
+    def test_the_retired_duplicate_activity_type_is_gone(self):
+        import modules.notifications.constants as notifications_constants
+
+        assert "duplicate_activity" not in {member.value for member in notifications_constants.NotificationType}
+        assert 2 not in {member.stored for member in notifications_constants.NotificationType}
+        assert not hasattr(notifications_constants, "DUPLICATE_ACTIVITY_WS_MESSAGE")
+        with pytest.raises(ValidationError):
+            self._read("duplicate_activity", {"activity_id": "11111111-1111-4111-8111-111111111111"})
 
     def test_an_unknown_type_is_refused(self):
         with pytest.raises(ValidationError):

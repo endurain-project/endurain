@@ -25,10 +25,6 @@
       "title": "Jauna aktivitāte",
       "body": "Jūsu kontam tika pievienota jauna aktivitāte."
     },
-    "duplicateActivity": {
-      "title": "Iespējama dublēta aktivitāte",
-      "body": "Aktivitāte ar tādu pašu sākuma laiku, iespējams, jau eksistē."
-    },
     "newFollowerRequest": {
       "title": "Jauns sekošanas pieprasījums",
       "body": "{name} ({'@'}{username}) vēlas jums sekot."

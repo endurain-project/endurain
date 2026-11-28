@@ -80,7 +80,7 @@ class NoNotificationOptions(NotificationOptions):
 
 
 class ActivityNotificationOptions(NotificationOptions):
-    """Options of a new or duplicate activity notification.
+    """Options of a new-activity notification.
 
     Attributes:
         activity_id: The stored activity.
@@ -202,9 +202,9 @@ _Type = notifications_constants.NotificationType
 
 
 class ActivityNotificationRead(_NotificationReadBase):
-    """A new-activity or duplicate-activity notification."""
+    """A new-activity notification."""
 
-    type: Literal[_Type.NEW_ACTIVITY, _Type.DUPLICATE_ACTIVITY] = Field(..., description="Type of the notification")
+    type: Literal[_Type.NEW_ACTIVITY] = Field(..., description="Type of the notification")
     options: ActivityNotificationOptions
 
 

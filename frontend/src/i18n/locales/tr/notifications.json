@@ -25,10 +25,6 @@
       "title": "Yeni etkinlik",
       "body": "Hesabınıza yeni bir etkinlik eklendi."
     },
-    "duplicateActivity": {
-      "title": "Olası yinelenen etkinlik",
-      "body": "Aynı başlangıç saatine sahip bir etkinlik zaten mevcut olabilir."
-    },
     "newFollowerRequest": {
       "title": "Yeni takip isteği",
       "body": "{name} ({'@'}{username}) sizi takip etmek istiyor."

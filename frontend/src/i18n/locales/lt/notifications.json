@@ -25,10 +25,6 @@
       "title": "Nauja veikla",
       "body": "Į jūsų paskyrą pridėta nauja veikla."
     },
-    "duplicateActivity": {
-      "title": "Galima veiklos dublikatas",
-      "body": "Veikla su tokiu pačiu pradžios laiku jau gali egzistuoti."
-    },
     "newFollowerRequest": {
       "title": "Nauja sekimo užklausa",
       "body": "{name} ({'@'}{username}) nori jus sekti."

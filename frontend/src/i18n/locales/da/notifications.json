@@ -25,10 +25,6 @@
       "title": "Ny aktivitet",
       "body": "En ny aktivitet blev tilføjet til din konto."
     },
-    "duplicateActivity": {
-      "title": "Mulig dubletaktivitet",
-      "body": "En aktivitet med samme starttidspunkt findes muligvis allerede."
-    },
     "newFollowerRequest": {
       "title": "Ny følgeanmodning",
       "body": "{name} ({'@'}{username}) vil gerne følge dig."

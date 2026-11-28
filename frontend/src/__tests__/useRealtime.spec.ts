@@ -307,15 +307,23 @@ describe('useRealtime', () => {
       expect(invalidationsOf('goals')).toEqual([{ queryKey: ['goals', 'results'] }])
     })
 
+    it('no longer refetches activities or goals for the retired duplicate-activity message', async () => {
+      vi.useFakeTimers()
+      const socket = await openSocket()
+
+      send(socket, 'NEW_DUPLICATE_ACTIVITY_START_TIME_NOTIFICATION')
+      await vi.advanceTimersByTimeAsync(1_000)
+
+      expect(invalidationsOf('activities')).toEqual([])
+      expect(invalidationsOf('goals')).toEqual([])
+    })
+
     it('coalesces a burst of new-activity hints, as a bulk import sends, into one refetch', async () => {
       vi.useFakeTimers()
       const socket = await openSocket()
 
       for (let hint = 0; hint < 50; hint += 1) {
-        send(
-          socket,
-          hint % 2 ? 'NEW_ACTIVITY_NOTIFICATION' : 'NEW_DUPLICATE_ACTIVITY_START_TIME_NOTIFICATION',
-        )
+        send(socket, 'NEW_ACTIVITY_NOTIFICATION')
       }
       await vi.advanceTimersByTimeAsync(1_000)
 

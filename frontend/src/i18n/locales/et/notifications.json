@@ -25,10 +25,6 @@
       "title": "Uus tegevus",
       "body": "Sinu kontole lisati uus tegevus."
     },
-    "duplicateActivity": {
-      "title": "Võimalik dubleeriv tegevus",
-      "body": "Sama alustamisajaga tegevus võib juba olemas olla."
-    },
     "newFollowerRequest": {
       "title": "Uus jälgimistaotlus",
       "body": "{name} ({'@'}{username}) soovib sind jälgida."

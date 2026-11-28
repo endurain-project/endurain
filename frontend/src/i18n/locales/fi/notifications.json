@@ -25,10 +25,6 @@
       "title": "Uusi aktiviteetti",
       "body": "Tilillesi lisättiin uusi aktiviteetti."
     },
-    "duplicateActivity": {
-      "title": "Mahdollinen päällekkäinen aktiviteetti",
-      "body": "Samalla aloitusajalla oleva aktiviteetti saattaa jo olla olemassa."
-    },
     "newFollowerRequest": {
       "title": "Uusi seurauspyyntö",
       "body": "{name} ({'@'}{username}) haluaa seurata sinua."

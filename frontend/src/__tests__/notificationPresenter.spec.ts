@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest'
 import {
   Activity,
   Bell,
-  CopyCheck,
   KeyRound,
   LockKeyhole,
   LogIn,
@@ -56,14 +55,6 @@ describe('presentNotification', () => {
     expect(result.titleKey).toBe('notifications.types.newActivity.title')
     expect(result.bodyKey).toBe('notifications.types.newActivity.body')
     expect(result.to).toEqual({ name: 'activity', params: { id: activityUuid(42) } })
-  })
-
-  it('presents a duplicate-activity notification', () => {
-    const result = presentNotification(make('duplicate_activity', { activity_id: activityUuid(7) }))
-
-    expect(result.icon).toBe(CopyCheck)
-    expect(result.titleKey).toBe('notifications.types.duplicateActivity.title')
-    expect(result.to).toEqual({ name: 'activity', params: { id: activityUuid(7) } })
   })
 
   it('links a follower request to the viewer followers list', () => {
@@ -325,6 +316,16 @@ describe('presentNotification', () => {
     expect(result.bodyKey).toBe('notifications.types.adminUserPromoted.body')
     expect(result.bodyParams).toEqual({ name: 'Ada', username: 'ada' })
     expect(result.to).toEqual({ name: 'settings-user-detail', params: { id: userUuid(7) } })
+  })
+
+  it('presents the retired duplicate-activity type, which a server no longer sends, as an unknown one', () => {
+    const result = presentNotification(
+      make('duplicate_activity' as NotificationType, { activity_id: activityUuid(7) }),
+    )
+
+    expect(result.icon).toBe(Bell)
+    expect(result.titleKey).toBe('notifications.types.unknown.title')
+    expect(result.to).toBeNull()
   })
 
   it('falls back to a neutral bell for unknown types', () => {

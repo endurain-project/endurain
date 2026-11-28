@@ -25,10 +25,6 @@
       "title": "Nouvelle activité",
       "body": "Une nouvelle activité a été ajoutée à votre compte."
     },
-    "duplicateActivity": {
-      "title": "Activité possiblement en double",
-      "body": "Une activité avec la même heure de départ existe peut-être déjà."
-    },
     "newFollowerRequest": {
       "title": "Nouvelle demande d'abonnement",
       "body": "{name} ({'@'}{username}) souhaite vous suivre."

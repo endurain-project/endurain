@@ -7,7 +7,6 @@ Notifications tell you that something happened that you did not do yourself on t
 | Notification | Who gets it | When |
 | ------------ | ----------- | ---- |
 | New activity | The activity's owner | An activity has been imported, uploaded or synced and stored |
-| Duplicate activity | The activity's owner | A stored activity has the same start time as one you already have. It was kept but [hidden](activities.md#changing-an-activity); open it to unhide it if it is not a duplicate |
 | New follower request | The user being followed | Someone asked to follow you |
 | Follower request accepted | The user who asked | Someone accepted your request |
 | Garmin Connect disconnected | The account owner | Garmin Connect rejected your stored login during a sync. Endurain unlinked the account, and you must [connect it again](integrations.md#garmin-connect) |

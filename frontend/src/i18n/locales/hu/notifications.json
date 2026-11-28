@@ -25,10 +25,6 @@
       "title": "Új tevékenység",
       "body": "Új tevékenység került a fiókodba."
     },
-    "duplicateActivity": {
-      "title": "Lehetséges duplikált tevékenység",
-      "body": "Lehet, hogy már létezik egy azonos kezdési idejű tevékenység."
-    },
     "newFollowerRequest": {
       "title": "Új követési kérelem",
       "body": "{name} ({'@'}{username}) szeretne követni téged."

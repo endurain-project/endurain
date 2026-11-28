@@ -164,10 +164,10 @@ class TestCreateOnce:
         _, for_other = self._create(db, other.id, event_id)
         _, other_type = notifications_crud.create_notification_once(
             notifications_schema.NotificationCreate(
-                type=notifications_constants.NotificationType.DUPLICATE_ACTIVITY,
+                type=notifications_constants.NotificationType.GARMIN_TOKEN_EXPIRED,
                 user_id=user.id,
                 source_event_id=event_id,
-                options={"activity_id": str(uuid.uuid4())},
+                options={},
             ),
             db,
         )

@@ -25,10 +25,6 @@
       "title": "Nueva actividad",
       "body": "Se ha añadido una nueva actividad a tu cuenta."
     },
-    "duplicateActivity": {
-      "title": "Posible actividad duplicada",
-      "body": "Es posible que ya exista una actividad con la misma hora de inicio."
-    },
     "newFollowerRequest": {
       "title": "Nueva solicitud de seguidor",
       "body": "{name} ({'@'}{username}) quiere seguirte."

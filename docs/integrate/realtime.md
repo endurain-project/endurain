@@ -47,7 +47,6 @@ The server sends JSON text frames. The client sends nothing: a text or binary fr
 | `message` | When |
 | --------- | ---- |
 | `NEW_ACTIVITY_NOTIFICATION` | An activity of yours was stored |
-| `NEW_DUPLICATE_ACTIVITY_START_TIME_NOTIFICATION` | A stored activity has the same start time as another |
 | `NEW_FOLLOWER_REQUEST_NOTIFICATION` | Someone asked to follow you |
 | `NEW_FOLLOWER_REQUEST_REMOVED_NOTIFICATION` | A follow request to you was withdrawn |
 | `NEW_FOLLOWER_REQUEST_ACCEPTED_NOTIFICATION` | Someone accepted your follow request |

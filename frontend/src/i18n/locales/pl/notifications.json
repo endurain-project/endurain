@@ -25,10 +25,6 @@
       "title": "Nowa aktywność",
       "body": "Do Twojego konta dodano nową aktywność."
     },
-    "duplicateActivity": {
-      "title": "Możliwa zduplikowana aktywność",
-      "body": "Aktywność o tym samym czasie rozpoczęcia może już istnieć."
-    },
     "newFollowerRequest": {
       "title": "Nowa prośba o obserwowanie",
       "body": "{name} ({'@'}{username}) chce Cię obserwować."

@@ -25,10 +25,6 @@
       "title": "Nová aktivita",
       "body": "Do vašeho účtu byla přidána nová aktivita."
     },
-    "duplicateActivity": {
-      "title": "Možná duplicitní aktivita",
-      "body": "Aktivita se stejným časem startu již možná existuje."
-    },
     "newFollowerRequest": {
       "title": "Nová žádost o sledování",
       "body": "{name} ({'@'}{username}) vás chce sledovat."

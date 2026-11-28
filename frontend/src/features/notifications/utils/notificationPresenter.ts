@@ -1,7 +1,6 @@
 import {
   Activity,
   Bell,
-  CopyCheck,
   KeyRound,
   LockKeyhole,
   LogIn,
@@ -100,14 +99,6 @@ export function presentNotification(
         icon: Activity,
         titleKey: `${base}.newActivity.title`,
         bodyKey: `${base}.newActivity.body`,
-        to: { name: 'activity', params: { id: notification.options.activity_id } },
-      }
-    }
-    case 'duplicate_activity': {
-      return {
-        icon: CopyCheck,
-        titleKey: `${base}.duplicateActivity.title`,
-        bodyKey: `${base}.duplicateActivity.body`,
         to: { name: 'activity', params: { id: notification.options.activity_id } },
       }
     }

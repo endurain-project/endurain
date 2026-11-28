@@ -25,10 +25,6 @@
       "title": "新活動",
       "body": "您的帳號中已新增一筆活動。"
     },
-    "duplicateActivity": {
-      "title": "可能重複的活動",
-      "body": "已存在一筆具有相同開始時間的活動。"
-    },
     "newFollowerRequest": {
       "title": "新的追蹤請求",
       "body": "{name} ({'@'}{username}) 想要追蹤您。"

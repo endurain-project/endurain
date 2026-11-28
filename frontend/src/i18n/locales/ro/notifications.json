@@ -25,10 +25,6 @@
       "title": "Activitate nouă",
       "body": "O activitate nouă a fost adăugată în contul tău."
     },
-    "duplicateActivity": {
-      "title": "Posibilă activitate duplicată",
-      "body": "Este posibil să existe deja o activitate cu aceeași oră de început."
-    },
     "newFollowerRequest": {
       "title": "Cerere nouă de urmărire",
       "body": "{name} ({'@'}{username}) dorește să te urmărească."

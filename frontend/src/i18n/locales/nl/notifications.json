@@ -25,10 +25,6 @@
       "title": "Nieuwe activiteit",
       "body": "Er is een nieuwe activiteit toegevoegd aan je account."
     },
-    "duplicateActivity": {
-      "title": "Mogelijke dubbele activiteit",
-      "body": "Er bestaat mogelijk al een activiteit met dezelfde starttijd."
-    },
     "newFollowerRequest": {
       "title": "Nieuw volgverzoek",
       "body": "{name} ({'@'}{username}) wil je volgen."

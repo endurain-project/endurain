@@ -10,7 +10,7 @@ import migrations.startup as migrations_startup
 from tests._helpers import alembic_chain
 
 _RETIREMENT_REVISION = "50ac9225ce4f"
-_HEAD_REVISION = "4f8c2b6d1a93"
+_HEAD_REVISION = "6a1d9c4e7b25"
 _REPROCESS_MIGRATION = {15: False}
 _DATA_MIGRATIONS = (11, 12, 13, 14)
 _SUBSTRATE_TABLES = ("event_log", "event_outbox", "processing_jobs", "job_attempts", "job_workers")

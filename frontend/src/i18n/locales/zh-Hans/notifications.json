@@ -25,10 +25,6 @@
       "title": "新活动",
       "body": "您的账户中添加了一个新活动。"
     },
-    "duplicateActivity": {
-      "title": "可能的重复活动",
-      "body": "可能已存在开始时间相同的活动。"
-    },
     "newFollowerRequest": {
       "title": "新的关注请求",
       "body": "{name}（{'@'}{username}）想要关注您。"
