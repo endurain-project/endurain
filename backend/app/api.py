@@ -35,6 +35,7 @@ import modules.auth.onboarding.public_router as onboarding_public_router
 import modules.auth.password_reset_tokens.public_router as password_reset_tokens_router
 import modules.auth.sessions.router as auth_sessions_router
 import modules.auth.sign_up_tokens.public_router as sign_up_tokens_router
+import modules.coros.router as coros_router
 import modules.followers.blocks_router as followers_blocks_router
 import modules.followers.router as followers_router
 import modules.followers.user_router as followers_user_router
@@ -104,6 +105,7 @@ OPENAPI_TAGS = [
     {"name": "api-keys", "description": "API keys of the signed-in user, and their administration for other users."},
     {"name": "auth", "description": "Sign in, sign out, refresh, multi-factor authentication and SSO."},
     {"name": "core", "description": "Server metadata and health."},
+    {"name": "coros", "description": "Link a COROS account and sync its activities."},
     {"name": "followers", "description": "Follow requests, followers and following."},
     {"name": "garmin", "description": "Link a Garmin Connect account and poll the link."},
     {"name": "gear_components", "description": "Components of a gear item, such as a chain or tyres."},
@@ -255,6 +257,12 @@ router.include_router(
     auth_password_change_router.router,
     prefix=core_config.ROOT_PATH + "/auth",
     tags=["auth"],
+)
+router.include_router(
+    coros_router.router,
+    prefix=core_config.ROOT_PATH + "/coros",
+    tags=["coros"],
+    dependencies=[Depends(auth_dependencies.authenticate)],
 )
 router.include_router(
     followers_blocks_router.router,

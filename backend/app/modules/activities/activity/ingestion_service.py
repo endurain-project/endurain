@@ -29,13 +29,13 @@ def _derive_dedup_key(
 
     Precedence:
 
-    1. **Provider id** — Strava then Garmin Connect (both on the core ``Activity``
-       schema). Provider ids are stable across server-side re-processing/edits, so
-       they are the canonical identity for provider syncs. Garmin ids are salted
-       with the start time because one multi-activity Garmin ``.fit`` splits into
-       several activities that all carry the *same* Garmin activity id — without
-       the salt every activity after the first was silently discarded as an
-       already-ingested duplicate.
+    1. **Provider id** — Strava, Garmin Connect and COROS (all on the core
+       ``Activity`` schema). Provider ids are stable across server-side
+       re-processing/edits, so they are the canonical identity for provider
+       syncs. Garmin and COROS ids are salted with the start time because one
+       multi-activity ``.fit`` splits into several activities that all carry the
+       *same* provider id — without the salt every activity after the first was
+       silently discarded as an already-ingested duplicate.
     2. **File content hash** — for file-based sources (upload / bulk import) that
        carry no provider id, ``source.content_hash`` (the SHA-256 of the parsed
        file) plus the activity's start time. The start-time salt keeps multiple
@@ -60,6 +60,10 @@ def _derive_dedup_key(
         if not isinstance(activity.start_time, datetime):
             return f"garmin:{activity.garminconnect_activity_id}"
         return f"garmin:{activity.garminconnect_activity_id}:{int(activity.start_time.timestamp())}"
+    if isinstance(activity.coros_activity_id, str) and activity.coros_activity_id:
+        if not isinstance(activity.start_time, datetime):
+            return f"coros:{activity.coros_activity_id}"
+        return f"coros:{activity.coros_activity_id}:{int(activity.start_time.timestamp())}"
     if source is not None and source.content_hash and isinstance(activity.start_time, datetime):
         return f"file:{source.content_hash}:{int(activity.start_time.timestamp())}"
     return None

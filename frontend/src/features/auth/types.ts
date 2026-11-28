@@ -16,6 +16,7 @@ import type { Schemas } from '@/types'
  * @property avatarUrl - Absolute avatar URL, or `null` when unset.
  * @property isStravaLinked - Whether a Strava integration is linked.
  * @property isGarminConnectLinked - Whether a Garmin Connect integration is linked.
+ * @property isCorosLinked - Whether a COROS integration is linked.
  * @property hasLocalPassword - Whether the account has a local password.
  * @property units - Measurement system used to present distances and heights.
  * @property weightUnits - Measurement system used to present body weight; falls
@@ -35,6 +36,7 @@ export interface User {
   avatarUrl: string | null
   isStravaLinked: boolean
   isGarminConnectLinked: boolean
+  isCorosLinked: boolean
   hasLocalPassword: boolean
   units: Schemas['Units']
   weightUnits: Schemas['Units']
@@ -62,6 +64,7 @@ export type UserProfileDto = Pick<
   | 'photo_path'
   | 'is_strava_linked'
   | 'is_garminconnect_linked'
+  | 'is_coros_linked'
   | 'has_local_password'
   | 'units'
   | 'weight_units'

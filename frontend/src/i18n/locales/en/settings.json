@@ -1017,7 +1017,7 @@
   },
   "integrations": {
     "title": "Integrations",
-    "subtitle": "Connect Strava and Garmin Connect to import your activities and gear",
+    "subtitle": "Connect Strava, Garmin Connect and COROS to import your activities and gear",
     "retry": "Try again",
     "cancel": "Cancel",
     "close": "Close",
@@ -1095,6 +1095,34 @@
       "unlinkBody": "Endurain will stop importing from Garmin Connect. Your existing data is kept.",
       "unlinkSuccess": "Garmin Connect disconnected",
       "unlinkError": "Couldn't disconnect Garmin Connect. Please try again."
+    },
+    "coros": {
+      "title": "COROS",
+      "subtitle": "Import your activities from COROS through its official MCP server",
+      "connectError": "Couldn't connect to COROS. Please try again.",
+      "completing": "Finishing the COROS connection…",
+      "linkSuccess": "COROS connected",
+      "syncNow": "Sync now",
+      "syncQueued": "COROS sync queued. It continues in the background.",
+      "syncError": "Couldn't start the COROS sync. Please try again.",
+      "retrieveActivitiesTitle": "Retrieve COROS activities",
+      "lastSync": "Last sync: {date}",
+      "neverSynced": "Not synced yet",
+      "syncSuccess": "{count} activities imported",
+      "reconnect": "Reconnect",
+      "unlinkTitle": "Disconnect COROS?",
+      "unlinkBody": "Endurain will stop importing from COROS and revoke its access. Your existing activities are kept.",
+      "unlinkSuccess": "COROS disconnected",
+      "unlinkError": "Couldn't disconnect COROS. Please try again.",
+      "errors": {
+        "authorization_expired": "Authorization expired. Reconnect COROS.",
+        "network_error": "COROS couldn't be reached. The next sync will retry.",
+        "rate_limited": "COROS asked us to slow down. The next sync will retry.",
+        "tools_unavailable": "The COROS MCP server no longer exposes the required activity tools.",
+        "quota_exhausted": "The daily COROS FIT download limit was reached. Sync again after the limit resets.",
+        "protocol_error": "COROS returned an unexpected response.",
+        "processing_error": "The last COROS sync failed. The next sync will retry."
+      }
     },
     "retrieveFinished": "Finished retrieving your data from {provider}.",
     "retrieveFailed": "Retrieving your data from {provider} failed. Please try again.",

@@ -23,6 +23,7 @@ import pathlib
 MODULES: tuple[str, ...] = (
     "activities",
     "auth",
+    "coros",
     "followers",
     "garmin",
     "gears",

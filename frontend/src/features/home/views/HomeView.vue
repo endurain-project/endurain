@@ -42,7 +42,10 @@ const currentUserId = computed(() => currentUser.value?.id ?? null)
 
 /** Whether the viewer can pull fresh activities from a linked integration. */
 const canRefresh = computed(
-  () => !!currentUser.value?.isStravaLinked || !!currentUser.value?.isGarminConnectLinked,
+  () =>
+    !!currentUser.value?.isStravaLinked ||
+    !!currentUser.value?.isGarminConnectLinked ||
+    !!currentUser.value?.isCorosLinked,
 )
 
 // --- Distance stats (left) ---

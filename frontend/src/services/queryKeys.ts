@@ -463,6 +463,12 @@ export const queryKeys = {
     defaultGear: () => ['profile', 'default-gear'] as const,
   },
 
+  /** Third-party integration connection state. */
+  integrations: {
+    /** COROS connection and last-sync status. */
+    corosStatus: () => ['integrations', 'coros', 'status'] as const,
+  },
+
   /**
    * The authenticated user's fitness goals (account settings zone). `all()` is
    * the broad prefix the create/update/delete mutations invalidate on settle so

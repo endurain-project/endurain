@@ -186,6 +186,7 @@ const profile: ProfileDetails = {
   stravaRevokedAt: null,
   stravaDataDeletionAt: null,
   garminLinked: false,
+  corosLinked: false,
   privacy: {} as ProfileDetails['privacy'],
 }
 

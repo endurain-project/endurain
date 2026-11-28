@@ -61,6 +61,7 @@ _HELPERS_THAT_LOG: dict[str, str] = {
     "activities/activity_file_import/gpx_parser.py": "Parser anomalies the file itself carries.",
     "activities/activity_file_import/tcx_parser.py": "Parser anomalies the file itself carries.",
     "activities/activity_thumbnail/render.py": "A failed render returns ``None``; the reason has to be said here.",
+    "coros/oauth.py": "Reports a token revocation that failed while the local unlink still proceeds.",
     "strava/rate_limit_store.py": (
         "Reports a rate limit it records or a storage outage it tolerates; the caller only sees a bool."
     ),

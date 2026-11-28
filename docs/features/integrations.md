@@ -16,6 +16,21 @@ RunnerUp signs in through the first-party `/auth/login` route, which is meant fo
 
 The SSO hand-off through `ALLOWED_REDIRECT_URIS` is a first-party protocol for Endurain's own apps. [API keys](../integrate/api-keys.md) are the supported path for other applications; see the [first-party sign-in note](../integrate/authentication.md).
 
+## COROS
+
+Endurain connects to COROS through its official MCP server and the standard
+OAuth 2.0 authorization-code flow with PKCE. No COROS developer application or
+API key is needed: COROS registers Endurain dynamically when you connect.
+
+The integration imports activity FIT files into the shared ingestion pipeline.
+The last 30 days are imported on connection, the last day is checked hourly,
+and **Sync now** re-reads the last seven days. You can also retrieve an explicit
+date range. Tokens are encrypted at rest with `FERNET_KEY` and are never exposed
+to the frontend.
+
+See the [COROS integration](coros.md) page for configuration, supported data,
+the daily FIT download limit and current limitations.
+
 ## Garmin Connect
 
 Garmin Connect sync imports activities, gear and health data (body composition, daily steps and sleep). Endurain uses the [python-garminconnect](https://github.com/cyberjunky/python-garminconnect) module.

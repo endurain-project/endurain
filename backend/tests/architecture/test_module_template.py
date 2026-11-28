@@ -16,6 +16,7 @@ import module_registry as runtime_module_registry
 import modules.activities.contributor_registry as activities_contributor_registry
 import modules.activities.model_registry as activities_model_registry
 import modules.auth.model_registry as auth_model_registry
+import modules.coros.model_registry as coros_model_registry
 import modules.followers.model_registry as followers_model_registry
 import modules.gears.model_registry as gears_model_registry
 import modules.health.model_registry as health_model_registry
@@ -156,6 +157,7 @@ def test_model_registries_collect_every_model() -> None:
         if package.parent.name == "health" and (package / "models.py").is_file()
     } | {"modules.health.models"}
     assert set(health_model_registry.MODEL_MODULES) == expected_health
+    assert set(coros_model_registry.MODEL_MODULES) == {"modules.coros.models"}
     assert set(notifications_model_registry.MODEL_MODULES) == {"modules.notifications.models"}
     assert set(server_settings_model_registry.MODEL_MODULES) == {"modules.server_settings.models"}
     expected_users = {
@@ -170,6 +172,7 @@ def test_model_registries_collect_every_model() -> None:
         | set(followers_model_registry.MODEL_MODULES)
         | expected_gears
         | expected_health
+        | set(coros_model_registry.MODEL_MODULES)
         | set(notifications_model_registry.MODEL_MODULES)
         | set(server_settings_model_registry.MODEL_MODULES)
         | expected_users

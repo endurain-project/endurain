@@ -76,3 +76,19 @@ def test_an_unreachable_state_fails_open(state, store, monkeypatch):
 
     assert store.expiry("user-1") is None
     store.mark("user-1", datetime.now(UTC) + timedelta(minutes=10))  # must not raise
+
+
+@pytest.mark.parametrize(("header", "expected"), [("30", 30), ("0", None), ("-1", None), ("soon", None), (None, None)])
+def test_retry_after_parses_only_positive_seconds(header, expected):
+    assert core_provider_rate_limit.parse_retry_after(header) == expected
+
+
+def test_a_retry_time_comes_only_from_a_server_delay():
+    before = datetime.now(UTC)
+
+    from_header = core_provider_rate_limit.retry_at(30)
+    without_header = core_provider_rate_limit.retry_at(None)
+
+    assert from_header is not None
+    assert before + timedelta(seconds=30) <= from_header <= datetime.now(UTC) + timedelta(seconds=30)
+    assert without_header is None

@@ -91,6 +91,7 @@ export interface PrivacySettings {
  * @property stravaDataDeletionAt - When Strava-synced activities and gear are deleted unless Strava is
  *   reconnected, or `null`.
  * @property garminLinked - Whether a Garmin Connect account is connected.
+ * @property corosLinked - Whether a COROS account is connected.
  * @property photoPath - Backend-issued photo URL, or `null` when unset.
  * @property avatarUrl - Servable avatar URL derived from `photoPath`, or `null`.
  * @property privacy - The user's privacy preferences.
@@ -123,6 +124,7 @@ export interface ProfileDetails {
   stravaRevokedAt: string | null
   stravaDataDeletionAt: string | null
   garminLinked: boolean
+  corosLinked: boolean
   photoPath: string | null
   avatarUrl: string | null
   privacy: PrivacySettings

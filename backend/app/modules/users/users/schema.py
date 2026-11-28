@@ -423,6 +423,7 @@ class UserMe(UserRead):
         strava_data_deletion_at: When the user's Strava data is deleted unless they relink, ``None`` while
             access is intact.
         is_garminconnect_linked: Garmin Connect status.
+        is_coros_linked: COROS integration status.
         default_activity_visibility: Default visibility level.
         hide_activity_start_time: Hide start time setting.
         hide_activity_location: Hide location setting.
@@ -457,6 +458,7 @@ class UserMe(UserRead):
         default=None, description="When Strava-synced activities and gear are deleted unless Strava is relinked"
     )
     is_garminconnect_linked: StrictBool | None = Field(default=None, description="Whether Garmin Connect is linked")
+    is_coros_linked: StrictBool | None = Field(default=None, description="Whether COROS is linked")
     default_activity_visibility: activity_constants.ActivityVisibility | None = Field(
         default=None, description="Default activity visibility"
     )

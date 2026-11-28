@@ -4,6 +4,7 @@ from importlib import import_module
 
 import modules.activities.model_registry as activities_model_registry
 import modules.auth.model_registry as auth_model_registry
+import modules.coros.model_registry as coros_model_registry
 import modules.followers.model_registry as follower_models
 import modules.gears.model_registry as gears_model_registry
 import modules.health.model_registry as health_model_registry
@@ -16,6 +17,7 @@ _MODEL_MODULES = frozenset(
         "migrations.models",
         *activities_model_registry.MODEL_MODULES,
         *auth_model_registry.MODEL_MODULES,
+        *coros_model_registry.MODEL_MODULES,
         *follower_models.MODEL_MODULES,
         *gears_model_registry.MODEL_MODULES,
         *health_model_registry.MODEL_MODULES,

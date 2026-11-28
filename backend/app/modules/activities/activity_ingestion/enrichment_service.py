@@ -106,6 +106,7 @@ def enrich_parsed_activity(
     provider_gear_id: uuid.UUID | None = None,
     garminconnect_gear_id: str | None = None,
     garmin_connect_activity_id: int | None = None,
+    coros_activity_id: str | None = None,
 ) -> None:
     """Populate owner privacy defaults, gear, and Garmin ids on a parsed activity in place.
 
@@ -123,6 +124,7 @@ def enrich_parsed_activity(
             activity, for a Garmin sync.
         garmin_connect_activity_id: The Garmin Connect activity id, for a Garmin
             sync.
+        coros_activity_id: The COROS activity id, for a COROS sync.
     """
     for key, value in build_activity_privacy_kwargs(user_privacy_settings).items():
         setattr(activity, key, value)
@@ -143,6 +145,13 @@ def enrich_parsed_activity(
                 user_id=user_id,
                 garminconnect_activity_id=garmin_connect_activity_id,
             ),
+        )
+
+    if coros_activity_id is not None:
+        activity.coros_activity_id = coros_activity_id
+        logger.debug(
+            "Attached COROS provider id to a parsed activity",
+            extra=core_logger.context(user_id=user_id, coros_activity_id=coros_activity_id),
         )
 
     logger.debug(

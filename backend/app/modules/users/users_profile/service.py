@@ -23,6 +23,7 @@ import modules.auth.credentials.integration_service as credentials_integration
 import modules.auth.identity_providers.constants as identity_providers_constants
 import modules.auth.schema as auth_schema
 import modules.auth.sign_up_tokens.integration_service as sign_up_tokens_integration
+import modules.coros.integration_service as coros_integration
 import modules.server_settings.integration_service as server_settings_integration
 import modules.users.contributor_registry as users_contributor_registry
 import modules.users.users.integration_service as users_integration
@@ -100,6 +101,7 @@ def get_profile(
                 else None
             ),
             "is_garminconnect_linked": bool(user_integrations.garminconnect_token),
+            "is_coros_linked": coros_integration.is_linked(user_id, db),
             "privacy_settings_version": privacy_settings.version,
             "default_activity_visibility": privacy_settings.default_activity_visibility,
             "hide_activity_start_time": privacy_settings.hide_activity_start_time,

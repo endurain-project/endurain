@@ -76,6 +76,7 @@ export function mapProfileDetails(dto: ProfileDto): ProfileDetails {
     stravaRevokedAt: dto.strava_revoked_at ?? null,
     stravaDataDeletionAt: dto.strava_data_deletion_at ?? null,
     garminLinked: dto.is_garminconnect_linked ?? false,
+    corosLinked: dto.is_coros_linked ?? false,
     photoPath: dto.photo_path ?? null,
     avatarUrl: resolveAvatarUrl(dto.photo_path),
     privacy: mapPrivacySettings(dto),

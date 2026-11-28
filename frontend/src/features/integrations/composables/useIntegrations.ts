@@ -1,5 +1,5 @@
-import { watch, type Ref } from 'vue'
-import { useMutation, useQueryClient } from '@tanstack/vue-query'
+import { computed, toValue, watch, type MaybeRefOrGetter, type Ref } from 'vue'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { useI18n } from 'vue-i18n'
 
 import type {
@@ -16,6 +16,7 @@ import { useJobQuery } from '@/composables/useJobQuery'
 import { useToasts } from '@/composables/useToasts'
 import { followJob, JobTimeoutError, runningJobId, seedJob } from '@/services/jobStatus'
 import { queryKeys } from '@/services/queryKeys'
+import { fetchCorosStatus, syncCoros, unlinkCoros } from '@/features/integrations/services/coros'
 import {
   linkGarmin,
   retrieveGarminActivities,
@@ -171,5 +172,45 @@ export function useUnlinkGarminMutation() {
   return useMutation<void, Error, StepUpInput>({
     mutationFn: (stepUp) => unlinkGarmin(stepUp),
     onSuccess: invalidateProfile,
+  })
+}
+
+/**
+ * COROS connection and last-sync status. Polled while the card is shown so a
+ * background sync started from another tab or the scheduler becomes visible.
+ *
+ * @param enabled - Whether the profile says COROS is connected.
+ * @returns The TanStack Query result for the COROS status.
+ */
+export function useCorosStatusQuery(enabled: MaybeRefOrGetter<boolean>) {
+  return useQuery({
+    queryKey: queryKeys.integrations.corosStatus(),
+    queryFn: ({ signal }) => fetchCorosStatus(signal),
+    enabled: computed(() => toValue(enabled)),
+    refetchInterval: 30_000,
+  })
+}
+
+/** Queues a COROS sync for the given range (last seven days when omitted). */
+export function useSyncCorosMutation() {
+  const client = useQueryClient()
+  return useMutation<ActivityRefreshJob, Error, DateRange | undefined>({
+    mutationFn: (range) => syncCoros(range),
+    onSettled: () => {
+      void client.invalidateQueries({ queryKey: queryKeys.integrations.corosStatus() })
+    },
+  })
+}
+
+/** Disconnects COROS after the user's step-up and refreshes the profile and status card. */
+export function useUnlinkCorosMutation() {
+  const invalidateProfile = useProfileInvalidation()
+  const client = useQueryClient()
+  return useMutation<void, Error, StepUpInput>({
+    mutationFn: (stepUp) => unlinkCoros(stepUp),
+    onSuccess: invalidateProfile,
+    onSettled: () => {
+      void client.invalidateQueries({ queryKey: queryKeys.integrations.corosStatus() })
+    },
   })
 }

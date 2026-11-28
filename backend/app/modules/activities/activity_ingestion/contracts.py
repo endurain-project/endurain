@@ -1,6 +1,6 @@
 """What an activity file came from — the ingestion pipeline's source context.
 
-Ingestion is one pipeline fed by three different callers. Each passes exactly
+Ingestion is one pipeline fed by several different callers. Each passes exactly
 one of the source objects below, so an illegal combination of flags cannot be
 expressed, and the questions the pipeline asks ("where do failed files go?",
 "what metadata applies to this file?") are answered by the source itself.
@@ -127,6 +127,24 @@ class GarminSource:
 
 
 @dataclass(frozen=True)
+class CorosSource:
+    """A file downloaded by the COROS MCP sync.
+
+    COROS activities carry a provider id, so they are deduplicated on that
+    rather than on a file content hash.
+
+    Attributes:
+        activity_id: The COROS activity identifier (``labelId``).
+        activity_name: Optional override for the parsed activity's name.
+    """
+
+    activity_id: str
+    activity_name: str | None = None
+
+    kind = "coros"
+
+
+@dataclass(frozen=True)
 class BulkImportSource:
     """A file from a bulk import of a folder the athlete dropped in.
 
@@ -212,8 +230,8 @@ class BulkImportSource:
         return None
 
 
-#: Any of the three things that can feed the ingestion pipeline.
-IngestionSource = UploadSource | GarminSource | BulkImportSource
+#: Any of the things that can feed the ingestion pipeline.
+IngestionSource = UploadSource | GarminSource | CorosSource | BulkImportSource
 
 
 #: Read one member of the archive being imported, by name, or ``None`` when it is

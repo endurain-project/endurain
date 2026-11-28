@@ -61,6 +61,7 @@ class Activity(UpdatedAtMixin, Base):
         strava_activity_id: Strava activity ID.
         garminconnect_activity_id: Garmin Connect activity ID.
         garminconnect_gear_id: Garmin Connect gear ID.
+        coros_activity_id: COROS activity ID.
         import_info: Additional import metadata.
         is_hidden: Whether the activity is hidden.
         hide_start_time: Hide start time from others.
@@ -100,6 +101,7 @@ class Activity(UpdatedAtMixin, Base):
         Index("ix_activities_user_id_updated_at_id", "user_id", "updated_at", "id"),
         # Strava ids are looked up for the owner only; two accounts may link the same Strava athlete.
         Index("ix_activities_user_id_strava_activity_id", "user_id", "strava_activity_id"),
+        Index("ix_activities_user_coros_activity_id", "user_id", "coros_activity_id"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
@@ -286,6 +288,11 @@ class Activity(UpdatedAtMixin, Base):
         String(45),
         nullable=True,
         comment="Garmin Connect gear ID",
+    )
+    coros_activity_id: Mapped[str | None] = mapped_column(
+        String(64),
+        nullable=True,
+        comment="COROS activity ID",
     )
     import_info: Mapped[dict[str, Any] | None] = mapped_column(
         JSON,

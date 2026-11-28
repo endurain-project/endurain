@@ -18,8 +18,40 @@ import core.logger as core_logger
 logger = core_logger.get_logger(__name__)
 
 #: How long a flag whose recorded expiry cannot be read is taken to last, so a sync that waits never
-#: waits for less than a limit lasts.
-UNREADABLE_EXPIRY_SECONDS = 15 * 60
+#: waits for less than a limit typically lasts.
+DEFAULT_RETRY_SECONDS = 15 * 60
+
+
+def parse_retry_after(value: str | None) -> int | None:
+    """Parse a ``Retry-After`` header value expressed in seconds.
+
+    Args:
+        value: The header value.
+
+    Returns:
+        The positive delay in seconds, or None when the header is absent or unusable.
+    """
+    if value is None:
+        return None
+    try:
+        seconds = int(value)
+    except ValueError:
+        return None
+    return seconds if seconds > 0 else None
+
+
+def retry_at(seconds: int | None) -> datetime | None:
+    """Return when a provider's limit clears, when the provider said.
+
+    Args:
+        seconds: The provider's ``Retry-After`` delay, or None.
+
+    Returns:
+        The instant the limit clears, or None when the provider did not say.
+    """
+    if seconds is None or seconds <= 0:
+        return None
+    return datetime.now(UTC) + timedelta(seconds=seconds)
 
 
 class ProviderRateLimitStore:
@@ -87,4 +119,4 @@ class ProviderRateLimitStore:
         try:
             return datetime.fromisoformat(value.decode())
         except ValueError:
-            return datetime.now(UTC) + timedelta(seconds=UNREADABLE_EXPIRY_SECONDS)
+            return datetime.now(UTC) + timedelta(seconds=DEFAULT_RETRY_SECONDS)

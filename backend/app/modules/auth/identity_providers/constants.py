@@ -80,6 +80,7 @@ class StepUpAction(StrEnum):
         STRAVA_UNLINK: Disconnect Strava and delete what was imported from it.
         STRAVA_CLIENT_SET: Replace the Strava API client id and secret.
         GARMIN_UNLINK: Disconnect Garmin Connect.
+        COROS_UNLINK: Disconnect COROS.
     """
 
     API_KEY_CREATE = "api_key_create"
@@ -113,6 +114,7 @@ class StepUpAction(StrEnum):
     STRAVA_UNLINK = "strava_unlink"
     STRAVA_CLIENT_SET = "strava_client_set"
     GARMIN_UNLINK = "garmin_unlink"
+    COROS_UNLINK = "coros_unlink"
 
 
 #: Scopes requested from a provider that configures none.

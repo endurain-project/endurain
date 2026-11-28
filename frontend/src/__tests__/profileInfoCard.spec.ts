@@ -60,6 +60,7 @@ function makeProfile(overrides: Partial<ProfileDetails> = {}): ProfileDetails {
     stravaRevokedAt: null,
     stravaDataDeletionAt: null,
     garminLinked: false,
+    corosLinked: false,
     photoPath: null,
     avatarUrl: null,
     privacy: {

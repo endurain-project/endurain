@@ -97,6 +97,7 @@ class ActivityFields(BaseModel):
         garminconnect_activity_id: Garmin Connect activity
             identifier.
         garminconnect_gear_id: Garmin Connect gear identifier.
+        coros_activity_id: COROS activity identifier.
         is_hidden: Whether the activity is hidden.
         hide_start_time: Hide the start time from others.
         hide_location: Hide location data from others.
@@ -157,6 +158,7 @@ class ActivityFields(BaseModel):
     strava_activity_id: int | None = None
     garminconnect_activity_id: int | None = None
     garminconnect_gear_id: str | None = Field(default=None, max_length=45)
+    coros_activity_id: str | None = Field(default=None, max_length=64)
     is_hidden: bool = False
     hide_start_time: bool | None = None
     hide_location: bool | None = None

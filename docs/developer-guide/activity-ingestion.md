@@ -10,7 +10,7 @@ Three import-linter contracts enforce that split: `activities-provider-agnostic`
 
 ## One pipeline, three entry points
 
-Upload, the Garmin Connect sync and bulk import differ only in how the file arrives and what happens on failure. They all call the same file pipeline. The Strava sync has no file: it builds the parsed activity from the API response and enters at the store step (`store_parsed_activity`).
+Upload, the Garmin Connect and COROS syncs and bulk import differ only in how the file arrives and what happens on failure. They all call the same file pipeline. The Strava sync has no file: it builds the parsed activity from the API response and enters at the store step (`store_parsed_activity`).
 
 ```mermaid
 flowchart LR
@@ -42,6 +42,7 @@ Parsers are pure functions. They return a canonical `ParsedFile` and know nothin
     | An explicit key set by the source | That key, used as is |
     | Strava activity id | `strava:<id>` |
     | Garmin activity id | `garmin:<id>:<start time>` (a multi-activity `.fit` shares one Garmin id) |
+    | COROS activity id | `coros:<id>:<start time>` (the start time keeps a multi-session FIT distinct) |
     | File content | `file:<sha256>:<start time>` |
     | None of these | Falls back to start-time matching: the activity is stored but hidden, with a notification |
 

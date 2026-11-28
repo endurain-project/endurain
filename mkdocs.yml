@@ -114,6 +114,7 @@ nav:
     - User management: features/user-management.md
     - Sleep scoring: features/sleep-scoring.md
     - Integrations: features/integrations.md
+    - COROS integration: features/coros.md
     - Gallery: gallery.md
     - Tools: tools.md
   - Integrate:
@@ -148,6 +149,7 @@ nav:
   - Backend reference:
     - Activities: reference/activities.md
     - Authentication: reference/authentication.md
+    - COROS: reference/coros.md
     - Followers: reference/followers.md
     - Garmin Connect: reference/garmin.md
     - Gears: reference/gears.md

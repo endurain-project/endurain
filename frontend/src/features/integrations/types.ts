@@ -25,6 +25,18 @@ export type GarminSyncStatus = Schemas['GarminSyncStatus']
 /** A queued activity sync of a date range (`activity_refresh`), as `POST /garmin/activities` and `POST /strava/activities` answer it. */
 export type ActivityRefreshJob = Schemas['ActivityIngestionJobRead']
 
+/** COROS connection and last-sync status DTO. */
+export type CorosStatusDto = Schemas['CorosStatusRead']
+
+/** Clean COROS status consumed by the settings card. */
+export interface CorosStatus {
+  linked: boolean
+  lastSyncAt: string | null
+  lastSyncStatus: 'never' | 'success' | 'error'
+  lastSyncError: string | null
+  lastSyncActivityCount: number
+}
+
 /** The clean credentials the Strava connect dialog collects. */
 export interface StravaClientInput {
   clientId: number

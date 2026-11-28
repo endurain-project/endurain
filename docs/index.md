@@ -63,6 +63,7 @@ Endurain currently supports:
 - Activity import via manual or bulk upload (.gpx, .tcx and .fit files. .fit files are preferred)
 - Strava integration for syncing activities and gear
 - Garmin Connect integration for syncing activities, gear and health data (body composition, steps and sleep)
+- COROS integration for syncing activities through the official COROS MCP server
 - Activity feeds and statistics (week/month)
 - Basic activity privacy settings
 - Gear tracking (bicycles, shoes, wetsuits, racquets, skis, snowboards, windsurf gear, water sports boards)

@@ -34,6 +34,7 @@ _SWALLOWING_BROAD_EXCEPTS: dict[str, int] = {
     "modules/activities/activity_ingestion/refresh_entry_service.py": 1,  # per provider; re-raises the first failure
     "modules/activities/activity_ingestion/window_service.py": 1,  # per activity; re-raises the first failure
     "modules/auth/identity_providers/callback_service.py": 2,  # browser callbacks always redirect to the failure page
+    "modules/coros/service.py": 1,  # a committed link must not fail when its initial sync cannot be queued
     "modules/garmin/link_service.py": 1,  # link thread must always record a terminal state
     "modules/garmin/sync_service.py": 1,  # one user's health pull must not stop the rest
     "modules/strava/link_service.py": 1,  # link thread must always record a terminal state

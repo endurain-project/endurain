@@ -164,6 +164,8 @@ _AUDITED_WRITES: dict[tuple[str, str], tuple[str, ...]] = {
     ("auth/sign_up_tokens/public_router.py", "confirm_sign_up"): ("auth.sign_up.confirm",),
     ("auth/sign_up_tokens/public_router.py", "confirm_email_change"): ("auth.sign_up.confirm", "users.email.change"),
     ("auth/sign_up_tokens/public_router.py", "cancel_email_change"): ("auth.email_change.cancel",),
+    ("coros/router.py", "coros_link"): ("coros.account.link",),
+    ("coros/router.py", "coros_unlink"): ("coros.account.unlink",),
     ("followers/blocks_router.py", "block_user"): ("followers.block.add",),
     ("followers/blocks_router.py", "unblock_user"): ("followers.block.remove",),
     ("followers/router.py", "accept_follow_request"): ("followers.follow.accept",),
@@ -241,6 +243,11 @@ _UNAUDITED_WRITES: dict[tuple[str, str], str] = {
         "auth/password_reset_tokens/public_router.py",
         "validate_password_reset_token",
     ): "checks that a reset token is still usable and changes nothing; the reset is audited by confirm_password_reset",
+    (
+        "coros/router.py",
+        "coros_authorize",
+    ): "stores a one-time OAuth correlation state; the link it starts is audited by coros_link",
+    ("coros/router.py", "coros_sync"): _ROUTINE,
     ("followers/router.py", "reject_follow_request"): _NO_ACCESS,
     ("followers/user_router.py", "follow_user"): _NO_ACCESS,
     (
