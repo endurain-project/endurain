@@ -1,14 +1,17 @@
 """Activities stored by the real ingestion and then made to look like an older analysis stored them."""
 
+import dataclasses
 import shutil
 import uuid
 from datetime import UTC, datetime
 from pathlib import Path
 
-from sqlalchemy import delete, update
+from sqlalchemy import delete, select, update
 from sqlalchemy.orm import Session
 
 import modules.activities.activity.models as activity_models
+import modules.activities.activity_file_storage.constants as file_storage_constants
+import modules.activities.activity_file_storage.models as file_models
 import modules.activities.activity_ingestion.contracts as ingestion_contracts
 import modules.activities.activity_ingestion.pipeline_service as pipeline_service
 import modules.activities.activity_laps.models as lap_models
@@ -16,6 +19,7 @@ import modules.activities.activity_sets.models as set_models
 import modules.activities.activity_streams.constants as stream_constants
 import modules.activities.activity_streams.models as stream_models
 import modules.activities.activity_workout_steps.models as step_models
+from tests._factories.ingestion import retained_file, store_legacy_file
 
 FIXTURES = Path(__file__).parents[1] / "activities" / "activity_file_import" / "fixtures"
 RUN = FIXTURES / "outdoor_run" / "24273515840_ACTIVITY.fit"
@@ -105,3 +109,53 @@ def degrade(db: Session, activity_id: uuid.UUID) -> None:
         ]
     )
     db.commit()
+
+
+def store_as_legacy_files(db: Session, activity_ids: list[uuid.UUID], storage) -> None:
+    """Move the files of activities to the layout used before file rows: one copy per activity, no row.
+
+    Args:
+        db: Database session; the change is committed.
+        activity_ids: The activities whose retained files become legacy copies under ``processed/{activity id}``.
+        storage: The platform storage provider the files are retained in.
+    """
+    copies = {activity_id: retained_file(activity_id, storage) for activity_id in activity_ids}
+    refs = list(db.scalars(select(file_models.ActivityFile)).all())
+    for activity_id, copy in copies.items():
+        assert copy is not None
+        store_legacy_file(activity_id, copy[1], storage, extension=copy[0])
+    db.execute(
+        update(activity_models.Activity).where(activity_models.Activity.id.in_(activity_ids)).values(file_id=None)
+    )
+    db.execute(delete(file_models.ActivityFile))
+    db.commit()
+    for ref in refs:
+        storage.delete(file_storage_constants.ACTIVITY_FILE_STORAGE_AREA, ref.storage_key)
+
+
+def import_legacy_legs(
+    db: Session, user_id: uuid.UUID, source: Path, tmp_path: Path, storage, monkeypatch
+) -> list[uuid.UUID]:
+    """Import a multi-session file the way it was stored before groups: one activity and one file copy per session."""
+    real = pipeline_service.parse_file
+
+    def without_a_parent(*args, **kwargs):
+        return dataclasses.replace(real(*args, **kwargs), parent=None)
+
+    with monkeypatch.context() as patch:
+        patch.setattr(pipeline_service, "parse_file", without_a_parent)
+        activity_ids = import_fixture(db, user_id, source, tmp_path, storage)
+    store_as_legacy_files(db, activity_ids, storage)
+    return activity_ids
+
+
+def start_ordered(db: Session, activity_ids: list[uuid.UUID]) -> list[uuid.UUID]:
+    """Return the activities in start order."""
+    db.expire_all()
+    return list(
+        db.execute(
+            select(activity_models.Activity.id)
+            .where(activity_models.Activity.id.in_(activity_ids))
+            .order_by(activity_models.Activity.start_time)
+        ).scalars()
+    )

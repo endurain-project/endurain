@@ -180,7 +180,7 @@ Recurring jobs are declared by each module and run by the scheduler of the API p
 | Request a thumbnail backfill | 60 min | yes | Net for thumbnail generation; a subscriber renders up to 200 missing thumbnails. Requests made in the same hour, by the tick or by replicas starting, share one pass |
 | Reconcile the thumbnail storage | 24 h | yes | Net for thumbnail cleanup: removes thumbnails whose activity is gone and clears the reference of an activity whose thumbnail is missing, so the next backfill pass renders it again |
 | Backfill missing locations | 60 min | yes | Net for reverse geocoding |
-| Remove retained activity files nothing references | 24 h | yes | Net for file cleanup. A database query moves crashed uploads (`pending` over a day), files no activity references and failed deletions to `deleting`, then deletes each blob and row; it lists no storage. A second pass lists the `processed/` files stored before v0.22 |
+| Remove retained activity files nothing references | 24 h | yes | Net for file cleanup. A database query moves crashed uploads (`pending` over a day), files no activity references and failed deletions to `deleting`, then deletes each blob and row; it lists no storage. A second pass lists the `processed/` files stored before v0.22 and deletes those no file row names whose activity is gone or already has a file row of its own |
 | Remove orphaned activity photos | 24 h | yes | Net for photo cleanup |
 | Remove activity deletion records past their retention | 24 h | yes | Retention |
 | Queue a provider refresh for every user with Strava or Garmin linked | 60 min | yes | Fan-out, one job per user |
@@ -244,7 +244,7 @@ Each section says what triggers the work, what happens locally and when distribu
 | Distributed | Durable job. A storage failure raises, so the runner retries; the retry finishes the removal |
 | If dropped | The daily sweep finds the unreferenced file or the `deleting` row in the database and removes it |
 
-A file stored before v0.22 has no row: its event carries no file, and the handler deletes `processed/<activity id>` by the activity id, with the daily `processed/` listing as its net.
+A file stored before v0.22 has no row until the reprocess after the upgrade has visited its activity (it adopts the file where it is). Until then its event carries no file, and the handler deletes `processed/<activity id>` by the activity id, with the daily `processed/` listing as its net.
 
 ### Activity photos
 

@@ -91,6 +91,41 @@ def _legacy_samples_of(
     return converted
 
 
+def convert_legacy_streams(activity_id: uuid.UUID, db: Session) -> bool:
+    """Stage the conversion of an activity's old waypoint streams to its samples row, and delete the old streams.
+
+    For an activity no reprocess rewrote, whose streams are all it has: no file, an unreadable one, or none that
+    holds its session. The activity is locked first, so a recompute that stores samples at the same time is waited
+    for, and an activity that already has samples only loses its old streams. Streams that hold no sample are deleted
+    too, as a read of them yields nothing. The activity takes the first positioned sample as its start point when it
+    has none, which is what the thumbnail and location backfills look for. The caller commits.
+
+    Args:
+        activity_id: ID of the activity.
+        db: Database session.
+
+    Returns:
+        ``True`` when the activity had old streams and they were deleted.
+    """
+    if not activity_integration.lock_activity(activity_id, db):
+        return False
+    streams = activity_streams_crud.get_activity_streams(activity_id, db)
+    if not streams:
+        return False
+    activity = activity_integration.get_activity(activity_id, db)
+    if activity is not None and activity.start_time is not None:
+        samples = activity_streams_crud.get_activity_samples(activity_id, db)
+        if samples is None:
+            samples = activity_streams_samples.samples_from_streams(streams, activity.start_time)
+            if samples is not None:
+                activity_streams_crud.create_activity_samples(activity_id, samples, db)
+        start = None if samples is None else _route_of(samples.latitude, samples.longitude)[:1]
+        if start:
+            activity_integration.set_start_point(activity_id, start[0][0], start[0][1], db)
+    activity_streams_crud.delete_activity_streams(activity_id, db)
+    return True
+
+
 def _samples_for_activities(
     activity_ids: list[uuid.UUID], db: Session
 ) -> dict[uuid.UUID, activity_streams_contracts.ParsedSamples]:

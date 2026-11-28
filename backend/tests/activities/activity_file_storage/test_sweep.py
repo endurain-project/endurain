@@ -6,8 +6,10 @@ from unittest.mock import patch
 
 import pytest
 from jasil.providers import StorageBackendUnavailableError
-from sqlalchemy import select, text
+from sqlalchemy import delete, select, text
 
+import modules.activities.activity.integration_service as activity_integration
+import modules.activities.activity.models as activity_models
 import modules.activities.activity_file_storage.constants as activity_file_storage_constants
 import modules.activities.activity_file_storage.integration_service as file_storage
 import modules.activities.activity_file_storage.models as file_models
@@ -158,8 +160,9 @@ class TestLegacyFiles:
     ):
         with committed_sessions() as db:
             alive = make_activity(db, user.id)
+            holder = make_activity(db, user.id)
             db.commit()
-        with_row = retain_file(user.id, alive.id, b"row", storage)
+        with_row = retain_file(user.id, holder.id, b"row", storage)
         orphan = uuid.uuid4()
         store_legacy_file(alive.id, b"alive", storage)
         store_legacy_file(orphan, b"orphan", storage)
@@ -175,3 +178,82 @@ class TestLegacyFiles:
         assert file_storage.read_file(recent, None, storage) is not None, "its activity row may not have committed"
         assert storage.get(AREA, f"files/{with_row}.fit") == b"row"
         assert storage.get(AREA, "upload_staging/staged.fit") == b"staged"
+
+
+class TestAdoptedLegacyFiles:
+    """A file adopted at its ``processed/`` key is named by its row, whichever activity the key carries."""
+
+    @staticmethod
+    def _adopt_for_two(committed_sessions, user_id: uuid.UUID, data: bytes):
+        """Adopt one legacy blob for two activities of a user, under the key of the first."""
+        with committed_sessions() as db:
+            owner_of_key = make_activity(db, user_id)
+            sharer = make_activity(db, user_id, start_time=owner_of_key.start_time.replace(day=2))
+            db.commit()
+        with committed_sessions() as db:
+            staged = file_storage.stage_adoption(owner_of_key.id, user_id, _sha(data), ".fit", len(data), db)
+            for activity_id in (owner_of_key.id, sharer.id):
+                assert activity_integration.set_file_id(activity_id, staged.ref.file_id, db)
+            file_storage.mark_attached(staged.ref.file_id, db)
+            db.commit()
+        return owner_of_key.id, sharer.id, staged.ref
+
+    def test_the_blob_a_row_names_survives_the_deletion_of_the_activity_its_key_carries(
+        self, storage, committed_sessions, user, tmp_path
+    ):
+        data = b"shared bytes"
+        owner_of_key, sharer, ref = self._adopt_for_two(committed_sessions, user.id, data)
+        store_legacy_file(owner_of_key, data, storage)
+        with committed_sessions() as db:
+            db.execute(delete(activity_models.Activity).where(activity_models.Activity.id == owner_of_key))
+            db.commit()
+        age_stored_objects(tmp_path, 2 * 3600)
+
+        file_jobs.sweep_orphaned_activity_files()
+
+        assert ref.storage_key == f"processed/{owner_of_key}.fit"
+        assert storage.get(AREA, ref.storage_key) == data
+        assert file_storage.read_file(sharer, ref, storage) == (".fit", data)
+
+    def test_the_stray_blob_of_a_leg_is_deleted_because_its_file_is_kept_under_its_multisport_activity(
+        self, storage, committed_sessions, user, tmp_path
+    ):
+        # A regroup that crashed after its commit leaves the leg's old copy behind; a leg never has a file of its own.
+        with committed_sessions() as db:
+            parent = make_activity(db, user.id)
+            leg = make_activity(db, user.id, parent_activity_id=parent.id)
+            db.commit()
+        store_legacy_file(leg.id, b"leg copy", storage)
+        age_stored_objects(tmp_path, 2 * 3600)
+
+        file_jobs.sweep_orphaned_activity_files()
+
+        assert storage.get(AREA, f"processed/{leg.id}.fit") is None
+
+    def test_the_blob_of_a_standalone_activity_not_yet_adopted_is_kept(
+        self, storage, committed_sessions, user, tmp_path
+    ):
+        with committed_sessions() as db:
+            waiting = make_activity(db, user.id)
+            db.commit()
+        store_legacy_file(waiting.id, b"not yet adopted", storage)
+        age_stored_objects(tmp_path, 2 * 3600)
+
+        file_jobs.sweep_orphaned_activity_files()
+
+        assert storage.get(AREA, f"processed/{waiting.id}.fit") == b"not yet adopted"
+
+    def test_the_blob_of_an_activity_with_a_row_of_its_own_is_deleted_when_no_row_names_it(
+        self, storage, committed_sessions, user, tmp_path
+    ):
+        with committed_sessions() as db:
+            adopted = make_activity(db, user.id)
+            db.commit()
+        row = retain_file(user.id, adopted.id, b"row", storage)
+        store_legacy_file(adopted.id, b"left over", storage)
+        age_stored_objects(tmp_path, 2 * 3600)
+
+        file_jobs.sweep_orphaned_activity_files()
+
+        assert storage.get(AREA, f"processed/{adopted.id}.fit") is None
+        assert storage.get(AREA, f"files/{row}.fit") == b"row"

@@ -22,7 +22,13 @@ _State = activity_file_storage_constants.ActivityFileState
 
 
 def take_live_file(
-    user_id: uuid.UUID, sha256: str, extension: str, size_bytes: int, db: Session
+    user_id: uuid.UUID,
+    sha256: str,
+    extension: str,
+    size_bytes: int,
+    db: Session,
+    *,
+    storage_key: str | None = None,
 ) -> tuple[activity_file_storage_contracts.ActivityFileRef, str, bool]:
     """Stage a ``pending`` row for the user's bytes, or take the live row the same bytes already have.
 
@@ -35,6 +41,8 @@ def take_live_file(
         extension: The file's extension.
         size_bytes: The file's size.
         db: Database session.
+        storage_key: The key of a blob that already exists, for a file stored before rows; ``None`` for a blob
+            this row's upload is about to write under ``files/{id}``.
 
     Returns:
         The row's reference, its state before this call took it, and whether this call created it.
@@ -46,7 +54,7 @@ def take_live_file(
             id=file_id,
             user_id=user_id,
             sha256=sha256,
-            storage_key=activity_file_storage_files.file_key(file_id, extension),
+            storage_key=storage_key or activity_file_storage_files.file_key(file_id, extension),
             extension=activity_file_storage_files.normalize_extension(extension),
             size_bytes=size_bytes,
             state=_State.PENDING,
@@ -61,6 +69,21 @@ def take_live_file(
     row = db.execute(stmt).scalar_one()
     db.flush()
     return activity_file_storage_serializers.to_ref(row), row.state, row.id == file_id
+
+
+def get_named_keys(keys: Sequence[str], db: Session) -> set[str]:
+    """Return which of the given storage keys a file row names, in any state.
+
+    Args:
+        keys: Storage keys.
+        db: Database session.
+
+    Returns:
+        The subset some row names.
+    """
+    if not keys:
+        return set()
+    return set(db.scalars(select(_Model.storage_key).where(_Model.storage_key.in_(keys))).all())
 
 
 def mark_attached(file_id: uuid.UUID, db: Session) -> bool:

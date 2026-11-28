@@ -1,6 +1,5 @@
 """Reprocessing one activity in place from its retained file: what it recomputes, what it must never touch."""
 
-import dataclasses
 import hashlib
 import json
 import uuid
@@ -45,6 +44,8 @@ from tests._factories.reprocess import (
     TRIATHLON,
     degrade,
     import_fixture,
+    import_legacy_legs,
+    start_ordered,
 )
 from tests._factories.users import audit_rows_of, make_user
 
@@ -134,38 +135,6 @@ def published(monkeypatch) -> MagicMock:
     spy = MagicMock()
     monkeypatch.setattr(platform_publisher, "publish_on_commit", spy)
     return spy
-
-
-def _import_legacy_legs(
-    db: Session, user_id: uuid.UUID, source: Path, tmp_path: Path, storage, monkeypatch
-) -> list[uuid.UUID]:
-    """Import a multi-session file the way it was stored before groups: one activity and one file copy per session."""
-    real = pipeline_service.parse_file
-
-    def without_a_parent(*args, **kwargs):
-        return dataclasses.replace(real(*args, **kwargs), parent=None)
-
-    with monkeypatch.context() as patch:
-        patch.setattr(pipeline_service, "parse_file", without_a_parent)
-        activity_ids = import_fixture(db, user_id, source, tmp_path, storage)
-    _store_as_legacy_files(db, activity_ids, storage)
-    return activity_ids
-
-
-def _store_as_legacy_files(db: Session, activity_ids: list[uuid.UUID], storage) -> None:
-    """Move the files of activities to the layout used before file rows: one copy per activity, no row."""
-    copies = {activity_id: retained_file(activity_id, storage) for activity_id in activity_ids}
-    refs = list(_file_rows(db))
-    for activity_id, copy in copies.items():
-        assert copy is not None
-        store_legacy_file(activity_id, copy[1], storage, extension=copy[0])
-    db.execute(
-        update(activity_models.Activity).where(activity_models.Activity.id.in_(activity_ids)).values(file_id=None)
-    )
-    db.execute(delete(file_models.ActivityFile))
-    db.commit()
-    for ref in refs:
-        storage.delete(file_storage_constants.ACTIVITY_FILE_STORAGE_AREA, ref.storage_key)
 
 
 def _file_rows(db: Session) -> list[file_models.ActivityFile]:
@@ -616,7 +585,7 @@ class TestAMultiSessionFile:
     def test_a_legacy_leg_whose_siblings_are_missing_is_reprocessed_alone_from_its_session(
         self, db, owner, other, storage, tmp_path, monkeypatch
     ):
-        legacy = _import_legacy_legs(db, owner.id, TRIATHLON, tmp_path, storage, monkeypatch)
+        legacy = import_legacy_legs(db, owner.id, TRIATHLON, tmp_path, storage, monkeypatch)
         [parent_id] = import_fixture(db, other.id, TRIATHLON, tmp_path, storage)
         db.expire_all()
         legs = (
@@ -724,18 +693,6 @@ _VISIBILITY = activity_constants.ActivityVisibility
 _HIDE_FLAGS = ("hide_hr", "hide_map", "hide_gear")
 
 
-def _start_ordered(db: Session, activity_ids: list[uuid.UUID]) -> list[uuid.UUID]:
-    """Return the activities in start order."""
-    db.expire_all()
-    return list(
-        db.execute(
-            select(activity_models.Activity.id)
-            .where(activity_models.Activity.id.in_(activity_ids))
-            .order_by(activity_models.Activity.start_time)
-        ).scalars()
-    )
-
-
 def _legs_of(db: Session, parent_id: uuid.UUID) -> list[uuid.UUID]:
     """Return a parent's legs in start order."""
     db.expire_all()
@@ -750,7 +707,7 @@ def _legs_of(db: Session, parent_id: uuid.UUID) -> list[uuid.UUID]:
 
 def _legacy_group(db: Session, user_id: uuid.UUID, tmp_path: Path, storage, monkeypatch) -> list[uuid.UUID]:
     """Return the five legacy legs of the triathlon, in start order."""
-    return _start_ordered(db, _import_legacy_legs(db, user_id, TRIATHLON, tmp_path, storage, monkeypatch))
+    return start_ordered(db, import_legacy_legs(db, user_id, TRIATHLON, tmp_path, storage, monkeypatch))
 
 
 def _parent_of(db: Session, leg_id: uuid.UUID) -> uuid.UUID | None:
@@ -1008,7 +965,9 @@ class TestRegroupingLegacyLegs:
         outcome = migration_service.reprocess_activity(legs[0], storage)
 
         assert outcome is migration_service.ReprocessOutcome.REPROCESSED
-        assert _file_rows(db) == []
+        # No parent row was left; the leg that was reprocessed alone adopted its own file instead.
+        [row] = _file_rows(db)
+        assert row.storage_key == f"processed/{legs[0]}.fit"
         assert list(storage.list_keys(file_storage_constants.ACTIVITY_FILE_STORAGE_AREA, "files/")) == []
         assert all(retained_file(leg, storage) is not None for leg in legs)
 

@@ -400,6 +400,58 @@ def replace_file_id(
     return activity_crud.replace_file_id(activity_id, expected_file_id, file_id, db)
 
 
+def lock_user_matching(user_id: uuid.UUID, db: Session) -> None:
+    """Take the owner's matching lock until the transaction ends.
+
+    A change to an activity's file or sources then waits for an import that is matching, and the other way round.
+
+    Args:
+        user_id: The owner.
+        db: Database session, in the transaction that changes the activity.
+    """
+    activity_source_crud.lock_user_matching(user_id, db)
+
+
+def set_file_source_precedence(activity_id: uuid.UUID, file_sha256: str, precedence: int, db: Session) -> None:
+    """Stage the precedence of an activity's file source of the given content; the caller commits.
+
+    Args:
+        activity_id: The activity.
+        file_sha256: Hex SHA-256 of the file the source identifies.
+        precedence: The precedence to store.
+        db: Database session.
+    """
+    activity_source_crud.set_file_source_precedence(activity_id, file_sha256, precedence, db)
+
+
+def set_start_point(activity_id: uuid.UUID, latitude: float, longitude: float, db: Session) -> bool:
+    """Stage the start point of an activity that has none; the caller commits.
+
+    Args:
+        activity_id: The activity.
+        latitude: Latitude in degrees.
+        longitude: Longitude in degrees.
+        db: Database session.
+
+    Returns:
+        ``True`` when the activity had no start point and took this one.
+    """
+    return activity_crud.set_start_point(activity_id, latitude, longitude, db)
+
+
+def lock_activity(activity_id: uuid.UUID, db: Session) -> bool:
+    """Lock an activity row until the transaction ends, so a recompute or reprocess of it waits.
+
+    Args:
+        activity_id: The activity.
+        db: Database session.
+
+    Returns:
+        ``True`` when the activity exists.
+    """
+    return activity_crud.lock_file_id(activity_id, db)[0]
+
+
 def is_live_strava_activity(activity_id: uuid.UUID, db: Session) -> bool:
     """Return whether an activity's only sources are Strava's.
 
@@ -933,6 +985,21 @@ def filter_existing_activity_ids(activity_ids: Sequence[uuid.UUID], db: Session)
         The subset of ``activity_ids`` that exist.
     """
     return activity_crud.get_existing_activity_ids(activity_ids, db)
+
+
+def filter_unadopted_activity_ids(activity_ids: Sequence[uuid.UUID], db: Session) -> set[uuid.UUID]:
+    """Return which of the given activities still keep their file under their own id: top-level and with no file row.
+
+    Used by the ``processed/`` sweep to keep the file of an activity the reprocess walk has not adopted yet.
+
+    Args:
+        activity_ids: The IDs to look up.
+        db: Database session.
+
+    Returns:
+        The subset of ``activity_ids`` that exist, are not a leg and reference no file row.
+    """
+    return activity_crud.get_unadopted_activity_ids(activity_ids, db)
 
 
 def get_file_ids(activity_ids: Sequence[uuid.UUID], db: Session) -> dict[uuid.UUID, uuid.UUID]:

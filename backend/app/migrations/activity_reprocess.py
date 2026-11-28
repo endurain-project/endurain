@@ -10,10 +10,17 @@ transaction: a reprocessed activity is stamped by the reprocess itself, any othe
 session, an unreadable file, an unexpected failure) is stamped here so it is not listed again. The migration is marked
 executed only when nothing is left below the version, so a walk that stops, in a pass or in a crash, resumes from what
 is left. A pass runs under a distributed lock, so two never run at once.
+
+It also leaves no visited activity in the storage layout of an earlier release. An activity's file stored before file
+rows existed is adopted into an ``activity_files`` row at the key it has, whatever the file yields, and its file
+source takes the precedence of the file's format. An activity the reprocess did not rewrite, because it has no file
+(a Strava activity), none that can be read or none that holds its session, has its old waypoint streams converted to
+samples and deleted. The code that still reads those layouts is removed in the release after this migration has run.
 """
 
 import time
 import uuid
+from dataclasses import dataclass
 from datetime import UTC
 
 import jasil.event_versioning as platform_event_versioning
@@ -75,19 +82,35 @@ def _is_outage(err: Exception) -> bool:
     ) or jasil_orm.is_database_unavailable(err)
 
 
-def _settle(activity_id: uuid.UUID, storage: platform_providers.StorageProvider) -> bool:
-    """Reprocess one activity, and stamp it when the reprocess did not.
+@dataclass(frozen=True)
+class _Settled:
+    """What visiting one activity did.
+
+    Attributes:
+        reprocessed: The activity was recomputed from its file.
+        converted: Old streams were converted to samples.
+        failed: An unexpected failure left the activity as it was, with its old layout where it had one.
+    """
+
+    reprocessed: bool
+    converted: bool
+    failed: bool
+
+
+def _settle(activity_id: uuid.UUID, storage: platform_providers.StorageProvider) -> _Settled:
+    """Reprocess one activity, convert its old streams when the reprocess did not rewrite them, and stamp it.
 
     Args:
         activity_id: The activity to settle.
         storage: The blob-storage provider the activity's file is retained in.
 
     Returns:
-        True when the activity was reprocessed.
+        What was done.
 
     Raises:
         Exception: An outage of storage, the database or a service, so the pass is retried with the activity unstamped.
     """
+    failed = converted = False
     try:
         outcome = activity_ingestion_migration.reprocess_activity(activity_id, storage)
     except Exception as err:
@@ -99,10 +122,25 @@ def _settle(activity_id: uuid.UUID, storage: platform_providers.StorageProvider)
             extra=core_logger.context(activity_id=activity_id),
         )
         outcome = None
+        failed = True
+    reprocessed = outcome is activity_ingestion_migration.ReprocessOutcome.REPROCESSED
+    if not reprocessed:
+        # The reprocess clears the old streams of an activity it rewrites; any other has them as its only data.
+        try:
+            converted = activity_ingestion_migration.convert_legacy_streams(activity_id)
+        except Exception as err:
+            if _is_outage(err):
+                raise
+            logger.error(
+                "Could not convert the streams of an activity; they are kept and not retried",
+                exc_info=err,
+                extra=core_logger.context(activity_id=activity_id),
+            )
+            failed = True
     # Stamped whatever the outcome, so an activity is never listed again and the walk always ends; a no-op on one
     # the reprocess already stamped.
     activity_ingestion_migration.mark_reprocess_visited(activity_id)
-    return outcome is activity_ingestion_migration.ReprocessOutcome.REPROCESSED
+    return _Settled(reprocessed, converted, failed)
 
 
 def _mark_executed() -> None:
@@ -130,21 +168,29 @@ def run_batch(storage: platform_providers.StorageProvider, time_budget: float | 
         Exception: An outage of storage, the database or a service; the activity it hit is left unstamped.
     """
     deadline = None if time_budget is None else time.monotonic() + time_budget
-    reprocessed = skipped = 0
+    reprocessed = skipped = converted = failed = 0
     while True:
         activity_ids = activity_ingestion_migration.list_activities_to_reprocess(_BATCH_SIZE)
         if not activity_ids:
             _mark_executed()
             logger.info(
                 "Activity reprocess finished",
-                extra=core_logger.context(reprocessed=reprocessed, skipped=skipped, migration=MIGRATION_ID),
+                extra=core_logger.context(
+                    reprocessed=reprocessed, skipped=skipped, converted=converted, failed=failed, migration=MIGRATION_ID
+                ),
             )
+            if failed:
+                logger.error(
+                    "Activity reprocess finished with activities that kept data in the layout of an earlier release",
+                    extra=core_logger.context(failed=failed, migration=MIGRATION_ID),
+                )
             return False
         for activity_id in activity_ids:
-            if _settle(activity_id, storage):
-                reprocessed += 1
-            else:
-                skipped += 1
+            settled = _settle(activity_id, storage)
+            reprocessed += settled.reprocessed
+            skipped += not settled.reprocessed
+            converted += settled.converted
+            failed += settled.failed
             if deadline is not None and time.monotonic() >= deadline:
                 logger.debug(
                     "Activity reprocess pass ended with activities left",

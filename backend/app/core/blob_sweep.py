@@ -117,6 +117,7 @@ def sweep_unreferenced_blobs(
     area: str,
     referenced_keys: Callable[[list[str], Session], set[str]],
     *,
+    prefix: str = "",
     min_age_seconds: int = MIN_AGE_SECONDS,
 ) -> int:
     """Delete blobs in ``area`` that no row names.
@@ -125,13 +126,14 @@ def sweep_unreferenced_blobs(
         storage: The blob-storage provider.
         area: The storage area to scan.
         referenced_keys: Returns which of the given keys a row still names, given a session.
+        prefix: Restricts the scan to one key root inside the area.
         min_age_seconds: Skip blobs modified more recently than this.
 
     Returns:
         The number of blobs deleted.
     """
     cutoff = time() - min_age_seconds
-    old_keys = (key for key, modified in storage.iter_objects(area, "") if modified <= cutoff)
+    old_keys = (key for key, modified in storage.iter_objects(area, prefix) if modified <= cutoff)
     removed = 0
     for batch in batched(old_keys, _BATCH_SIZE, strict=False):
         with core_database.SessionLocal() as db:

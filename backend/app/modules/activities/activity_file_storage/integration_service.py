@@ -46,6 +46,47 @@ def stage_file(
     return activity_file_storage_service.stage_file(user_id, sha256, extension, data, storage)
 
 
+def stage_adoption(
+    activity_id: uuid.UUID, user_id: uuid.UUID, sha256: str, extension: str, size_bytes: int, db: Session
+) -> activity_file_storage_contracts.StagedFile:
+    """Stage the row for the file an activity stored before rows existed, which stays at the key it has.
+
+    The caller sets ``file_id``, marks the row attached and commits in one transaction, then calls
+    :func:`settle_adopted_file`. Bytes the user already retained share the existing row.
+
+    Args:
+        activity_id: The activity whose legacy file is adopted.
+        user_id: The owner.
+        sha256: Hex SHA-256 of the file.
+        extension: The file's extension.
+        size_bytes: The file's size.
+        db: Database session.
+
+    Returns:
+        The file, and whether this call created its row.
+    """
+    return activity_file_storage_service.stage_adoption(activity_id, user_id, sha256, extension, size_bytes, db)
+
+
+def settle_adopted_file(
+    activity_id: uuid.UUID,
+    staged: activity_file_storage_contracts.StagedFile,
+    data: bytes,
+    storage: platform_providers.StorageProvider,
+) -> None:
+    """Remove the activity's own legacy blob when its adoption shared another's row, after the commit.
+
+    Opens no session; raises on a storage failure, and the sweep of ``processed/`` removes what is left.
+
+    Args:
+        activity_id: The adopted activity.
+        staged: What :func:`stage_adoption` returned.
+        data: The file's bytes.
+        storage: The blob-storage provider.
+    """
+    activity_file_storage_service.settle_adopted_file(activity_id, staged, data, storage)
+
+
 def mark_attached(file_id: uuid.UUID, db: Session) -> None:
     """Stage a file row as referenced by the activity the caller stores in the same transaction.
 

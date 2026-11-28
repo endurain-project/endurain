@@ -761,8 +761,11 @@ one pattern. Recorded here so a review does not reopen them.
   and the `activity.deleted` subscriber removes a file no activity references any more. The package stays above the
   activity core: the core holds only the opaque `activities.file_id` (a foreign key declared by string, never read as
   a file) and never imports the package, so the pipeline, which sits above both, stages and attaches. A file stored
-  before rows existed has no `file_id` and is still addressed by activity id (`processed/{activity id}`); the
-  subscriber, the reader and the `processed/` listing sweep keep that path until those files are adopted.
+  before rows existed has no `file_id` and is still addressed by activity id (`processed/{activity id}`) until the
+  reprocess data migration adopts it into a row that keeps that key; the subscriber, the reader and the `processed/`
+  listing sweep keep that path until the release after the migration has run. The sweep keeps a `processed/` blob
+  that a row names or whose activity has no file row, whichever activity the key carries, because activities of the
+  same bytes share the row of the first one adopted.
 - **The `activity` core owns `activity_sources`.** One row per source an activity came from (a Strava or Garmin
   activity id, or a file's SHA-256), unique per user, in `activity/models.py` with `source_crud.py` beside the
   activity's own crud. The core owns it rather than a peer because the core's access rule (live Strava data is

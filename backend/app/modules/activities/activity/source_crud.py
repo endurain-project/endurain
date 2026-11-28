@@ -10,6 +10,7 @@ from datetime import datetime
 
 from sqlalchemy import ColumnElement, func, select, text
 from sqlalchemy import delete as sa_delete
+from sqlalchemy import update as sa_update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 
@@ -250,6 +251,27 @@ def lock_user_matching(user_id: uuid.UUID, db: Session) -> None:
         text("SELECT pg_advisory_xact_lock(hashtextextended('activity_match:' || :user_id, 0))"),
         {"user_id": str(user_id)},
     )
+
+
+def set_file_source_precedence(activity_id: uuid.UUID, file_sha256: str, precedence: int, db: Session) -> None:
+    """Stage the precedence of an activity's file source of the given content.
+
+    Args:
+        activity_id: The activity.
+        file_sha256: Hex SHA-256 of the file the source identifies.
+        precedence: The precedence the file's format earns.
+        db: Database session; the caller commits.
+    """
+    db.execute(
+        sa_update(activity_models.ActivitySource)
+        .where(
+            activity_models.ActivitySource.activity_id == activity_id,
+            activity_models.ActivitySource.kind == activity_constants.SOURCE_KIND_FILE,
+            activity_models.ActivitySource.file_sha256 == file_sha256,
+        )
+        .values(precedence=precedence)
+    )
+    db.flush()
 
 
 def best_precedences(activity_ids: Sequence[uuid.UUID], db: Session) -> dict[uuid.UUID, int]:

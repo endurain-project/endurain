@@ -200,6 +200,7 @@ def _write_regrouped(
     work: Sequence[activity_ingestion_recompute_service.Work],
     file_work: Sequence[tuple[activities_contributors.FileIngestionContributor, object]],
     file_id: uuid.UUID,
+    source: activity_contracts.ImportSource,
 ) -> uuid.UUID | None:
     """Write the new parent, its adopted legs and their reprocessed values in one transaction.
 
@@ -209,6 +210,8 @@ def _write_regrouped(
         work: The stored legs and what the file yields for each, in start order.
         file_work: The file-scoped contributors with their data.
         file_id: The retained file row the parent references, attached in the same transaction.
+        source: The parent's source, whose hash is the file's and whose precedence is its format's; each leg's file
+            source of that file takes the precedence.
 
     Returns:
         The new parent's ID when committed, ``None`` when nothing was written because a leg is gone or no longer
@@ -223,6 +226,11 @@ def _write_regrouped(
             db.rollback()
             return None
         activity_file_storage_integration.mark_attached(file_id, db)
+        if source.content_hash is not None:
+            for item in work:
+                activity_integration.set_file_source_precedence(
+                    item.activity_id, source.content_hash, source.precedence, db
+                )
         for contributor, data in parent_components:
             contributor.persist(data, staged, db)
         if not activity_ingestion_recompute_service.stage(work, file_work, _apply_reprocess, db):
@@ -347,7 +355,7 @@ def _regroup(
     staged_file = activity_file_storage_integration.stage_file(target.user_id, content_hash, extension, data, storage)
     try:
         written = _write_regrouped(
-            parent_id, dataclasses.replace(parent, source=source), work, file_work, staged_file.ref.file_id
+            parent_id, dataclasses.replace(parent, source=source), work, file_work, staged_file.ref.file_id, source
         )
     except BaseException:
         if staged_file.created:
@@ -370,15 +378,88 @@ def _regroup(
     return ReprocessOutcome.REPROCESSED
 
 
+def _adopt(
+    activity_id: uuid.UUID,
+    target: _Target,
+    extension: str,
+    data: bytes,
+    storage: platform_providers.StorageProvider,
+) -> activity_file_storage_contracts.ActivityFileRef | None:
+    """Adopt the file an activity stored before file rows existed, at the key it already has.
+
+    One transaction under the owner's matching lock, so an import that is matching sees the activity either without
+    the row or with it, never a recompute refused halfway: the row (the user's live row of the same bytes when there
+    is one), the activity's reference to it, the precedence of the activity's file source from the file's format and,
+    for an activity with no source, the file's. Then, with no session open, the activity's own blob is resolved: the
+    row names it, or names the blob of the same bytes that came first and this one is deleted.
+
+    Args:
+        activity_id: The activity.
+        target: What is known of it.
+        extension: The file's extension.
+        data: The file's bytes.
+        storage: The blob-storage provider.
+
+    Returns:
+        The file row the activity references now, or ``None`` when it was deleted or took a file row meanwhile.
+    """
+    sha256 = hashlib.sha256(data).hexdigest()
+    with core_database.SessionLocal() as db:
+        activity_integration.lock_user_matching(target.user_id, db)
+        staged = activity_file_storage_integration.stage_adoption(
+            activity_id, target.user_id, sha256, extension, len(data), db
+        )
+        if not activity_integration.set_file_id(activity_id, staged.ref.file_id, db):
+            db.rollback()
+            return None
+        activity_file_storage_integration.mark_attached(staged.ref.file_id, db)
+        activity_integration.set_file_source_precedence(
+            activity_id, sha256, activity_constants.file_source_precedence(extension), db
+        )
+        activity_integration.add_restored_file_source(activity_id, extension, sha256, db)
+        db.commit()
+    activity_file_storage_integration.settle_adopted_file(activity_id, staged, data, storage)
+    logger.debug(
+        "Adopted the retained file of an activity",
+        extra=core_logger.context(activity_id=activity_id, file_id=staged.ref.file_id, shared=not staged.created),
+    )
+    return staged.ref
+
+
+def _refused(activity_id: uuid.UUID, target: _Target, err: core_exceptions.DomainError) -> ReprocessOutcome:
+    """Log a file the analysis refused and say so.
+
+    Args:
+        activity_id: The activity.
+        target: What is known of it.
+        err: The refusal.
+
+    Returns:
+        ``FAILED``.
+    """
+    logger.warning(
+        "Could not reprocess an activity: its retained file was refused",
+        exc_info=err,
+        extra=core_logger.context(activity_id=activity_id, user_id=target.user_id),
+    )
+    return ReprocessOutcome.FAILED
+
+
 def reprocess_activity(activity_id: uuid.UUID, storage: platform_providers.StorageProvider) -> ReprocessOutcome:
     """Recompute one activity from its retained file and write it over the stored values.
+
+    An activity whose file has no row yet is adopted first (see :func:`_adopt`), unless the file regroups its legs
+    under a parent, which keeps the file in a row of its own. Adoption is independent of what the file yields: a
+    file that cannot be parsed, or holds no session for the activity, is adopted all the same. It commits before the
+    write, which then expects the adopted row, so the write is not refused by the reference adoption just set. A leg
+    never takes a file: its parent keeps it.
 
     Args:
         activity_id: The activity to reprocess.
         storage: The blob-storage provider the source file is retained in.
 
     Returns:
-        What was done; for anything but ``REPROCESSED`` nothing was written.
+        What was done; for anything but ``REPROCESSED`` no derived value was written.
     """
     target = _read_target(activity_id)
     stored_file = (
@@ -391,27 +472,40 @@ def reprocess_activity(activity_id: uuid.UUID, storage: platform_providers.Stora
         return ReprocessOutcome.NO_FILE
     extension, data = stored_file
 
+    parsed_file = None
+    refusal: core_exceptions.DomainError | None = None
     try:
         parsed_file = _parse(target, extension, data)
         if parsed_file is not None and parsed_file.parent is not None and not target.legs and not target.is_leg:
             regrouped = _regroup(activity_id, target, parsed_file, parsed_file.parent, extension, data, storage)
             if regrouped is not None:
                 return regrouped
+    except core_exceptions.DomainError as err:
+        refusal = err
+
+    file = target.file
+    if file is None and not target.is_leg:
+        file = _adopt(activity_id, target, extension, data, storage)
+        if file is None:
+            logger.debug(
+                "Nothing was adopted: the activity was deleted or took a file meanwhile",
+                extra=core_logger.context(activity_id=activity_id, user_id=target.user_id),
+            )
+            return ReprocessOutcome.NO_FILE
+    if refusal is not None:
+        return _refused(activity_id, target, refusal)
+
+    try:
         pairs = None if parsed_file is None else _match(activity_id, target, parsed_file)
         plan = (
             None
             if pairs is None or parsed_file is None
             else activity_ingestion_recompute_service.plan(
-                pairs, parsed_file, {activity_id: target.file.file_id if target.file is not None else None}
+                pairs, parsed_file, {activity_id: file.file_id if file is not None else None}
             )
         )
     except core_exceptions.DomainError as err:
-        logger.warning(
-            "Could not reprocess an activity: its retained file was refused",
-            exc_info=err,
-            extra=core_logger.context(activity_id=activity_id, user_id=target.user_id),
-        )
-        return ReprocessOutcome.FAILED
+        return _refused(activity_id, target, err)
     if plan is None:
         logger.warning(
             "Could not reprocess an activity: its file has no session that starts where it does",

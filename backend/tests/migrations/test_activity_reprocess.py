@@ -31,6 +31,8 @@ import modules.activities.activity_file_storage.constants as file_storage_consta
 import modules.activities.activity_file_storage.integration_service as file_storage
 import modules.activities.activity_ingestion.migration_service as ingestion_migration
 import modules.activities.activity_laps.models as lap_models
+import modules.activities.activity_streams.constants as stream_constants
+import modules.activities.activity_streams.models as stream_models
 import modules.activities.computation as activities_computation
 from tests._factories.activities import make_activity
 from tests._factories.reprocess import BOGUS_DERIVED, OLD, RUN, STRENGTH, degrade, import_fixture
@@ -212,6 +214,48 @@ class TestRunningABatch:
         [record] = [r for r in _logged(caplog, bad) if r.levelname == "ERROR"]
         assert record.exc_info is not None
         assert _executed(db)
+
+    def test_a_strava_activity_has_its_old_streams_converted_and_the_summary_counts_it(self, db, storage, caplog):
+        user = make_user(db)
+        strava = make_activity(db, user.id, start_time=OLD, strava_activity_id=1234)
+        db.commit()
+        db.add(
+            stream_models.ActivityStreams(
+                activity_id=strava.id,
+                stream_type=stream_constants.STREAM_TYPE_MAP,
+                stream_waypoints=[{"time": 0, "lat": 38.7, "lon": -9.1}, {"time": 1, "lat": 38.8, "lon": -9.1}],
+            )
+        )
+        db.commit()
+
+        with caplog.at_level("INFO"):
+            reprocess_job.run_batch(storage, None)
+
+        db.expire_all()
+        assert db.get(stream_models.ActivitySamples, strava.id) is not None
+        assert db.scalars(sa.select(stream_models.ActivityStreams.id)).all() == []
+        assert (_row(db, strava.id).start_latitude, _row(db, strava.id).start_longitude) == (38.7, -9.1)
+        [summary] = [r for r in caplog.records if r.getMessage() == "Activity reprocess finished"]
+        assert (summary.converted, summary.failed) == (1, 0)
+
+    def test_a_failed_conversion_is_logged_once_in_the_summary_and_the_walk_still_ends(
+        self, db, storage, monkeypatch, caplog
+    ):
+        user = make_user(db)
+        strava = make_activity(db, user.id, start_time=OLD, strava_activity_id=1234)
+        db.commit()
+
+        def broken(_activity_id):
+            raise RuntimeError("bad waypoints")
+
+        monkeypatch.setattr(ingestion_migration, "convert_legacy_streams", broken)
+
+        assert reprocess_job.run_batch(storage, None) is False
+
+        assert _row(db, strava.id).analysis_version == _CURRENT
+        assert _executed(db)
+        [summary] = [r for r in caplog.records if r.levelname == "ERROR" and getattr(r, "failed", None) == 1]
+        assert not hasattr(summary, "activity_id")
 
     def test_an_activity_is_stamped_whatever_its_outcome_so_the_walk_always_ends(
         self, db, tmp_path, storage, monkeypatch

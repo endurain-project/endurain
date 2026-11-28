@@ -10,6 +10,7 @@ import jasil.providers as platform_providers
 import core.database as core_database
 import modules.activities.activity.integration_service as activity_integration
 import modules.activities.activity_ingestion.reprocess_service as activity_ingestion_reprocess_service
+import modules.activities.activity_streams.integration_service as activity_streams_integration
 import modules.activities.computation as activities_computation
 
 ReprocessOutcome = activity_ingestion_reprocess_service.ReprocessOutcome
@@ -21,9 +22,10 @@ ANALYSIS_VERSION = activities_computation.ANALYSIS_VERSION
 def reprocess_activity(activity_id: uuid.UUID, storage: platform_providers.StorageProvider) -> ReprocessOutcome:
     """Recompute one activity from its retained file and write it over the stored values.
 
-    Opens its own short sessions, so none is held while the file is read or parsed, and commits one transaction per
-    activity (a multisport activity with its legs). It publishes no event. An activity with no retained file, no
-    session that starts where it does, or an unreadable file is left exactly as it was.
+    Opens its own short sessions, so none is held while the file is read, parsed or adopted, and commits one transaction
+    per step: the adoption of a file stored before file rows, then the activity (a multisport activity with its legs).
+    It publishes no event. An activity with no retained file, no session that starts where it does, or an unreadable
+    file keeps its values, though its file, when it has one, is adopted.
 
     Args:
         activity_id: The activity to reprocess.
@@ -33,6 +35,23 @@ def reprocess_activity(activity_id: uuid.UUID, storage: platform_providers.Stora
         What was done.
     """
     return activity_ingestion_reprocess_service.reprocess_activity(activity_id, storage)
+
+
+def convert_legacy_streams(activity_id: uuid.UUID) -> bool:
+    """Convert the old waypoint streams of an activity the reprocess did not rewrite to its samples, and delete them.
+
+    Commits its own transaction.
+
+    Args:
+        activity_id: The activity.
+
+    Returns:
+        ``True`` when the activity had old streams.
+    """
+    with core_database.SessionLocal() as db:
+        converted = activity_streams_integration.convert_legacy_streams(activity_id, db)
+        db.commit()
+    return converted
 
 
 def list_activities_to_reprocess(limit: int) -> list[uuid.UUID]:

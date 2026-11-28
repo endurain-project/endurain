@@ -38,7 +38,7 @@ The blob store is `local://` by default, which means subfolders of `DATA_DIR` (`
 
 The activity data itself (route, streams, laps, heart rate and so on) is in the database. The original file is retained alongside it and is what a profile export includes. The database also holds one `activity_files` row per retained file (owner, content hash, storage key, size and state), which is how Endurain finds the file again. An activity from the same bytes, or the activities of one multi-activity file, share one file.
 
-On local storage every area is browsable under the `data` directory the image creates at start: `activity_files/files/<file id>.<ext>` (the id is a UUID; files imported before v0.22 stay at `activity_files/processed/<activity id>.<ext>`), `activity_media/`, `activity_thumbnails/`, `user_images/`, `server_images/`, the profile staging areas and `bulk_import_errors/`.
+On local storage every area is browsable under the `data` directory the image creates at start: `activity_files/files/<file id>.<ext>` (the id is a UUID; files imported before v0.22 stay at `activity_files/processed/<activity id>.<ext>`, where the first start after the upgrade gives each one a row without moving it; activities that hold the same bytes then share one of them and the other copies are deleted), `activity_media/`, `activity_thumbnails/`, `user_images/`, `server_images/`, the profile staging areas and `bulk_import_errors/`.
 
 ## What to back up
 

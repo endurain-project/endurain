@@ -960,6 +960,27 @@ def get_existing_activity_ids(activity_ids: Sequence[uuid.UUID], db: Session) ->
     return set(db.scalars(stmt).all())
 
 
+def get_unadopted_activity_ids(activity_ids: Sequence[uuid.UUID], db: Session) -> set[uuid.UUID]:
+    """Return which of the given activities still keep their file under their own id: top-level and with no file row.
+
+    A leg's file is kept under its multisport activity, so a leg never counts.
+
+    Args:
+        activity_ids: The IDs to look up.
+        db: Database session.
+
+    Returns:
+        The subset of ``activity_ids`` that exist, are not a leg and reference no file row.
+    """
+    if not activity_ids:
+        return set()
+    model = activity_models.Activity
+    stmt = select(model.id).where(
+        model.id.in_(activity_ids), model.parent_activity_id.is_(None), model.file_id.is_(None)
+    )
+    return set(db.scalars(stmt).all())
+
+
 def get_file_ids(activity_ids: Sequence[uuid.UUID], db: Session) -> dict[uuid.UUID, uuid.UUID]:
     """Return the retained file row each of the given activities references.
 
@@ -1434,6 +1455,30 @@ def update_recomputed_values(
         sa_update(activity_models.Activity)
         .where(activity_models.Activity.id == activity_id, activity_models.Activity.user_id == parsed.user_id)
         .values(**values),
+    )
+    db.flush()
+    return matched > 0
+
+
+def set_start_point(activity_id: uuid.UUID, latitude: float, longitude: float, db: Session) -> bool:
+    """Stage the start point of an activity that has none, leaving ``version`` and ``updated_at`` alone.
+
+    A derived value taken from the activity's samples, so a start point already stored, a provider's included, stays.
+
+    Args:
+        activity_id: Target activity ID.
+        latitude: Latitude of the first positioned sample.
+        longitude: Longitude of the first positioned sample.
+        db: Database session.
+
+    Returns:
+        ``True`` when the activity had no start point and took this one.
+    """
+    matched = core_database.rowcount(
+        db,
+        sa_update(activity_models.Activity)
+        .where(activity_models.Activity.id == activity_id, activity_models.Activity.start_latitude.is_(None))
+        .values(start_latitude=latitude, start_longitude=longitude, updated_at=activity_models.Activity.updated_at),
     )
     db.flush()
     return matched > 0
