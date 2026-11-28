@@ -78,6 +78,7 @@ class TestRuntimeModuleRegistry:
             "samples",
             "workout_steps",
             "media",
+            "sources",
         }
         assert {item.key for item in activities_contributor_registry.profile_global_contributors()} == {
             "exercise_titles"
@@ -197,6 +198,7 @@ class TestConfigureApplication:
             "samples",
             "workout_steps",
             "media",
+            "sources",
         }
         assert activities_contributor_registry.resolve_thumbnail_url("42.webp", 42) is not None
         media = activities_contributor_registry.resolve_media([activity.id], db)

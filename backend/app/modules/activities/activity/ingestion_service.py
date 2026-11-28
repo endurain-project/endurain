@@ -6,18 +6,19 @@ persists its contributed components, and publishes ``activity.created``.
 """
 
 import uuid
-from datetime import datetime
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 import core.exceptions as core_exceptions
 import core.logger as core_logger
+import core.timezone as core_timezone
 import modules.activities.activity.constants as activity_constants
 import modules.activities.activity.contracts as activity_contracts
 import modules.activities.activity.crud as activity_crud
 import modules.activities.activity.event_publishers as activity_event_publishers
 import modules.activities.activity.schema as activity_schema
+import modules.activities.activity.source_crud as activity_source_crud
 import modules.activities.computation as activities_computation
 import modules.activities.contributor_registry as activities_contributor_registry
 import modules.activities.contributors as activities_contributors
@@ -25,85 +26,71 @@ import modules.activities.contributors as activities_contributors
 logger = core_logger.get_logger(__name__)
 
 
-def _derive_dedup_key(
-    activity: activity_schema.ActivityBase | activity_contracts.ActivityCore,
-    source: activity_contracts.ImportSource | None,
-    *,
-    salt_with_start: bool = True,
-) -> str | None:
-    """Derive a stable idempotency key for an activity.
+def _identity(
+    parsed: activity_contracts.ParsedActivity, *, whole_file: bool = False
+) -> activity_contracts.NewSource | None:
+    """Pick the source an activity is identified by.
 
     Precedence:
 
-    1. **Provider id** — Strava then Garmin Connect (both on the core ``Activity``
-       schema). Provider ids are stable across server-side re-processing/edits, so
-       they are the canonical identity for provider syncs. Garmin ids are salted
-       with the start time because one multi-activity Garmin ``.fit`` splits into
-       several activities that all carry the *same* Garmin activity id — without
-       the salt every activity after the first was silently discarded as an
-       already-ingested duplicate.
-    2. **File content hash** — for file-based sources (upload / bulk import) that
-       carry no provider id, ``source.content_hash`` (the SHA-256 of the parsed
-       file) plus the activity's start time. The start-time salt keeps multiple
-       activities parsed from one multi-activity ``.fit`` (which share a file
-       hash) distinct.
-    3. ``None`` — nothing to key on; ``create_activity`` falls back to start-time
-       dedup (marks a duplicate hidden rather than a no-op).
+    1. **Strava id**, kept as it is: a Strava activity is stored once.
+    2. **Garmin Connect id.** One multi-activity ``.fit`` splits into several activities that all carry the same Garmin
+       id, so the id is paired with the recording's start, whole seconds. Without the start every activity after the
+       first would be discarded as already stored.
+    3. **File hash**, for file sources that carry no provider id (upload, bulk import), paired with the start for the
+       same reason.
+    4. ``None`` when there is nothing to identify the activity by; it is stored without a source.
 
-    A multisport activity is the only one of its file, so its key leaves out the
-    start-time salt (``salt_with_start=False``): ``garmin:<id>`` and ``file:<sha256>``.
+    A multisport activity is the only one of its file, so its source stands for the whole file and has no start
+    (``whole_file=True``).
 
-    Stays free of any file-format or provider-module coupling: it reads only the
-    core schema + the ``ImportSource`` contract.
-
-    Args:
-        activity: The parsed activity schema.
-        source: Where the activity came from, or None.
-        salt_with_start: Whether a Garmin or file key carries the start time.
-
-    Returns:
-        The key, or None when there is nothing to key on.
-    """
-    if activity.strava_activity_id is not None:
-        return f"strava:{activity.strava_activity_id}"
-    if activity.garminconnect_activity_id is not None:
-        if not salt_with_start or not isinstance(activity.start_time, datetime):
-            return f"garmin:{activity.garminconnect_activity_id}"
-        return f"garmin:{activity.garminconnect_activity_id}:{int(activity.start_time.timestamp())}"
-    if source is not None and source.content_hash:
-        if not salt_with_start:
-            return f"file:{source.content_hash}"
-        if isinstance(activity.start_time, datetime):
-            return f"file:{source.content_hash}:{int(activity.start_time.timestamp())}"
-    return None
-
-
-def _dedup_key(parsed: activity_contracts.ParsedActivity, *, salt_with_start: bool = True) -> str | None:
-    """Pick the idempotency key of a parsed activity: the source's explicit key, else the derived one.
+    Stays free of any file-format or provider-module coupling: it reads only the core schema and the ``ImportSource``
+    contract.
 
     Args:
         parsed: The parsed activity.
-        salt_with_start: Whether a derived Garmin or file key carries the start time.
+        whole_file: Whether the source stands for the whole file.
 
     Returns:
-        The key, or None when there is nothing to key on.
+        The source to store with the activity, or ``None``.
     """
+    activity = parsed.activity
     source = parsed.source
-    if source is not None and source.dedup_key:
-        return source.dedup_key
-    return _derive_dedup_key(parsed.activity, source, salt_with_start=salt_with_start)
+    start = core_timezone.to_utc_aware(activity.start_time)
+    session_start = None if whole_file or start is None else activity_source_crud.floor_to_second(start)
+    if activity.strava_activity_id is not None:
+        return activity_contracts.NewSource(
+            activity_constants.SOURCE_KIND_STRAVA,
+            activity.strava_activity_id,
+            None,
+            None,
+            activity_constants.SOURCE_PRECEDENCE_API,
+        )
+    if activity.garminconnect_activity_id is not None:
+        return activity_contracts.NewSource(
+            activity_constants.SOURCE_KIND_GARMIN,
+            activity.garminconnect_activity_id,
+            None,
+            session_start,
+            activity_constants.SOURCE_PRECEDENCE_DEVICE_FILE,
+        )
+    if source is not None and source.content_hash and (whole_file or session_start is not None):
+        return activity_contracts.NewSource(
+            activity_constants.SOURCE_KIND_FILE, None, source.content_hash, session_start, source.precedence
+        )
+    return None
 
 
-def parent_dedup_key(parsed: activity_contracts.ParsedActivity) -> str | None:
-    """Pick the idempotency key of a multisport activity: the file's alone, with no start-time salt.
+def parent_source(parsed: activity_contracts.ParsedActivity) -> activity_contracts.NewSource | None:
+    """Pick the source of a multisport activity: the file's alone, with no start.
 
     Args:
         parsed: The parsed multisport activity.
 
     Returns:
-        ``garmin:<id>`` or ``file:<sha256>``, or None when there is nothing to key on.
+        The source, or ``None`` when there is nothing to identify the activity by.
     """
-    return _dedup_key(parsed, salt_with_start=False)
+    return _identity(parsed, whole_file=True)
 
 
 def _component_work(
@@ -138,7 +125,7 @@ def _component_work(
 def _stage_activity(
     parsed: activity_contracts.ParsedActivity,
     component_work: list[tuple[activities_contributors.ActivityIngestionContributor, object]],
-    dedup_key: str | None,
+    identity: activity_contracts.NewSource | None,
     db: Session,
     *,
     parent: activity_schema.ActivityRead | None = None,
@@ -148,7 +135,7 @@ def _stage_activity(
     Args:
         parsed: The parsed activity.
         component_work: The contributors and data from :func:`_component_work`.
-        dedup_key: The idempotency key stored on the row.
+        identity: The source stored with the activity, ``None`` for an activity with nothing to identify it.
         db: Database session.
         parent: The stored multisport activity the new activity is a leg of. The leg takes the parent's privacy
             fields and does not look for a same-start duplicate of its own.
@@ -168,7 +155,7 @@ def _stage_activity(
     created_activity = activity_crud.create_activity(
         activity,
         db,
-        dedup_key=dedup_key,
+        source=identity,
         parent_activity_id=parent.id if parent is not None else None,
         detect_duplicate_start=parent is None,
         analysis_version=activities_computation.ANALYSIS_VERSION,
@@ -178,14 +165,14 @@ def _stage_activity(
     if created_activity is None:
         logger.debug(
             "store_parsed_activity: create_activity returned no activity",
-            extra=core_logger.context(user_id=parsed.activity.user_id, dedup_key=dedup_key),
+            extra=core_logger.context(user_id=parsed.activity.user_id),
         )
         raise core_exceptions.ProcessingError("Error creating activity")
 
     if created_activity.user_id is None:
         logger.debug(
             "store_parsed_activity: created activity has no owner",
-            extra=core_logger.context(activity_id=created_activity.id, dedup_key=dedup_key),
+            extra=core_logger.context(activity_id=created_activity.id),
         )
         raise core_exceptions.ProcessingError("Error creating activity")
 
@@ -231,41 +218,42 @@ def _stage_activity(
 
 
 def _existing_activity(
-    dedup_key: str | None, user_id: uuid.UUID | None, db: Session
+    identity: activity_contracts.NewSource | None, user_id: uuid.UUID | None, db: Session
 ) -> activity_schema.ActivityRead | None:
-    """Look up the activity a dedup key already names.
+    """Look up the activity a source identity already belongs to.
 
     Args:
-        dedup_key: The idempotency key, or None.
+        identity: The source identity, or None.
         user_id: The owner.
         db: Database session.
 
     Returns:
-        The stored activity, or None when the key is absent or unused.
+        The stored activity, or None when there is no identity or it is unused.
     """
-    if dedup_key is None or user_id is None:
+    if identity is None or user_id is None:
         return None
-    existing = activity_crud.get_activity_by_dedup_key(dedup_key, user_id, db)
+    activity_id = activity_source_crud.get_activity_id_by_source(user_id, identity, db)
+    existing = activity_crud.get_activity_by_id(activity_id, db) if activity_id is not None else None
     if existing is not None:
         logger.debug(
-            "Skipping re-import: dedup key already ingested",
-            extra=core_logger.context(dedup_key=dedup_key, activity_id=existing.id, user_id=user_id),
+            "Skipping re-import: source already ingested",
+            extra=core_logger.context(source_kind=identity.kind, activity_id=existing.id, user_id=user_id),
         )
     return existing
 
 
 def _winner_of_the_race(
-    err: IntegrityError, dedup_key: str | None, user_id: uuid.UUID | None, db: Session
+    err: IntegrityError, identity: activity_contracts.NewSource | None, user_id: uuid.UUID | None, db: Session
 ) -> activity_schema.ActivityRead:
-    """Resolve an insert that lost the race for a dedup key: roll back and return the activity that won it.
+    """Resolve an insert that lost the race for a source identity: roll back and return the activity that won it.
 
-    The pre-insert dedup check is read-then-write, so a concurrent import of the same activity can pass it and both
-    inserts race. The unique index on (user_id, dedup_key) is what actually guarantees idempotency; losing that race
+    The pre-insert lookup is read-then-write, so a concurrent import of the same activity can pass it and both
+    inserts race. The unique indexes on ``activity_sources`` are what actually guarantee idempotency; losing that race
     means the other worker stored it, which is precisely the outcome the caller wanted.
 
     Args:
         err: The integrity error the insert raised.
-        dedup_key: The idempotency key of the activity being stored.
+        identity: The source identity of the activity being stored.
         user_id: The owner.
         db: Database session.
 
@@ -273,30 +261,30 @@ def _winner_of_the_race(
         The activity that won the race.
 
     Raises:
-        ProcessingError: When there is no key to resolve the conflict by, or the error was another constraint.
+        ProcessingError: When there is no identity to resolve the conflict by, or the error was another constraint.
     """
     db.rollback()
-    if dedup_key is None or user_id is None:
+    if identity is None or user_id is None:
         logger.debug(
-            "Integrity error storing a parsed activity: no dedup key to resolve the conflict",
+            "Integrity error storing a parsed activity: no source to resolve the conflict",
             exc_info=err,
-            extra=core_logger.context(user_id=user_id, dedup_key=dedup_key),
+            extra=core_logger.context(user_id=user_id),
         )
         raise core_exceptions.ProcessingError("Error creating activity") from err
 
-    winner = activity_crud.get_activity_by_dedup_key(dedup_key, user_id, db)
+    winner = _existing_activity(identity, user_id, db)
     if winner is None:
-        # The integrity error was not the dedup race (some other constraint).
+        # The integrity error was not the source race (some other constraint).
         logger.debug(
-            "Integrity error storing a parsed activity: not a dedup-key race",
+            "Integrity error storing a parsed activity: not a source race",
             exc_info=err,
-            extra=core_logger.context(user_id=user_id, dedup_key=dedup_key),
+            extra=core_logger.context(user_id=user_id, source_kind=identity.kind),
         )
         raise core_exceptions.ProcessingError("Error creating activity") from err
 
     logger.debug(
-        "Lost the insert race for dedup key; treating re-import as a no-op",
-        extra=core_logger.context(dedup_key=dedup_key, activity_id=winner.id, user_id=user_id),
+        "Lost the insert race for a source; treating re-import as a no-op",
+        extra=core_logger.context(source_kind=identity.kind, activity_id=winner.id, user_id=user_id),
     )
     return winner
 
@@ -321,22 +309,19 @@ def store_parsed_activity(
         ProcessingError: When the activity could not be created.
     """
     # Bound before the try so the IntegrityError handler can always read it.
-    dedup_key: str | None = None
+    identity: activity_contracts.NewSource | None = None
     try:
-        # Idempotency: a stable dedup_key makes re-import of an
-        # already-ingested activity a true no-op. Prefer an explicit key from the
-        # source, otherwise derive one from the activity's provider ids. When a
-        # key is present and already stored for this owner, return the existing
-        # activity without creating a duplicate row, its children, or
-        # re-publishing ``activity.created``.
-        dedup_key = _dedup_key(parsed)
+        # Idempotency: the activity's source identity (its provider id or its file's hash) makes re-import of an
+        # already-ingested activity a true no-op. When the owner already holds the identity, return the existing
+        # activity without creating a duplicate row, its children, or re-publishing ``activity.created``.
+        identity = _identity(parsed)
         component_work = _component_work(parsed)
-        existing = _existing_activity(dedup_key, parsed.activity.user_id, db)
+        existing = _existing_activity(identity, parsed.activity.user_id, db)
         if existing is not None:
             return existing
-        return _stage_activity(parsed, component_work, dedup_key, db)
+        return _stage_activity(parsed, component_work, identity, db)
     except IntegrityError as err:
-        return _winner_of_the_race(err, dedup_key, parsed.activity.user_id, db)
+        return _winner_of_the_race(err, identity, parsed.activity.user_id, db)
     except core_exceptions.DomainError:
         # Roll back the in-flight unit of work so no partial rows survive and the
         # session stays clean for the caller (bulk import reuses one session).
@@ -354,9 +339,8 @@ def store_parsed_group(
     """Stage a multisport activity with its legs in one unit of work.
 
     Nothing is committed: the caller commits once, so the group lands whole or not at all, and the events follow that
-    commit. The parent is keyed by the file alone (``garmin:<id>`` or ``file:<sha256>``) and each leg by the file and
-    its start, as a leg was keyed before groups existed. The legs copy the parent's privacy, and only the parent looks
-    for a duplicate start.
+    commit. The parent holds the file's source, a Garmin id or a file hash with no start, and each leg the source of its
+    own session, with its start. The legs copy the parent's privacy, and only the parent looks for a duplicate start.
 
     A group already stored stages nothing and returns its parent, also when another import committed it between this
     one's look for the parent and its look for the legs. A file whose legs were stored on their own before groups
@@ -374,19 +358,20 @@ def store_parsed_group(
         ProcessingError: When an activity could not be created.
     """
     # Bound before the try so the IntegrityError handler can always read it.
-    parent_key: str | None = None
+    parent_identity: activity_contracts.NewSource | None = None
     try:
-        parent_key = parent_dedup_key(parent)
+        parent_identity = parent_source(parent)
         parent_work = _component_work(parent)
-        leg_work = [(leg, _dedup_key(leg), _component_work(leg)) for leg in legs]
+        leg_work = [(leg, _identity(leg), _component_work(leg)) for leg in legs]
 
-        existing_parent = _existing_activity(parent_key, parent.activity.user_id, db)
+        existing_parent = _existing_activity(parent_identity, parent.activity.user_id, db)
         if existing_parent is not None:
             return [existing_parent]
+        # A leg holds the source of its session, so legs stored on their own before groups existed are found too.
         stored_legs = [
             existing
-            for leg, key, _work in leg_work
-            if (existing := _existing_activity(key, leg.activity.user_id, db)) is not None
+            for leg, identity, _work in leg_work
+            if (existing := _existing_activity(identity, leg.activity.user_id, db)) is not None
         ]
         # A stored leg with a parent is a group another import committed after this one looked for the parent.
         stored_parent_id = next((leg.parent_activity_id for leg in stored_legs if leg.parent_activity_id), None)
@@ -396,12 +381,12 @@ def store_parsed_group(
         if stored_legs:
             return stored_legs
 
-        staged_parent = _stage_activity(parent, parent_work, parent_key, db)
-        for leg, key, work in leg_work:
-            _stage_activity(leg, work, key, db, parent=staged_parent)
+        staged_parent = _stage_activity(parent, parent_work, parent_identity, db)
+        for leg, leg_identity, work in leg_work:
+            _stage_activity(leg, work, leg_identity, db, parent=staged_parent)
         return [staged_parent]
     except IntegrityError as err:
-        return [_winner_of_the_race(err, parent_key, parent.activity.user_id, db)]
+        return [_winner_of_the_race(err, parent_identity, parent.activity.user_id, db)]
     except core_exceptions.DomainError:
         db.rollback()
         raise

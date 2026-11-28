@@ -31,6 +31,7 @@ COUNT_KEYS = frozenset(
         "activity_workout_steps",
         "activity_media",
         "activity_exercise_titles",
+        "activity_sources",
     }
 )
 

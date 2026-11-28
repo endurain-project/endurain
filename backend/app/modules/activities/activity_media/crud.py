@@ -209,7 +209,7 @@ def get_activity_media_by_content_hash(
 
     Used to make re-storing the same photo for an activity a no-op — a retried
     upload, or a Strava bulk-export re-run — the media counterpart of
-    :func:`modules.activities.activity.crud.get_activity_by_dedup_key`.
+    the unique source indexes of an activity.
 
     Args:
         activity_id: The activity the media must belong to.

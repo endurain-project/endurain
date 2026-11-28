@@ -39,6 +39,7 @@ import modules.activities.activity.crud as activity_crud
 import modules.activities.activity.event_publishers as activity_event_publishers
 import modules.activities.activity.ingestion_service as activity_ingestion_service
 import modules.activities.activity.schema as activity_schema
+import modules.activities.activity.source_crud as activity_source_crud
 import modules.activities.activity.stats as activity_stats
 import modules.activities.computation as activities_computation
 import modules.activities.contributor_registry as activities_contributor_registry
@@ -948,7 +949,7 @@ def regroup_legs(
 
     Returns:
         The staged parent, or ``None`` when nothing was staged because a leg no longer exists or is no longer
-        standalone, or an activity already holds the parent's dedup key.
+        standalone, or an activity already holds the parent's source.
     """
     user_id = parent.activity.user_id
     legs = activity_crud.lock_standalone_activities(user_id, leg_ids, db)
@@ -965,13 +966,16 @@ def regroup_legs(
             "gear_id": None,
         }
     )
-    dedup_key = activity_ingestion_service.parent_dedup_key(dataclasses.replace(parent, activity=activity))
-    if dedup_key is not None and activity_crud.get_activity_by_dedup_key(dedup_key, user_id, db) is not None:
+    parent_source = activity_ingestion_service.parent_source(dataclasses.replace(parent, activity=activity))
+    if (
+        parent_source is not None
+        and activity_source_crud.get_activity_id_by_source(user_id, parent_source, db) is not None
+    ):
         return None
     created = activity_crud.create_activity(
         activity,
         db,
-        dedup_key=dedup_key,
+        source=parent_source,
         detect_duplicate_start=False,
         analysis_version=activities_computation.ANALYSIS_VERSION,
         activity_id=activity_id,
@@ -981,6 +985,89 @@ def regroup_legs(
     for before, after in activity_crud.adopt_legs(user_id, leg_ids, created.id, privacy, db):
         _stage_visibility_update(after.id, user_id, before, after, visibility_fields, db)
     return created
+
+
+def export_sources(activity_ids: Collection[uuid.UUID], db: Session) -> list[activity_contracts.SourceArchiveRecord]:
+    """Read the sources of the given activities as the profile archive carries them.
+
+    Args:
+        activity_ids: The activities to export.
+        db: Database session.
+
+    Returns:
+        One record per source.
+    """
+    return [
+        activity_contracts.SourceArchiveRecord.model_validate(
+            {
+                "activity_id": source.activity_id,
+                "kind": source.kind,
+                "provider_id": source.provider_id,
+                "file_sha256": source.file_sha256,
+                "session_start": source.session_start,
+                "precedence": source.precedence,
+            }
+        )
+        for source in activity_source_crud.list_for_activities(list(activity_ids), db)
+    ]
+
+
+def stage_restored_sources(
+    records: Collection[activity_contracts.SourceArchiveRecord], activity: activity_schema.ActivityRead, db: Session
+) -> int:
+    """Stage the archived sources of a restored activity, leaving out any identity the user already holds.
+
+    Args:
+        records: The archived sources of the activity.
+        activity: The restored activity.
+        db: Database session; the caller commits.
+
+    Returns:
+        How many sources were stored.
+    """
+    if activity.id is None or activity.user_id is None:
+        return 0
+    stored = 0
+    for record in records:
+        source = activity_contracts.NewSource(
+            record.kind, record.provider_id, record.file_sha256, record.session_start, record.precedence
+        )
+        if activity_source_crud.add_source_if_absent(activity.id, activity.user_id, source, db):
+            stored += 1
+    return stored
+
+
+def add_file_source_if_absent(activity_id: uuid.UUID, extension: str, sha256: str, db: Session) -> bool:
+    """Stage the file source of a restored activity that has no source yet.
+
+    An archive written before sources existed carries the activity's file but no sources; an activity with a
+    provider source is identified by that, as when it was imported. The source stands for the whole file for a
+    multisport activity, and for the activity's start otherwise.
+
+    Args:
+        activity_id: The restored activity.
+        extension: The restored file's extension.
+        sha256: The file's SHA-256.
+        db: Database session; the caller commits.
+
+    Returns:
+        ``True`` when the source was stored.
+    """
+    activity = activity_crud.get_activity_by_id(activity_id, db)
+    start = core_timezone.to_utc_aware(activity.start_time) if activity is not None else None
+    if activity is None or activity.user_id is None or start is None:
+        return False
+    if activity_source_crud.has_sources(activity_id, db):
+        return False
+    whole_file = activity.activity_type is activity_constants.ActivityType.MULTISPORT
+    source = activity_contracts.NewSource(
+        activity_constants.SOURCE_KIND_FILE,
+        None,
+        sha256,
+        None if whole_file else activity_source_crud.floor_to_second(start),
+        activity_constants.file_source_precedence(extension),
+    )
+    return activity_source_crud.add_source_if_absent(activity_id, activity.user_id, source, db)
 
 
 def edit_activity(

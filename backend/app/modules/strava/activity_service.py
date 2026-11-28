@@ -649,7 +649,7 @@ def save_activity_streams_laps(
         source=activity_contracts.ImportSource(
             kind="strava",
             provider_activity_id=activity.strava_activity_id,
-            dedup_key=(f"strava:{activity.strava_activity_id}" if activity.strava_activity_id is not None else None),
+            precedence=activity_constants.SOURCE_PRECEDENCE_API,
         ),
     )
 
@@ -679,7 +679,7 @@ def process_activity(
     duplicate check and the store each use a short session, and the store
     publishes ``activity.created`` on this worker thread, where its subscribers
     run inline without touching the request path. The store is idempotent on the
-    activity's ``dedup_key``, so two workers racing on one activity store it once.
+    activity's source, so two workers racing on one activity store it once.
 
     Args:
         activity: The Strava summary activity.
@@ -698,7 +698,9 @@ def process_activity(
     """
     strava_activity_id = _strava_activity_id(activity, user_id)
     with core_database.SessionLocal() as db:
-        already_stored = activity_integration.get_activity_by_strava_id(strava_activity_id, user_id, db) is not None
+        already_stored = activity_ingestion_integration.is_provider_activity_stored(
+            user_id, activity_constants.SOURCE_KIND_STRAVA, strava_activity_id, db
+        )
     if already_stored:
         logger.debug(
             "Strava activity already exists, skipping",

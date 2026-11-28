@@ -11,7 +11,7 @@ job row. A batch that leaves files over reports it to its caller, and the durabl
 subscriber ends the pass with ``ContinueJob`` so the same job runs the next batch.
 A large import therefore interleaves with everyone else's work instead of holding a
 worker, never outlives a job lease, and resumes from its cursor after a crash. Importing a file is idempotent
-(a content-derived dedup key), so a batch that is repeated after a crash costs
+(the file's hash is its source), so a batch that is repeated after a crash costs
 nothing but time.
 
 Without durable jobs there is no queue to yield to, so the same batch runs once with

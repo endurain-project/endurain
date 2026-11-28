@@ -197,7 +197,7 @@ def check_lifecycles(cur: psycopg.Cursor, report: Report, cycles: list[dict]) ->
     leftover_activities = (
         scalar(
             cur,
-            "SELECT count(*) FROM activities WHERE user_id = ANY(%s::uuid[]) AND strava_activity_id IS NOT NULL",
+            "SELECT count(*) FROM activity_sources WHERE user_id = ANY(%s::uuid[]) AND kind = 'strava'",
             ids,
         )
         if ids
@@ -343,19 +343,14 @@ def check(
 
             # -- duplicates ------------------------------------------------------------------------------------------------
             cur.execute(
-                "SELECT user_id, dedup_key, count(*) FROM activities WHERE dedup_key IS NOT NULL "
-                "GROUP BY 1, 2 HAVING count(*) > 1 LIMIT 5"
+                "SELECT user_id, kind, provider_id::text, count(*) FROM activity_sources WHERE provider_id IS NOT NULL "
+                "GROUP BY user_id, kind, provider_id, session_start HAVING count(*) > 1 "
+                "UNION ALL SELECT user_id, 'file', file_sha256, count(*) FROM activity_sources "
+                "WHERE file_sha256 IS NOT NULL GROUP BY user_id, file_sha256, session_start HAVING count(*) > 1 LIMIT 5"
             )
             duplicates = cur.fetchall()
-            cur.execute(
-                "SELECT user_id, 'strava', strava_activity_id, count(*) FROM activities "
-                "WHERE strava_activity_id IS NOT NULL GROUP BY 1, 3 HAVING count(*) > 1 "
-                "UNION ALL SELECT user_id, 'garmin', garminconnect_activity_id, count(*) FROM activities "
-                "WHERE garminconnect_activity_id IS NOT NULL GROUP BY 1, 3 HAVING count(*) > 1 LIMIT 5"
-            )
-            duplicates += cur.fetchall()
             report.add(
-                "no duplicate activity per (user, dedup key / provider id)",
+                "no duplicate activity per (user, provider id / file hash)",
                 not duplicates,
                 f"{len(duplicates)} duplicated",
             )
@@ -540,7 +535,7 @@ def check(
                     deferred > 0,
                     f"{deferred} deferred after {limited} answers of 429",
                 )
-            strava_activities = scalar(cur, "SELECT count(*) FROM activities WHERE strava_activity_id IS NOT NULL")
+            strava_activities = scalar(cur, "SELECT count(*) FROM activity_sources WHERE kind = 'strava'")
             report.add(
                 "activities stored from strava (no duplicate per strava id: checked above)",
                 None,

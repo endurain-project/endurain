@@ -13,7 +13,7 @@ fetched, no ORM instances returned.
 
 from datetime import UTC, date, datetime, time, timedelta
 
-from sqlalchemy import ColumnElement, and_, func, or_
+from sqlalchemy import ColumnElement, and_, exists, func, or_, select
 
 import core.sanitization as core_sanitization
 import core.timezone as core_timezone
@@ -31,6 +31,28 @@ def is_top_level() -> ColumnElement[bool]:
         The condition; a multisport activity matches and its legs do not.
     """
     return activity_models.Activity.parent_activity_id.is_(None)
+
+
+def is_live_strava_data() -> ColumnElement[bool]:
+    """Match the activities whose data is live Strava API data: they have a Strava source and no other source.
+
+    An activity a device file also recorded is the file's data, with the Strava activity merely attached.
+
+    Returns:
+        The condition.
+    """
+    source = activity_models.ActivitySource
+    has_strava = exists(
+        select(source.id).where(
+            source.activity_id == activity_models.Activity.id, source.kind == activity_constants.SOURCE_KIND_STRAVA
+        )
+    )
+    has_other = exists(
+        select(source.id).where(
+            source.activity_id == activity_models.Activity.id, source.kind != activity_constants.SOURCE_KIND_STRAVA
+        )
+    )
+    return and_(has_strava, ~has_other)
 
 
 def is_leaf() -> ColumnElement[bool]:

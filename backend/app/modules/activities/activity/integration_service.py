@@ -9,6 +9,7 @@ Writes that publish events (bulk deletes, bulk re-gearing, ingestion) delegate t
 import uuid
 from collections.abc import Collection, Mapping, Sequence
 from datetime import date, datetime
+from typing import Any
 
 from jasil.providers import StateProvider
 from sqlalchemy.orm import Session
@@ -25,46 +26,28 @@ import modules.activities.activity.crud as activity_crud
 import modules.activities.activity.ingestion_service as activity_ingestion_service
 import modules.activities.activity.schema as activity_schema
 import modules.activities.activity.service as activity_service
+import modules.activities.activity.source_crud as activity_source_crud
+import modules.activities.contributors as activities_contributors
 import modules.gears.contracts as gears_contracts
 import modules.gears.gear.constants as gears_constants
+import modules.users.users_profile.contracts as users_profile_contracts
 
 ChildCollection = activity_child_collection_service.ChildCollection
 
 
-def get_activity_by_strava_id(
-    strava_activity_id: int,
-    user_id: uuid.UUID,
-    db: Session,
-) -> activity_schema.ActivityRead | None:
-    """Return the user's activity imported from the given Strava activity id.
+def is_provider_activity_stored(user_id: uuid.UUID, kind: str, provider_id: int, db: Session) -> bool:
+    """Return whether the user already has an activity from the given provider activity.
 
     Args:
-        strava_activity_id: The Strava provider activity id.
         user_id: The owning user id.
+        kind: The provider, ``strava`` or ``garmin``.
+        provider_id: The provider's activity id.
         db: Database session.
 
     Returns:
-        The matching activity, or ``None`` when the user has no such import.
+        ``True`` when a source of that provider activity is stored, whichever recording of it.
     """
-    return activity_crud.get_activity_by_strava_id_from_user_id(strava_activity_id, user_id, db)
-
-
-def get_activity_by_garminconnect_id(
-    garminconnect_activity_id: int,
-    user_id: uuid.UUID,
-    db: Session,
-) -> activity_schema.ActivityRead | None:
-    """Return the user's activity imported from the given Garmin Connect activity id.
-
-    Args:
-        garminconnect_activity_id: The Garmin Connect provider activity id.
-        user_id: The owning user id.
-        db: Database session.
-
-    Returns:
-        The matching activity, or ``None`` when the user has no such import.
-    """
-    return activity_crud.get_activity_by_garminconnect_id_from_user_id(garminconnect_activity_id, user_id, db)
+    return activity_source_crud.provider_source_exists(user_id, kind, provider_id, db)
 
 
 def list_garminconnect_gear_activity_refs(
@@ -262,6 +245,80 @@ def get_user_profile_summary(
     return activity_service.user_profile_summary(user_id, requester_user_id, db, anchor=anchor)
 
 
+def _list_sources_for_profile(
+    activity_ids: list[uuid.UUID], db: Session
+) -> Sequence[activity_contracts.SourceArchiveRecord]:
+    """Return the archive records of the sources of the given activities.
+
+    Args:
+        activity_ids: IDs of the activities to export.
+        db: Database session.
+
+    Returns:
+        One record per source.
+    """
+    return activity_service.export_sources(activity_ids, db)
+
+
+def _restore_sources_from_profile(
+    records: list[dict[str, Any]],
+    original_activity_id: uuid.UUID,
+    new_activity: activity_schema.ActivityRead,
+    db: Session,
+) -> int:
+    """Stage the archived sources of one restored activity.
+
+    Args:
+        records: The archived source records of the whole profile.
+        original_activity_id: The archive-local key of the activity the records were exported under.
+        new_activity: The restored activity.
+        db: Database session; the caller commits.
+
+    Returns:
+        How many sources were stored; one the user already holds is left out.
+    """
+    own = [
+        activity_contracts.SourceArchiveRecord.model_validate(record)
+        for record in records
+        if users_profile_contracts.archived_id(record.get("activity_id")) == original_activity_id
+    ]
+    return activity_service.stage_restored_sources(own, new_activity, db)
+
+
+def sources_profile_contributor() -> activities_contributors.ProfileActivityContributor:
+    """Return the activity-sources profile contribution.
+
+    An archive written before sources existed has no such records; the importer derives the provider sources from the
+    restored provider ids and the file source from the restored file.
+
+    Returns:
+        The contributor.
+    """
+    return activities_contributors.ProfileActivityContributor(
+        key="sources",
+        archive_path="data/activity_sources.json",
+        count_key="activity_sources",
+        split=False,
+        export=_list_sources_for_profile,
+        restore=_restore_sources_from_profile,
+    )
+
+
+def add_restored_file_source(activity_id: uuid.UUID, extension: str, sha256: str, db: Session) -> bool:
+    """Stage the file source of a restored activity that has no source, for an archive that carries none.
+
+    Args:
+        activity_id: The restored activity.
+        extension: The restored file's extension.
+        sha256: The file's SHA-256.
+        db: Database session; the caller commits.
+
+    Returns:
+        ``True`` when the source was stored.
+    """
+    return activity_service.add_file_source_if_absent(activity_id, extension, sha256, db)
+
+
 def restore_activity(
     activity: activity_contracts.ActivityCore,
     db: Session,
@@ -375,7 +432,7 @@ def regroup_legs(
 
     Returns:
         The staged parent, or ``None`` when nothing was staged: a leg is gone or is no longer standalone, or the
-        parent's dedup key is already stored.
+        parent's source is already stored.
     """
     return activity_service.regroup_legs(parent, leg_ids, db, activity_id=activity_id, file_id=file_id)
 

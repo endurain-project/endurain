@@ -60,7 +60,9 @@ def _stored(user_id):
     with core_database.SessionLocal() as db:
         return list(
             db.scalars(
-                select(activity_models.Activity.strava_activity_id).where(activity_models.Activity.user_id == user_id)
+                select(activity_models.ActivitySource.provider_id).where(
+                    activity_models.ActivitySource.user_id == user_id, activity_models.ActivitySource.kind == "strava"
+                )
             )
         )
 

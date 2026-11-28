@@ -28,13 +28,9 @@ def _sync(user, rate_limits):
 
 def _activities(sessions, user):
     with sessions() as db:
-        return list(
-            db.scalars(
-                select(activity_models.Activity)
-                .where(activity_models.Activity.user_id == user.id)
-                .order_by(activity_models.Activity.garminconnect_activity_id)
-            )
-        )
+        rows = db.scalars(select(activity_models.Activity).where(activity_models.Activity.user_id == user.id)).all()
+        db.expunge_all()
+        return sorted(rows, key=lambda row: row.garminconnect_activity_id or 0)
 
 
 class TestStoringTheWindow:

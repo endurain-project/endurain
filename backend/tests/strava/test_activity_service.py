@@ -71,13 +71,9 @@ def _sync(user, rate_limits):
 
 def _stored(user_id):
     with core_database.SessionLocal() as db:
-        rows = db.scalars(
-            select(activity_models.Activity)
-            .where(activity_models.Activity.user_id == user_id)
-            .order_by(activity_models.Activity.strava_activity_id)
-        ).all()
+        rows = db.scalars(select(activity_models.Activity).where(activity_models.Activity.user_id == user_id)).all()
         db.expunge_all()
-        return list(rows)
+        return sorted(rows, key=lambda row: row.strava_activity_id or 0)
 
 
 def _streams_of(activity_id):
@@ -119,7 +115,9 @@ class TestASyncedWindow:
         (activity,) = _stored(user.id)
         assert [a.id for a in stored] == [activity.id]
         assert (activity.name, activity.distance, activity.strava_activity_id) == ("Lunch run", 10000, 1001)
-        assert activity.dedup_key == "strava:1001"
+        assert activity.dedup_key is None, "the legacy key is no longer written"
+        (source,) = activity.sources
+        assert (source.kind, source.provider_id, source.session_start, source.precedence) == ("strava", 1001, None, 0)
         assert activity.activity_type == activity_constants.ActivityType.RUN.stored
         assert (activity.average_hr, activity.max_hr, activity.calories) == (145, 175, 500)
         assert activity.elevation_gain == 50, "Strava's own total wins over the one computed from the stream"

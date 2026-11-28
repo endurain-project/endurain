@@ -33,6 +33,7 @@ import core.config as core_config
 import core.exceptions as core_exceptions
 import core.file_uploads as core_file_uploads
 import core.logger as core_logger
+import modules.activities.activity.constants as activity_constants
 import modules.activities.activity.contracts as activity_contracts
 import modules.activities.activity.integration_service as activity_integration
 import modules.activities.activity.schema as activity_schema
@@ -335,6 +336,7 @@ def store_activities_from_file(
     import_source = activity_contracts.ImportSource(
         kind=source.kind,
         content_hash=None if garmin_source else file_sha256,
+        precedence=activity_constants.file_source_precedence(file_extension),
     )
     retained = _RetainedFile(token_user_id, file_path, file_extension, file_sha256, storage)
     garmin_activity_id = garmin_source.activity_id if garmin_source else None

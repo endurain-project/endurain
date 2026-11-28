@@ -14,6 +14,7 @@ import modules.activities.activity.crud as activity_crud
 import modules.activities.activity.models as activity_models
 import modules.activities.activity.scheduled_jobs as activity_scheduled_jobs
 import modules.activities.activity.schema as activity_schema
+import modules.activities.activity.source_crud as activity_source_crud
 import modules.activities.activity_file_storage.models as file_models
 from tests._factories.activities import make_activity, make_activity_at, make_multisport
 from tests._factories.gears import make_gear
@@ -69,7 +70,11 @@ def _core(user_id: uuid.UUID, **overrides: object) -> activity_contracts.Activit
 
 class TestCreate:
     def test_the_stored_row_is_read_back_with_its_generated_id_and_normalised_times(self, db, owner):
-        created = activity_crud.create_activity(_core(owner.id, garminconnect_activity_id=23749427619), db)
+        created = activity_crud.create_activity(
+            _core(owner.id, garminconnect_activity_id=23749427619),
+            db,
+            source=activity_contracts.NewSource("garmin", 23749427619, None, None, 2),
+        )
 
         stored = _stored(db, created.id)
         assert isinstance(created, activity_schema.ActivityRead)
@@ -124,11 +129,19 @@ class TestCreate:
 
         assert activity_crud.create_activity(_core(other.id), db).is_hidden is False
 
-    def test_a_dedup_key_is_kept_and_finds_the_activity_for_its_owner_only(self, db, owner, other):
-        created = activity_crud.create_activity(_core(owner.id), db, dedup_key="strava:1")
+    def test_a_source_is_stored_with_the_activity_and_read_back_as_its_provider_id(self, db, owner):
+        source = activity_contracts.NewSource("strava", 1, None, None, 0)
 
-        assert activity_crud.get_activity_by_dedup_key("strava:1", owner.id, db).id == created.id
-        assert activity_crud.get_activity_by_dedup_key("strava:1", other.id, db) is None
+        created = activity_crud.create_activity(_core(owner.id), db, source=source)
+
+        assert created.strava_activity_id == 1
+        assert activity_source_crud.get_activity_id_by_source(owner.id, source, db) == created.id
+
+    def test_a_source_identity_is_found_for_its_owner_only(self, db, owner, other):
+        source = activity_contracts.NewSource("strava", 1, None, None, 0)
+        activity_crud.create_activity(_core(owner.id), db, source=source)
+
+        assert activity_source_crud.get_activity_id_by_source(other.id, source, db) is None
 
     def test_the_activity_at_a_start_time_is_found_for_its_owner_only(self, db, owner, other):
         created = activity_crud.create_activity(_core(owner.id), db)

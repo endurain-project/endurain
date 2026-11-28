@@ -247,17 +247,18 @@ class TestStravaId:
         assert again.id == first.id
         with committed_sessions() as db:
             owners = db.scalars(
-                sa.select(activity_models.Activity.user_id).where(
-                    activity_models.Activity.strava_activity_id == 9_000_000_001
+                sa.select(activity_models.ActivitySource.user_id).where(
+                    activity_models.ActivitySource.kind == "strava",
+                    activity_models.ActivitySource.provider_id == 9_000_000_001,
                 )
             ).all()
         assert sorted(owners) == sorted([first_user.id, second_user.id])
 
 
-def _parsed(user_id: uuid.UUID, dedup_key: str) -> activity_contracts.ParsedActivity:
+def _parsed(user_id: uuid.UUID, file_hash: str) -> activity_contracts.ParsedActivity:
     return make_parsed_activity(
         user_id,
-        source=activity_contracts.ImportSource(kind="upload", dedup_key=dedup_key),
+        source=activity_contracts.ImportSource(kind="upload", content_hash=file_hash),
         start=datetime(2026, 7, 28, 9, 0, tzinfo=UTC),
     )
 
@@ -368,7 +369,7 @@ class TestCreatedDelivery:
     def test_concurrent_imports_of_one_activity_store_it_once_and_publish_once(
         self, delivery, committed_sessions, owner
     ):
-        """The dedup read-then-write races; the unique index picks one winner and the losers return it."""
+        """The source read-then-write races; the unique index picks one winner and the losers return it."""
         mode, dispatched = delivery
         barrier = threading.Barrier(6)
 

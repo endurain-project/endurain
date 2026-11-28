@@ -20,11 +20,12 @@ Neither group is ever serialized to a client, so keeping them out of
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import NamedTuple
+from typing import Literal, NamedTuple
 
-from pydantic import Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 import core.timezone as core_timezone
+import modules.activities.activity.constants as activity_constants
 import modules.activities.activity.schema as activity_schema
 
 
@@ -207,31 +208,102 @@ class ActivityCore(activity_schema.ActivityFields, activity_schema.ActivityHeavy
 
 @dataclass(frozen=True)
 class ImportSource:
-    """Provenance of a parsed activity, recorded for observability.
+    """Provenance of a parsed activity: what identifies it and how far its data is trusted.
 
     Attributes:
-        kind: Origin of the activity (``"upload"`` / ``"bulk_import"`` /
-            ``"garmin"``).
+        kind: Origin of the activity (``"upload"`` / ``"bulk_import"`` / ``"garmin"`` / ``"strava"`` /
+            ``"reprocess"``), recorded for observability.
         provider_activity_id: The external provider's activity id, when known.
-        dedup_key: Explicit stable idempotency key for the activity. When set and
-            an activity with the same key already exists for the owner,
-            re-ingestion is a no-op instead of creating a duplicate. When absent,
-            the ingestion service derives one (provider id, else file
-            ``content_hash`` + start time), falling back to start-time dedup.
-        content_hash: SHA-256 of the parsed file's contents, set by the file
-            ingestion path for provider-less sources (upload / bulk import). The
-            ingestion service turns it into a ``file:{hash}:{start}`` dedup key so
-            re-importing the exact same file is a true no-op. ``None`` for
-            provider syncs (they key off the provider id).
+        content_hash: SHA-256 of the parsed file's contents, set by the file ingestion path for sources that carry no
+            provider id (upload, bulk import). The ingestion service turns it into the activity's file source, so
+            importing the same file again is a no-op. ``None`` for provider syncs, which are identified by their id.
+        precedence: How much the source's data is trusted, one of the ``SOURCE_PRECEDENCE_*`` constants.
         retained_file_id: Opaque id of the retained source file row the activity is stored with. The core writes it
             on the activity it creates and on no leg; ``None`` when the source retains no file.
     """
 
     kind: str
     provider_activity_id: int | None = None
-    dedup_key: str | None = None
     content_hash: str | None = None
+    precedence: int = activity_constants.SOURCE_PRECEDENCE_DEVICE_FILE
     retained_file_id: uuid.UUID | None = None
+
+
+@dataclass(frozen=True)
+class NewSource:
+    """One source row to stage with an activity: a single identity, a provider id or a file hash.
+
+    Attributes:
+        kind: ``file``, ``garmin`` or ``strava``.
+        provider_id: The provider's activity id; set for ``garmin`` and ``strava``.
+        file_sha256: The file's SHA-256; set for ``file``.
+        session_start: The start of the recording, whole seconds; ``None`` for a whole file (a multisport activity) and
+            for a Strava activity.
+        precedence: The source's precedence.
+    """
+
+    kind: str
+    provider_id: int | None
+    file_sha256: str | None
+    session_start: datetime | None
+    precedence: int
+
+
+@dataclass(frozen=True)
+class SourceRead:
+    """A stored source row, as the profile export and the tests read it.
+
+    Attributes:
+        activity_id: The activity the source belongs to.
+        kind: ``file``, ``garmin`` or ``strava``.
+        provider_id: The provider's activity id, for ``garmin`` and ``strava``.
+        file_sha256: The file's SHA-256, for ``file``.
+        session_start: The start of the recording in whole seconds, or ``None``.
+        precedence: The source's precedence.
+        received_at: When the source reached the activity.
+    """
+
+    activity_id: uuid.UUID
+    kind: str
+    provider_id: int | None
+    file_sha256: str | None
+    session_start: datetime | None
+    precedence: int
+    received_at: datetime
+
+
+class SourceArchiveRecord(BaseModel):
+    """A source as the profile archive carries it, with one identity: a provider id or a file hash.
+
+    Attributes:
+        activity_id: The id the activity had when the archive was written.
+        kind: ``file``, ``garmin`` or ``strava``.
+        provider_id: The provider's activity id, for ``garmin`` and ``strava``.
+        file_sha256: The file's SHA-256, for ``file``.
+        session_start: The start of the recording in whole seconds, or ``None``.
+        precedence: The source's precedence.
+    """
+
+    activity_id: uuid.UUID
+    kind: Literal["file", "garmin", "strava"]
+    provider_id: int | None = None
+    file_sha256: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
+    session_start: datetime | None = None
+    precedence: int = Field(ge=0, le=activity_constants.SOURCE_PRECEDENCE_DEVICE_FILE)
+
+    @model_validator(mode="after")
+    def _one_identity(self) -> SourceArchiveRecord:
+        """Require exactly one of the provider id and the file hash.
+
+        Returns:
+            The record.
+
+        Raises:
+            ValueError: When both or neither is set.
+        """
+        if (self.provider_id is None) == (self.file_sha256 is None):
+            raise ValueError("a source has exactly one of provider_id and file_sha256")
+        return self
 
 
 class DeletedActivity(NamedTuple):

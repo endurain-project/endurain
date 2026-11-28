@@ -584,6 +584,7 @@ def configure_activity_contributors() -> None:
         activity_streams_integration.legacy_profile_contributor(),
         activity_workout_steps_integration.profile_contributor(),
         activity_media_integration.profile_contributor(),
+        activity_integration.sources_profile_contributor(),
     ):
         activities_contributor_registry.register_profile_activity(profile_contributor)
     activities_contributor_registry.register_profile_global(

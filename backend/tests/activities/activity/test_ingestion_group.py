@@ -1,4 +1,4 @@
-"""Storing a multisport group: the parent and its legs in one transaction, their keys, privacy and events."""
+"""Storing a multisport group: the parent and its legs in one transaction, their sources, privacy and events."""
 
 import threading
 from datetime import timedelta
@@ -53,8 +53,26 @@ def _rows(db):
     return list(db.scalars(select(activity_models.Activity).order_by(activity_models.Activity.start_time)))
 
 
+def _sources(db, **filters):
+    return list(
+        db.scalars(
+            select(activity_models.ActivitySource)
+            .where(*(getattr(activity_models.ActivitySource, name) == value for name, value in filters.items()))
+            .order_by(activity_models.ActivitySource.session_start)
+        )
+    )
+
+
+def _whole_and_sessions(db):
+    """The source of the whole file, and the sources of its sessions in start order."""
+    sources = _sources(db)
+    [whole] = [source for source in sources if source.session_start is None]
+    return whole, [source for source in sources if source.session_start is not None]
+
+
 def _group_rows(db):
-    return [row for row in _rows(db) if row.dedup_key and row.dedup_key.startswith("file:abc")]
+    parents = {source.activity_id for source in _sources(db, file_sha256="abc")}
+    return [row for row in _rows(db) if row.id in parents or row.parent_activity_id in parents]
 
 
 @pytest.fixture
@@ -93,28 +111,33 @@ class TestStoringAGroup:
         with committed_sessions() as db:
             assert _rows(db) == []
 
-    def test_the_parent_is_keyed_by_the_bare_file_hash_and_the_legs_by_hash_and_start(self, db, owner):
+    def test_the_parent_holds_the_whole_files_source_and_each_leg_its_sessions(self, db, owner):
         parent, legs = _group(owner.id)
 
-        ingestion_service.store_parsed_group(parent, legs, db)
+        [top] = ingestion_service.store_parsed_group(parent, legs, db)
 
-        keys = [row.dedup_key for row in _rows(db)]
-        starts = [int((DEFAULT_START + timedelta(minutes=20 * index)).timestamp()) for index in range(3)]
-        assert sorted(keys) == sorted(["file:abc", *(f"file:abc:{start}" for start in starts)])
-        assert next(row for row in _rows(db) if row.parent_activity_id is None).dedup_key == "file:abc"
+        whole, sessions = _whole_and_sessions(db)
+        assert whole.session_start is None
+        assert (whole.activity_id, whole.kind, whole.file_sha256) == (top.id, "file", "abc")
+        assert [source.session_start for source in sessions] == [
+            DEFAULT_START + timedelta(minutes=20 * index) for index in range(3)
+        ]
+        assert {source.activity_id for source in sessions}.isdisjoint({top.id})
 
-    def test_a_garmin_group_is_keyed_by_the_bare_garmin_id_on_the_parent(self, db, owner):
+    def test_a_garmin_group_holds_the_bare_garmin_id_on_the_parent_and_the_id_with_the_start_on_each_leg(
+        self, db, owner
+    ):
         parent, legs = _group(owner.id, hash_=None, parent_fields={"garminconnect_activity_id": 77})
         for leg in legs:
             leg.activity.garminconnect_activity_id = 77
 
-        ingestion_service.store_parsed_group(parent, legs, db)
+        [top] = ingestion_service.store_parsed_group(parent, legs, db)
 
-        top = next(row for row in _rows(db) if row.parent_activity_id is None)
-        assert top.dedup_key == "garmin:77"
-        assert {row.dedup_key for row in _rows(db) if row.id != top.id} == {
-            f"garmin:77:{int((DEFAULT_START + timedelta(minutes=20 * index)).timestamp())}" for index in range(3)
-        }
+        whole, sessions = _whole_and_sessions(db)
+        assert (whole.activity_id, whole.kind, whole.provider_id, whole.session_start) == (top.id, "garmin", 77, None)
+        assert len(sessions) == 3
+        assert {source.provider_id for source in sessions} == {77}
+        assert top.garminconnect_activity_id == 77
 
     def test_the_legs_take_the_privacy_of_the_parent(self, db, owner):
         parent, legs = _group(owner.id, parent_fields={"visibility": 2, "hide_hr": True, "hide_map": True})
@@ -236,16 +259,18 @@ class TestALoserOfTheRace:
         [winner] = ingestion_service.store_parsed_group(parent, legs, db)
         db.commit()
         # The other import looked for the parent before the winner committed, and for the legs after.
-        lookup = ingestion_service.activity_crud.get_activity_by_dedup_key
-        missed: list[str] = []
+        lookup = ingestion_service.activity_source_crud.get_activity_id_by_source
+        missed: list[object] = []
 
-        def parent_not_yet_committed(dedup_key, user_id, session):
-            if dedup_key == "file:abc" and not missed:
-                missed.append(dedup_key)
+        def parent_not_yet_committed(user_id, source, session):
+            if source.session_start is None and not missed:
+                missed.append(source)
                 return None
-            return lookup(dedup_key, user_id, session)
+            return lookup(user_id, source, session)
 
-        monkeypatch.setattr(ingestion_service.activity_crud, "get_activity_by_dedup_key", parent_not_yet_committed)
+        monkeypatch.setattr(
+            ingestion_service.activity_source_crud, "get_activity_id_by_source", parent_not_yet_committed
+        )
         parent, legs = _group(owner.id)
 
         stored = ingestion_service.store_parsed_group(parent, legs, db)

@@ -96,6 +96,33 @@ SYNC_TYPE = "activity"
 
 DEFAULT_ACTIVITY_NAME = "Workout"
 
+#: Where an activity's data came from, as ``activity_sources.kind`` stores it.
+SOURCE_KIND_FILE = "file"
+SOURCE_KIND_GARMIN = "garmin"
+SOURCE_KIND_STRAVA = "strava"
+SOURCE_KINDS = (SOURCE_KIND_FILE, SOURCE_KIND_GARMIN, SOURCE_KIND_STRAVA)
+
+#: How much a source's data is trusted: a device file (a FIT upload, the Garmin sync) over a generic file (TCX, GPX)
+#: over the Strava API's streams. A source with a higher precedence is the better record of the same effort.
+SOURCE_PRECEDENCE_DEVICE_FILE = 2
+SOURCE_PRECEDENCE_GENERIC_FILE = 1
+SOURCE_PRECEDENCE_API = 0
+
+
+def file_source_precedence(extension: str) -> int:
+    """Return the precedence of a file source by its extension.
+
+    Args:
+        extension: The file's extension with its dot, such as ``.fit``.
+
+    Returns:
+        The device-file precedence for a FIT file, the generic-file one for any other format.
+    """
+    if extension.lower() == ".fit":
+        return SOURCE_PRECEDENCE_DEVICE_FILE
+    return SOURCE_PRECEDENCE_GENERIC_FILE
+
+
 #: The English display name of each activity type by stored id.
 ACTIVITY_ID_TO_NAME = {activity_type.stored: activity_type.label for activity_type in ActivityType}
 

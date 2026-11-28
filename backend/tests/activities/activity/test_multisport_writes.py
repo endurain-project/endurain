@@ -279,10 +279,10 @@ class TestDelete:
 
     def test_unlinking_strava_never_deletes_a_multisport_activity_without_its_legs(self, db, owner, published):
         parent, legs = make_multisport(db, owner.id)
-        db.execute(
-            update(activity_models.Activity)
-            .where(activity_models.Activity.id == parent.id)
-            .values(strava_activity_id=7)
+        db.add(
+            activity_models.ActivitySource(
+                activity_id=parent.id, user_id=owner.id, kind="strava", provider_id=7, precedence=0
+            )
         )
         db.flush()
 

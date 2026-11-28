@@ -16,7 +16,7 @@ class ActivityMedia(Base):
 
     __table_args__ = (
         # Read-then-write dedup checks (create_activity_media) race the same way
-        # activities.dedup_key does: two concurrent stores of the same photo can
+        # the unique indexes on activity_sources do: two concurrent stores of the same photo can
         # both see "not found" and both insert. NULL hashes stay unconstrained
         # (Postgres treats NULLs as distinct), so media with no computed hash is
         # unaffected.

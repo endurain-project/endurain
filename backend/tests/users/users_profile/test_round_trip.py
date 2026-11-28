@@ -230,7 +230,15 @@ def _seed_activities(
         db,
     )
     for index in range(3):
-        created = activity_crud.create_activity(_activity(user_id, index, gear_ids[index % 2]), db)
+        # Each activity is stored with the source ingestion gives it, so the archive lists sources as a real one does.
+        source = activity_contracts.NewSource(
+            "file",
+            None,
+            core_hashing.sha256_hex(f"seed-{index}".encode()),
+            datetime(2026, 7, 20 + index, 9, tzinfo=UTC),
+            2,
+        )
+        created = activity_crud.create_activity(_activity(user_id, index, gear_ids[index % 2]), db, source=source)
         activity_id = created.id
         assert activity_id is not None
         laps_crud.create_activity_laps(

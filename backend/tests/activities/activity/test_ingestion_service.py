@@ -1,4 +1,4 @@
-"""Storing a parsed activity: its children, the dedup keys, the duplicate-start flag and what a failure leaves."""
+"""Storing a parsed activity: its children, its sources, the duplicate-start flag and what a failure leaves."""
 
 import uuid
 from datetime import timedelta
@@ -12,7 +12,6 @@ import modules.activities.activity.contracts as activity_contracts
 import modules.activities.activity.events as activity_events
 import modules.activities.activity.ingestion_service as ingestion_service
 import modules.activities.activity.models as activity_models
-import modules.activities.activity.schema as activity_schema
 import modules.activities.activity_laps.models as laps_models
 import modules.activities.computation as computation
 from tests._factories.activities import DEFAULT_START, make_parsed_activity
@@ -90,7 +89,7 @@ class TestFailures:
         assert published[activity_events.ACTIVITY_CREATED] == []
 
     def test_an_unknown_component_is_refused_even_when_the_activity_is_already_stored(self, user, committed_sessions):
-        source = activity_contracts.ImportSource(kind="upload", dedup_key="k")
+        source = activity_contracts.ImportSource(kind="upload", content_hash="k")
         with committed_sessions() as db:
             ingestion_service.store_parsed_activity(make_parsed_activity(user.id, source=source), db)
             db.commit()
@@ -122,10 +121,10 @@ class TestFailures:
 
 
 class TestReimport:
-    def test_an_explicit_dedup_key_makes_a_second_import_a_no_op_that_returns_the_first(
+    def test_a_file_hash_makes_a_second_import_a_no_op_that_returns_the_first(
         self, user, committed_sessions, published
     ):
-        source = activity_contracts.ImportSource(kind="upload", dedup_key="same-key")
+        source = activity_contracts.ImportSource(kind="upload", content_hash="same-key")
         with committed_sessions() as db:
             first = ingestion_service.store_parsed_activity(make_parsed_activity(user.id, source=source), db)
             db.commit()
@@ -142,7 +141,7 @@ class TestReimport:
 
     def test_the_same_key_of_another_user_is_a_different_activity(self, user, arrange, committed_sessions):
         other = arrange(lambda db: make_user(db))
-        source = activity_contracts.ImportSource(kind="upload", dedup_key="same-key")
+        source = activity_contracts.ImportSource(kind="upload", content_hash="same-key")
         with committed_sessions() as db:
             first = ingestion_service.store_parsed_activity(make_parsed_activity(user.id, source=source), db)
             second = ingestion_service.store_parsed_activity(make_parsed_activity(other.id, source=source), db)
@@ -153,27 +152,32 @@ class TestReimport:
     @pytest.mark.parametrize(
         ("fields", "source", "expected"),
         [
-            ({"strava_activity_id": 7, "garminconnect_activity_id": 8}, None, "strava:7"),
-            ({"garminconnect_activity_id": 8}, None, f"garmin:8:{int(DEFAULT_START.timestamp())}"),
+            ({"strava_activity_id": 7, "garminconnect_activity_id": 8}, None, ("strava", 7, None, None, 0)),
+            ({"garminconnect_activity_id": 8}, None, ("garmin", 8, None, DEFAULT_START.replace(microsecond=0), 2)),
             (
                 {},
-                activity_contracts.ImportSource(kind="upload", content_hash="abc"),
-                f"file:abc:{int(DEFAULT_START.timestamp())}",
+                activity_contracts.ImportSource(kind="upload", content_hash="abc", precedence=1),
+                ("file", None, "abc", DEFAULT_START.replace(microsecond=0), 1),
             ),
-            ({"strava_activity_id": 7}, activity_contracts.ImportSource(kind="upload", content_hash="abc"), "strava:7"),
+            (
+                {"strava_activity_id": 7},
+                activity_contracts.ImportSource(kind="upload", content_hash="abc"),
+                ("strava", 7, None, None, 0),
+            ),
             ({}, activity_contracts.ImportSource(kind="upload"), None),
             ({}, None, None),
         ],
     )
-    def test_the_stored_dedup_key_is_the_provider_id_then_the_file_hash_salted_with_the_start(
-        self, db, fields, source, expected
-    ):
+    def test_the_stored_source_is_the_provider_id_then_the_file_hash_with_the_start(self, db, fields, source, expected):
         owner = make_user(db)
 
         stored = ingestion_service.store_parsed_activity(make_parsed_activity(owner.id, source=source, **fields), db)
 
-        row = db.get(activity_models.Activity, stored.id)
-        assert row.dedup_key == expected
+        rows = db.scalars(
+            select(activity_models.ActivitySource).where(activity_models.ActivitySource.activity_id == stored.id)
+        ).all()
+        found = [(r.kind, r.provider_id, r.file_sha256, r.session_start, r.precedence) for r in rows]
+        assert found == ([] if expected is None else [expected])
 
     def test_activities_of_one_garmin_file_stay_distinct_by_their_start(self, db):
         owner = make_user(db)
@@ -190,14 +194,12 @@ class TestReimport:
 class TestIntegrityFailures:
     """A constraint the dedup race does not explain is a processing failure, not a duplicate."""
 
-    def test_an_owner_who_does_not_exist_with_no_dedup_key_is_a_processing_failure(self, committed_sessions):
+    def test_an_owner_who_does_not_exist_with_no_source_is_a_processing_failure(self, committed_sessions):
         with committed_sessions() as db, pytest.raises(core_exceptions.ProcessingError):
             ingestion_service.store_parsed_activity(make_parsed_activity(uuid.uuid4()), db)
 
-    def test_an_owner_who_does_not_exist_with_a_dedup_key_nobody_stored_is_a_processing_failure(
-        self, committed_sessions
-    ):
-        source = activity_contracts.ImportSource(kind="upload", dedup_key="orphan")
+    def test_an_owner_who_does_not_exist_with_a_source_nobody_stored_is_a_processing_failure(self, committed_sessions):
+        source = activity_contracts.ImportSource(kind="upload", content_hash="orphan")
 
         with committed_sessions() as db, pytest.raises(core_exceptions.ProcessingError):
             ingestion_service.store_parsed_activity(make_parsed_activity(uuid.uuid4(), source=source), db)
@@ -209,18 +211,15 @@ class TestIntegrityFailures:
         with committed_sessions() as db:
             assert _count(db, activity_models.Activity) == 0
 
-    def test_a_garmin_activity_without_a_start_is_keyed_by_its_id_alone(self):
-        activity = activity_schema.ActivityBase.model_validate(
-            {
-                "distance": 1,
-                "name": "n",
-                "activity_type": 1,
-                "start_time": None,
-                "garminconnect_activity_id": 8,
-            }
+    def test_a_garmin_activity_without_a_start_is_identified_by_its_id_alone(self):
+        activity = activity_contracts.ActivityCore.model_construct(
+            start_time=None, garminconnect_activity_id=8, strava_activity_id=None
         )
 
-        assert ingestion_service._derive_dedup_key(activity, None) == "garmin:8"
+        source = ingestion_service._identity(activity_contracts.ParsedActivity(activity=activity, components={}))
+
+        assert source is not None
+        assert (source.kind, source.provider_id, source.session_start) == ("garmin", 8, None)
 
 
 class TestAnalysisVersionStamp:

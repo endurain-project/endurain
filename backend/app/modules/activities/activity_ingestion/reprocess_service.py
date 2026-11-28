@@ -30,6 +30,7 @@ import core.database as core_database
 import core.exceptions as core_exceptions
 import core.logger as core_logger
 import core.timezone as core_timezone
+import modules.activities.activity.constants as activity_constants
 import modules.activities.activity.contracts as activity_contracts
 import modules.activities.activity.integration_service as activity_integration
 import modules.activities.activity.schema as activity_schema
@@ -495,7 +496,9 @@ def _regroup(
         )
         return None
     work, file_work = _plan(list(zip(siblings, parsed_file.activities, strict=True)), parsed_file)
-    source = activity_contracts.ImportSource(kind="reprocess", content_hash=content_hash)
+    source = activity_contracts.ImportSource(
+        kind="reprocess", content_hash=content_hash, precedence=activity_constants.file_source_precedence(extension)
+    )
     parent_id = uuid.uuid4()
     staged_file = activity_file_storage_integration.stage_file(target.user_id, content_hash, extension, data, storage)
     try:

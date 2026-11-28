@@ -13,6 +13,7 @@ import modules.activities.activity.contracts as activity_contracts
 import modules.activities.activity.crud as activity_crud
 import modules.activities.activity.models as activity_models
 import modules.activities.activity.schema as activity_schema
+import modules.activities.activity.source_crud as activity_source_crud
 import modules.activities.activity_exercise_titles.contracts as activity_exercise_titles_contracts
 import modules.activities.activity_exercise_titles.crud as activity_exercise_titles_crud
 import modules.activities.activity_laps.crud as activity_laps_crud
@@ -82,9 +83,28 @@ def make_activity(
         "hide_gear": False,
     }
     values.update(overrides)
-    return activity_crud.create_activity(
+    created = activity_crud.create_activity(
         activity_contracts.ActivityCore.model_validate(values), db, parent_activity_id=parent_activity_id
     )
+    provider_sources = [
+        activity_contracts.NewSource(kind, int(str(values[field])), None, None, precedence)
+        for kind, field, precedence in (
+            (activity_constants.SOURCE_KIND_STRAVA, "strava_activity_id", activity_constants.SOURCE_PRECEDENCE_API),
+            (
+                activity_constants.SOURCE_KIND_GARMIN,
+                "garminconnect_activity_id",
+                activity_constants.SOURCE_PRECEDENCE_DEVICE_FILE,
+            ),
+        )
+        if values.get(field) is not None
+    ]
+    if not provider_sources:
+        return created
+    row = db.get(activity_models.Activity, created.id)
+    assert row is not None
+    row.sources.extend(activity_source_crud.to_orm(user_id, source) for source in provider_sources)
+    db.flush()
+    return activity_schema.ActivityRead.model_validate(row)
 
 
 #: The legs of a triathlon as ``make_multisport`` lays them out: swim, transition, bike, transition, run.
@@ -95,6 +115,45 @@ TRIATHLON_LEGS: tuple[dict[str, object], ...] = (
     {"activity_type": activity_constants.ActivityType.TRANSITION.stored, "distance": 0, "minutes": 3},
     {"activity_type": activity_constants.ActivityType.RUN.stored, "distance": 10000, "minutes": 45},
 )
+
+
+def make_source(
+    db: Session,
+    activity: activity_schema.ActivityRead,
+    *,
+    kind: str,
+    provider_id: int | None = None,
+    file_sha256: str | None = None,
+    session_start: datetime | None = None,
+    precedence: int = activity_constants.SOURCE_PRECEDENCE_DEVICE_FILE,
+) -> activity_models.ActivitySource:
+    """Stage a source on a stored activity, as a merge of two recordings of one effort would (flushed, not committed).
+
+    Args:
+        db: Database session.
+        activity: The activity the source belongs to.
+        kind: ``file``, ``garmin`` or ``strava``.
+        provider_id: The provider's activity id, for ``garmin`` and ``strava``.
+        file_sha256: The file's SHA-256, for ``file``.
+        session_start: The start of the recording, whole seconds, or ``None`` for a whole file or a Strava activity.
+        precedence: The source's precedence.
+
+    Returns:
+        The staged source.
+    """
+    assert activity.id is not None and activity.user_id is not None
+    source = activity_models.ActivitySource(
+        activity_id=activity.id,
+        user_id=activity.user_id,
+        kind=kind,
+        provider_id=provider_id,
+        file_sha256=file_sha256,
+        session_start=session_start,
+        precedence=precedence,
+    )
+    db.add(source)
+    db.flush()
+    return source
 
 
 def make_multisport(

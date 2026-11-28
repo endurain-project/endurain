@@ -7,6 +7,7 @@ from datetime import UTC, date, datetime
 from typing import Any
 
 from sqlalchemy import (
+    Row,
     Select,
     and_,
     case,
@@ -39,6 +40,7 @@ import modules.activities.activity.models as activity_models
 import modules.activities.activity.query as activity_query
 import modules.activities.activity.schema as activity_schema
 import modules.activities.activity.serializers as activity_serializers
+import modules.activities.activity.source_crud as activity_source_crud
 import modules.gears.contracts as gears_contracts
 
 logger = core_logger.get_logger(__name__)
@@ -125,16 +127,17 @@ def _is_not_live_strava_api_activity() -> ColumnElement[bool]:
     Returns:
         The SQL predicate.
     """
-    return activity_models.Activity.strava_activity_id.is_(None)
+    return ~activity_query.is_live_strava_data()
 
 
 def _visible_to_requester_condition(followee_ids: Sequence[uuid.UUID] | None) -> ColumnElement[bool]:
     """Build the non-owner activity visibility condition.
 
     Live Strava API data is owner-only under the Strava API Policy, regardless
-    of the activity's Endurain visibility. A Strava bulk-export file uploaded by
-    the user does not populate ``strava_activity_id`` and remains governed by
-    the normal visibility rules.
+    of the activity's Endurain visibility. That is an activity with a Strava
+    source and no other: a Strava bulk-export file uploaded by the user is a file
+    source and remains governed by the normal visibility rules, as is an activity
+    a device file also recorded.
 
     Takes the requester's accepted followees already resolved, rather than a
     user id plus a session: answering "who does this person follow?" is a
@@ -1256,30 +1259,6 @@ def count_legs(parent_id: uuid.UUID, db: Session) -> int:
     return db.execute(stmt).scalar_one()
 
 
-def get_activity_by_dedup_key(dedup_key: str, user_id: uuid.UUID, db: Session) -> activity_schema.ActivityRead | None:
-    """Get a user's activity by its idempotency dedup key.
-
-    Used by the ingestion seam to make re-import of an already-ingested activity
-    a no-op: a provider-scoped id now, a content hash later.
-
-    Args:
-        dedup_key: Stable idempotency key (e.g. ``"strava:123"``).
-        user_id: Owner user ID.
-        db: Database session.
-
-    Returns:
-        Activity schema or None when not found.
-    """
-    stmt = select(activity_models.Activity).where(
-        activity_models.Activity.user_id == user_id,
-        activity_models.Activity.dedup_key == dedup_key,
-    )
-    activity = db.execute(stmt).scalars().first()
-    if not activity:
-        return None
-    return activity_serializers.to_read_schema(activity)
-
-
 def get_activity_by_id_from_user_id(
     activity_id: uuid.UUID, user_id: uuid.UUID, db: Session
 ) -> activity_schema.ActivityRead | None:
@@ -1303,57 +1282,11 @@ def get_activity_by_id_from_user_id(
     return activity_serializers.to_read_schema(activity)
 
 
-def get_activity_by_strava_id_from_user_id(
-    activity_strava_id: int, user_id: uuid.UUID, db: Session
-) -> activity_schema.ActivityRead | None:
-    """Get a user's activity by its Strava activity ID.
-
-    Args:
-        activity_strava_id: Strava activity ID.
-        user_id: Owner user ID.
-        db: Database session.
-
-    Returns:
-        Activity schema or None when not found.
-    """
-    stmt = select(activity_models.Activity).where(
-        activity_models.Activity.user_id == user_id,
-        activity_models.Activity.strava_activity_id == activity_strava_id,
-    )
-    activity = db.execute(stmt).scalar_one_or_none()
-    if not activity:
-        return None
-    return activity_serializers.to_read_schema(activity)
-
-
-def get_activity_by_garminconnect_id_from_user_id(
-    activity_garminconnect_id: int, user_id: uuid.UUID, db: Session
-) -> activity_schema.ActivityRead | None:
-    """Get a user's activity by its Garmin Connect activity ID.
-
-    Args:
-        activity_garminconnect_id: Garmin Connect activity ID.
-        user_id: Owner user ID.
-        db: Database session.
-
-    Returns:
-        Activity schema or None when not found.
-    """
-    stmt = select(activity_models.Activity).where(
-        activity_models.Activity.user_id == user_id,
-        activity_models.Activity.garminconnect_activity_id == activity_garminconnect_id,
-    )
-    activity = db.execute(stmt).scalars().first()
-    if not activity:
-        return None
-    return activity_serializers.to_read_schema(activity)
-
-
 def create_activity(
     activity: activity_contracts.ActivityCore,
     db: Session,
     *,
-    dedup_key: str | None = None,
+    source: activity_contracts.NewSource | None = None,
     parent_activity_id: uuid.UUID | None = None,
     detect_duplicate_start: bool = True,
     analysis_version: int = 0,
@@ -1370,8 +1303,8 @@ def create_activity(
     Args:
         activity: Strict ``ActivityCore`` ingestion schema to persist.
         db: Database session.
-        dedup_key: Optional stable idempotency key stored on the row so future
-            re-imports of the same source can be recognised as duplicates.
+        source: The source to store with the row, so a re-import of the same provider activity or file is recognised.
+            Stored in the same flush as the activity: the unique indexes on sources then settle two imports racing.
         parent_activity_id: The multisport activity the new activity is a leg of, or ``None`` for any other.
         detect_duplicate_start: Whether to hide the activity when another one starts at the same instant. ``False``
             for a leg stored with its parent, which takes the parent's ``is_hidden`` from the caller.
@@ -1403,7 +1336,7 @@ def create_activity(
 
     # Best-effort: this check and the insert below are not atomic, so two concurrent
     # imports with the same start time can both stay visible. Idempotency does not
-    # rest on it; ``dedup_key`` and its unique index do.
+    # rest on it; the unique indexes on ``activity_sources`` do.
     activity_start_time_exists = detect_duplicate_start and get_activity_by_start_time(
         normalized_start_time, activity.user_id, db, ignoring_family_of=parent_activity_id
     )
@@ -1415,9 +1348,8 @@ def create_activity(
     # ingestion shape at all).
     if activity_start_time_exists:
         new_activity.is_hidden = True
-    # Persist the idempotency key alongside the row so future re-imports of
-    # the same source can be recognised as duplicates.
-    new_activity.dedup_key = dedup_key
+    if source is not None:
+        new_activity.sources.append(activity_source_crud.to_orm(activity.user_id, source))
     new_activity.parent_activity_id = parent_activity_id
     new_activity.analysis_version = analysis_version
     new_activity.start_latitude = activity.start_latitude
@@ -2168,6 +2100,10 @@ def delete_all_strava_activities_for_user(
 ) -> list[activity_contracts.DeletedActivity]:
     """Stage the deletion of up to ``limit`` Strava-synced activities owned by a user.
 
+    An activity is Strava-synced while it has a Strava source and no other. An activity a device file also recorded
+    stays: when the last batch of Strava-synced activities is deleted (fewer than ``limit`` come back), the Strava
+    sources that remain, those of such activities, are deleted too.
+
     A caller that must remove them all calls this until fewer than ``limit`` come back,
     committing between calls, so no transaction holds every row at once.
 
@@ -2185,7 +2121,7 @@ def delete_all_strava_activities_for_user(
             select(activity_models.Activity.id)
             .where(
                 activity_models.Activity.user_id == user_id,
-                activity_models.Activity.strava_activity_id.isnot(None),
+                activity_query.is_live_strava_data(),
                 # A multisport activity goes with its legs, whose events this batch would not publish.
                 activity_query.is_leaf(),
             )
@@ -2194,15 +2130,18 @@ def delete_all_strava_activities_for_user(
             .with_for_update()
         ).all()
     )
-    if not batch_ids:
-        return []
-    deleted = db.execute(
-        sa_delete(activity_models.Activity)
-        .where(activity_models.Activity.id.in_(batch_ids))
-        .returning(activity_models.Activity.id, activity_models.Activity.file_id)
-    ).all()
-    core_sync.record_deletions(db, activity_models.ActivityDeletion, user_id, batch_ids)
-    return [activity_contracts.DeletedActivity(row.id, row.file_id) for row in deleted]
+    deleted_rows: Sequence[Row[uuid.UUID, uuid.UUID | None]] = []
+    if batch_ids:
+        deleted_rows = db.execute(
+            sa_delete(activity_models.Activity)
+            .where(activity_models.Activity.id.in_(batch_ids))
+            .returning(activity_models.Activity.id, activity_models.Activity.file_id)
+        ).all()
+        core_sync.record_deletions(db, activity_models.ActivityDeletion, user_id, batch_ids)
+    if len(batch_ids) < limit:
+        # Every activity that was only Strava's is gone, so what is left belongs to activities with another source.
+        activity_source_crud.delete_strava_sources_for_user(user_id, db)
+    return [activity_contracts.DeletedActivity(row.id, row.file_id) for row in deleted_rows]
 
 
 def delete_activities_batch_for_user(

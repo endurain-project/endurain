@@ -329,17 +329,13 @@ class TestSingleReads:
         assert activity_crud.get_activity_by_id_if_is_public(hidden.id, db) is None
         assert activity_crud.get_activity_by_id_if_is_public(uuid.uuid4(), db) is None
 
-    def test_the_lookups_by_owner_and_by_provider_id_find_only_the_users_own_activity(self, db, owner, viewer):
-        mine = make_activity(db, owner.id, strava_activity_id=7, garminconnect_activity_id=8)
+    def test_the_lookups_by_owner_find_only_the_users_own_activity(self, db, owner, viewer):
+        mine = make_activity(db, owner.id)
 
         assert activity_crud.get_activity_by_id(mine.id, db).id == mine.id
         assert activity_crud.get_activity_by_id(uuid.uuid4(), db) is None
         assert activity_crud.get_activity_by_id_from_user_id(mine.id, owner.id, db).id == mine.id
         assert activity_crud.get_activity_by_id_from_user_id(mine.id, viewer.id, db) is None
-        assert activity_crud.get_activity_by_strava_id_from_user_id(7, owner.id, db).id == mine.id
-        assert activity_crud.get_activity_by_strava_id_from_user_id(7, viewer.id, db) is None
-        assert activity_crud.get_activity_by_garminconnect_id_from_user_id(8, owner.id, db).id == mine.id
-        assert activity_crud.get_activity_by_garminconnect_id_from_user_id(8, viewer.id, db) is None
 
     def test_which_of_some_ids_exist(self, db, owner):
         mine = make_activity(db, owner.id)

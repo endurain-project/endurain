@@ -12,7 +12,7 @@ import core.database as core_database
 import core.exceptions as core_exceptions
 import core.file_uploads as file_uploads
 import core.logger as core_logger
-import modules.activities.activity.integration_service as activity_integration
+import modules.activities.activity.constants as activity_constants
 import modules.activities.activity.schema as activity_schema
 import modules.activities.activity_ingestion.integration_service as activity_ingestion_integration
 import modules.garmin.constants as garmin_constants
@@ -177,7 +177,9 @@ def _process_listed_activity(
     activity_id = activity["activityId"]
 
     with core_database.SessionLocal() as db:
-        already_stored = activity_integration.get_activity_by_garminconnect_id(activity_id, user_id, db)
+        already_stored = activity_ingestion_integration.is_provider_activity_stored(
+            user_id, activity_constants.SOURCE_KIND_GARMIN, int(activity_id), db
+        )
     if already_stored:
         logger.debug(
             "Activity already stored in the database",

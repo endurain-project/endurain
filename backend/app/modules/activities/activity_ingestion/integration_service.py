@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session
 import core.job_status as core_job_status
 import core.logger as core_logger
 import core.sync_runner as core_sync_runner
+import modules.activities.activity.integration_service as activity_integration
 import modules.activities.activity.schema as activity_schema
 import modules.activities.activity_ingestion.background as activity_ingestion_background
 import modules.activities.activity_ingestion.constants as activity_ingestion_constants
@@ -42,6 +43,23 @@ WindowStoppedError = activity_ingestion_contracts.WindowStoppedError
 build_import_record = activity_ingestion_contracts.build_import_record
 
 logger = core_logger.get_logger(__name__)
+
+
+def is_provider_activity_stored(user_id: uuid.UUID, kind: str, provider_id: int, db: Session) -> bool:
+    """Return whether the user already has an activity from the given provider activity.
+
+    A sync asks before it downloads, so what is stored is not fetched again.
+
+    Args:
+        user_id: The owner.
+        kind: The provider, one of ``activity.constants.SOURCE_KIND_STRAVA`` and ``SOURCE_KIND_GARMIN``.
+        provider_id: The provider's activity id.
+        db: Database session.
+
+    Returns:
+        ``True`` when a source of that provider activity is stored, whichever recording of it.
+    """
+    return activity_integration.is_provider_activity_stored(user_id, kind, provider_id, db)
 
 
 def ingest_activity_file(

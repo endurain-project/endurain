@@ -1,8 +1,8 @@
 """Garmin Connect activities are stored once against real PostgreSQL.
 
-A Garmin sync carries no explicit ``dedup_key``: ingestion derives ``garmin:<id>:<start>`` from the
-activity's provider id. When two syncs of the same activity run at once, on this replica or another,
-both pass the read-then-write check, and the unique index on ``(user_id, dedup_key)`` is what holds.
+A Garmin sync is identified by its provider id and the recording's start. When two syncs of the same activity
+run at once, on this replica or another, both pass the read-then-write check, and the unique index on the
+provider sources is what holds.
 """
 
 import threading
@@ -90,8 +90,14 @@ def test_concurrent_syncs_of_one_garmin_activity_store_it_once(committed_session
     assert not errors
     assert len(set(ids)) == 1
     with committed_sessions() as db:
-        keys = db.scalars(select(activity_models.Activity.dedup_key)).all()
-    assert keys == [f"garmin:456:{int(_START.timestamp())}"]
+        sources = db.execute(
+            select(
+                activity_models.ActivitySource.kind,
+                activity_models.ActivitySource.provider_id,
+                activity_models.ActivitySource.session_start,
+            )
+        ).all()
+    assert [tuple(row) for row in sources] == [("garmin", 456, _START)]
 
 
 def test_the_activities_of_one_multi_activity_file_are_all_stored(committed_sessions, user_id):
@@ -127,5 +133,7 @@ def test_concurrent_window_syncs_of_one_user_store_each_activity_once(committed_
 
     assert not errors
     with committed_sessions() as db:
-        rows = db.scalars(select(activity_models.Activity.garminconnect_activity_id)).all()
+        rows = db.scalars(
+            select(activity_models.ActivitySource.provider_id).where(activity_models.ActivitySource.kind == "garmin")
+        ).all()
     assert rows == [456]

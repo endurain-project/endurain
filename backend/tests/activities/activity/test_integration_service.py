@@ -32,12 +32,13 @@ def other(db):
 
 class TestProviderLookups:
     def test_an_import_is_found_by_the_providers_id_for_its_owner_only(self, db, owner, other):
-        mine = make_activity(db, owner.id, strava_activity_id=7, garminconnect_activity_id=8)
+        make_activity(db, owner.id, strava_activity_id=7, garminconnect_activity_id=8)
 
-        assert activity_integration.get_activity_by_strava_id(7, owner.id, db).id == mine.id
-        assert activity_integration.get_activity_by_garminconnect_id(8, owner.id, db).id == mine.id
-        assert activity_integration.get_activity_by_strava_id(7, other.id, db) is None
-        assert activity_integration.get_activity_by_garminconnect_id(8, other.id, db) is None
+        assert activity_integration.is_provider_activity_stored(owner.id, "strava", 7, db) is True
+        assert activity_integration.is_provider_activity_stored(owner.id, "garmin", 8, db) is True
+        assert activity_integration.is_provider_activity_stored(other.id, "strava", 7, db) is False
+        assert activity_integration.is_provider_activity_stored(other.id, "garmin", 8, db) is False
+        assert activity_integration.is_provider_activity_stored(owner.id, "garmin", 7, db) is False
 
     def test_the_garmin_gear_refs_page_in_id_order(self, db, owner):
         ids = sorted(

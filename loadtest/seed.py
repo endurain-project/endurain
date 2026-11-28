@@ -12,6 +12,7 @@ credentials of every user of the seed go to ``--out`` for the Locust users to re
 """
 
 import argparse
+import hashlib
 import json
 import random
 import sys
@@ -172,7 +173,7 @@ def _stage_activities(
         user_id: The owner.
         gear_ids: The owner's gears, some of which an activity uses.
         args: The parsed command line.
-        label: The user's username, which makes the dedup keys unique.
+        label: The user's username, which makes the seeded file sources unique.
 
     Returns:
         How many activities were staged.
@@ -218,7 +219,11 @@ def _stage_activities(
             "hide_workout_sets_steps": False,
         }
         activity = activity_crud.create_activity(
-            activity_contracts.ActivityCore.model_validate(values), db, dedup_key=f"seed:{label}:{number}"
+            activity_contracts.ActivityCore.model_validate(values),
+            db,
+            source=activity_contracts.NewSource(
+                "file", None, hashlib.sha256(f"seed:{label}:{number}".encode()).hexdigest(), None, 2
+            ),
         )
         if rng.random() < args.laps_share:
             lap_seconds = seconds / 5

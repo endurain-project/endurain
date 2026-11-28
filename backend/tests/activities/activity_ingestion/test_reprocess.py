@@ -714,6 +714,22 @@ def _set(db: Session, activity_ids: list[uuid.UUID], **values: object) -> None:
     db.commit()
 
 
+def _sources_of(db: Session, activity_id: uuid.UUID) -> list[tuple[str, int | None, str | None, bool]]:
+    """Return an activity's sources as ``(kind, provider id, file hash, has a start)``."""
+    rows = db.scalars(
+        select(activity_models.ActivitySource).where(activity_models.ActivitySource.activity_id == activity_id)
+    ).all()
+    return sorted((row.kind, row.provider_id, row.file_sha256, row.session_start is not None) for row in rows)
+
+
+def _replace_sources(db: Session, activity_id: uuid.UUID, user_id: uuid.UUID, *sources: dict[str, object]) -> None:
+    """Give an activity exactly the given sources."""
+    db.execute(delete(activity_models.ActivitySource).where(activity_models.ActivitySource.activity_id == activity_id))
+    for source in sources:
+        db.add(activity_models.ActivitySource(activity_id=activity_id, user_id=user_id, precedence=2, **source))
+    db.commit()
+
+
 def _all_columns(db: Session, activity_id: uuid.UUID) -> dict[str, object]:
     row = _row(db, activity_id)
     return {column.key: getattr(row, column.key) for column in activity_models.Activity.__table__.columns}
@@ -742,7 +758,7 @@ class TestRegroupingLegacyLegs:
         assert parent.activity_type == activity_constants.ActivityType.MULTISPORT.stored
         assert parent.user_id == owner.id
         assert parent.analysis_version == activities_computation.ANALYSIS_VERSION
-        assert parent.dedup_key == f"file:{_SHA}"
+        assert _sources_of(db, parent_id) == [("file", None, _SHA, False)]
         assert parent.map_thumbnail_path is None
         assert parent.gear_id is None
         assert _values(db, parent_id, _DERIVED) == _values(db, expected_id, _DERIVED)
@@ -751,7 +767,7 @@ class TestRegroupingLegacyLegs:
             assert _values(db, leg, _DERIVED) == _values(db, expected_leg, _DERIVED)
             assert _children(db, leg) == _children(db, expected_leg)
             assert _row(db, leg).analysis_version == activities_computation.ANALYSIS_VERSION
-            assert _row(db, leg).dedup_key is not None
+            assert _sources_of(db, leg) == [("file", None, _SHA, True)]
 
     def test_the_list_shows_the_parent_and_not_the_legs(self, db, owner, storage, tmp_path, monkeypatch):
         legs = _legacy_group(db, owner.id, tmp_path, storage, monkeypatch)
@@ -939,7 +955,7 @@ class TestRegroupingLegacyLegs:
     def test_a_regroup_that_stages_nothing_removes_the_staged_file(self, db, owner, storage, tmp_path, monkeypatch):
         legs = _legacy_group(db, owner.id, tmp_path, storage, monkeypatch)
         taken = make_activity(db, owner.id, start_time=OLD, end_time=OLD + timedelta(hours=1))
-        _set(db, [taken.id], dedup_key=f"file:{_SHA}")
+        _replace_sources(db, taken.id, owner.id, {"kind": "file", "file_sha256": _SHA})
 
         outcome = migration_service.reprocess_activity(legs[0], storage)
 
@@ -971,11 +987,12 @@ class TestRegroupingLegacyLegs:
             assert _children(db, activity_id) == children[activity_id]
         assert set(db.execute(select(activity_models.Activity.id)).scalars()) == ids_before
 
-    def test_profile_restored_legs_without_a_dedup_key_regroup_by_the_file_hash(
+    def test_profile_restored_legs_without_a_source_regroup_by_the_file_hash(
         self, db, owner, storage, tmp_path, monkeypatch
     ):
         legs = _legacy_group(db, owner.id, tmp_path, storage, monkeypatch)
-        _set(db, legs, dedup_key=None)
+        for leg in legs:
+            _replace_sources(db, leg, owner.id)
 
         outcome = migration_service.reprocess_activity(legs[1], storage)
 
@@ -983,22 +1000,22 @@ class TestRegroupingLegacyLegs:
         parent_id = _parent_of(db, legs[0])
         assert parent_id is not None
         assert {_parent_of(db, leg) for leg in legs} == {parent_id}
-        assert _row(db, parent_id).dedup_key == f"file:{_SHA}"
+        assert _sources_of(db, parent_id) == [("file", None, _SHA, False)]
 
-    def test_a_garmin_legacy_group_gets_the_garmin_key_and_id(self, db, owner, storage, tmp_path, monkeypatch):
+    def test_a_garmin_legacy_group_gets_the_garmin_source_and_id(self, db, owner, storage, tmp_path, monkeypatch):
         legs = _legacy_group(db, owner.id, tmp_path, storage, monkeypatch)
         for leg in legs:
-            _set(
+            _replace_sources(
                 db,
-                [leg],
-                garminconnect_activity_id=987654321,
-                dedup_key=f"garmin:987654321:{int(_row(db, leg).start_time.timestamp())}",
+                leg,
+                owner.id,
+                {"kind": "garmin", "provider_id": 987654321, "session_start": _row(db, leg).start_time},
             )
 
         migration_service.reprocess_activity(legs[0], storage)
 
         parent = _row(db, _parent_of(db, legs[0]))
-        assert parent.dedup_key == "garmin:987654321"
+        assert _sources_of(db, parent.id) == [("garmin", 987654321, None, False)]
         assert parent.garminconnect_activity_id == 987654321
 
     def test_a_different_file_with_the_same_start_times_is_not_grouped(self, db, owner, storage, tmp_path, monkeypatch):
@@ -1026,7 +1043,7 @@ class TestRegroupingLegacyLegs:
     def test_a_parent_key_that_is_already_stored_means_no_regroup(self, db, owner, storage, tmp_path, monkeypatch):
         legs = _legacy_group(db, owner.id, tmp_path, storage, monkeypatch)
         taken = make_activity(db, owner.id, start_time=OLD, end_time=OLD + timedelta(hours=1))
-        _set(db, [taken.id], dedup_key=f"file:{_SHA}")
+        _replace_sources(db, taken.id, owner.id, {"kind": "file", "file_sha256": _SHA})
 
         outcome = migration_service.reprocess_activity(legs[0], storage)
 

@@ -14,6 +14,7 @@ import core.database as core_database
 import core.exceptions as core_exceptions
 import core.file_uploads as file_uploads
 import core.logger as core_logger
+import core.timezone as core_timezone
 import modules.activities.activity.contracts as activity_contracts
 import modules.activities.activity.integration_service as activity_integration
 import modules.activities.activity.schema as activity_schema
@@ -187,6 +188,8 @@ def _restore_activities(
                     activities_batch,
                 )
 
+        _derive_provider_sources(batch_components, activities_batch)
+
         for activity_data in activities_batch:
             archived_gear_id = users_profile_contracts.archived_id(activity_data.get("gear_id"))
             activity_data["gear_id"] = gears_id_mapping.get(archived_gear_id) if archived_gear_id else None
@@ -219,6 +222,39 @@ def _restore_activities(
 
     logger.debug("Imported activities", extra=core_logger.context(count=ctx.counts["activities"]))
     return activities_id_mapping
+
+
+def _derive_provider_sources(
+    batch_components: dict[str, list[dict[str, Any]]], activities_batch: list[dict[str, Any]]
+) -> None:
+    """Add the provider sources an archive written before sources existed leaves out.
+
+    An activity that has no archived source and carries a Strava or Garmin Connect id takes a source from that id, as it
+    held one when it was imported. A leg of a multisport activity takes it with its own start, as a leg's source has.
+
+    Args:
+        batch_components: Records keyed by profile contributor key; the derived sources are added to ``sources``.
+        activities_batch: The archived activities of the batch.
+    """
+    sources = batch_components.setdefault(constants.SOURCES_COMPONENT_KEY, [])
+    archived = {users_profile_contracts.archived_id(record.get("activity_id")) for record in sources}
+    for activity_data in activities_batch:
+        original_activity_id = users_profile_contracts.archived_id(activity_data.get("id"))
+        if original_activity_id is None or original_activity_id in archived:
+            continue
+        is_leg = activity_data.get(constants.ACTIVITY_PARENT_FIELD) is not None
+        start = core_timezone.to_utc_aware(activity_data.get("start_time")) if is_leg else None
+        for kind, field, precedence in constants.PROVIDER_ID_SOURCES:
+            if activity_data.get(field) is not None:
+                sources.append(
+                    {
+                        "activity_id": str(original_activity_id),
+                        "kind": kind,
+                        "provider_id": activity_data[field],
+                        "session_start": start.replace(microsecond=0).isoformat() if start is not None else None,
+                        "precedence": precedence,
+                    }
+                )
 
 
 def _filter_components_for_batch(
@@ -368,7 +404,8 @@ def _attach_activity_file(
 ) -> None:
     """Retain a restored activity's file and attach it to the activity in its own short transaction.
 
-    Runs once the restored rows are committed. Identical archived files share one row. A file that turns out to have
+    Runs once the restored rows are committed. Identical archived files share one row. An activity that has no source
+    yet takes the file's as its own. A file that turns out to have
     no activity to attach to is removed again when this call created its row.
 
     Args:
@@ -377,13 +414,15 @@ def _attach_activity_file(
         extension: The file's extension.
         file_bytes: The file's bytes.
     """
-    staged = activity_file_storage_integration.stage_file(
-        ctx.user_id, hashlib.sha256(file_bytes).hexdigest(), extension, file_bytes, ctx.storage
-    )
+    sha256 = hashlib.sha256(file_bytes).hexdigest()
+    staged = activity_file_storage_integration.stage_file(ctx.user_id, sha256, extension, file_bytes, ctx.storage)
     with core_database.SessionLocal() as db:
         attached = activity_integration.set_file_id(activity_id, staged.ref.file_id, db)
         if attached:
             activity_file_storage_integration.mark_attached(staged.ref.file_id, db)
+            # An archive written before sources existed carries none, so the file identifies the activity; one that
+            # has a source keeps it.
+            activity_integration.add_restored_file_source(activity_id, extension, sha256, db)
         db.commit()
     logger.debug(
         "Retained the source file of a restored activity",

@@ -16,8 +16,10 @@ from sqlalchemy import (
     Index,
     SmallInteger,
     String,
+    func,
+    text,
 )
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from core.database import Base
 from core.sync import TombstoneMixin, UpdatedAtMixin
@@ -62,8 +64,9 @@ class Activity(UpdatedAtMixin, Base):
         visibility: 0 - public, 1 - followers, 2 - private.
         gear_id: Associated gear ID, a UUID.
         strava_gear_id: Strava gear ID.
-        strava_activity_id: Strava activity ID.
-        garminconnect_activity_id: Garmin Connect activity ID.
+        legacy_strava_activity_id: Legacy Strava activity ID column, written but not read; ``strava_activity_id``
+            reads the sources.
+        legacy_garminconnect_activity_id: Legacy Garmin Connect activity ID column, likewise.
         garminconnect_gear_id: Garmin Connect gear ID.
         import_info: Additional import metadata.
         is_hidden: Whether the activity is hidden.
@@ -82,7 +85,8 @@ class Activity(UpdatedAtMixin, Base):
         tracker_manufacturer: Device manufacturer.
         tracker_model: Device model.
         map_thumbnail_path: Path to the static map thumbnail.
-        dedup_key: Stable idempotency key (provider id now, content hash later) used to no-op re-imports.
+        dedup_key: Legacy idempotency key, neither written nor read: ``activity_sources`` identifies re-imports.
+        sources: The activity's sources, the best first.
         location_next_lookup_at: Earliest time the location backfill may look this activity up again.
         thumbnail_next_attempt_at: Earliest time the thumbnail backfill may try this activity again.
         analysis_version: The version of the file analysis that computed the derived values; 0 before versions.
@@ -96,15 +100,9 @@ class Activity(UpdatedAtMixin, Base):
     __tablename__ = "activities"
 
     __table_args__ = (
-        # Idempotency is enforced by the database, not just checked in the
-        # ingestion service. That check is read-then-write, so two concurrent
-        # imports of the same file or provider activity could both see "not
-        # found" and both insert — which the ingestion worker pool and
-        # durable-job retries make a realistic race rather than a theoretical
-        # one. The service catches the resulting IntegrityError and returns
-        # the winning row, so the constraint is what makes re-import a true
-        # no-op. NULL dedup_keys stay unconstrained (Postgres treats NULLs as
-        # distinct), so activities with no stable identity are unaffected.
+        # Legacy: ``activity_sources`` and its unique indexes now make a re-import a no-op. Nothing writes
+        # ``dedup_key`` any more, so this index holds only the keys of activities stored before; it goes with the
+        # column.
         Index("uq_activities_user_dedup_key", "user_id", "dedup_key", unique=True),
         Index("ix_activities_user_id_updated_at_id", "user_id", "updated_at", "id"),
         # Strava ids are looked up for the owner only; two accounts may link the same Strava athlete.
@@ -318,12 +316,17 @@ class Activity(UpdatedAtMixin, Base):
         nullable=True,
         comment="Strava gear ID",
     )
-    strava_activity_id: Mapped[int | None] = mapped_column(
+    # The two provider id columns are legacy: ``activity_sources`` holds the ids and ``strava_activity_id`` and
+    # ``garminconnect_activity_id`` below read them from there. The columns are still written, by ``to_orm`` only,
+    # until the release that drops them.
+    legacy_strava_activity_id: Mapped[int | None] = mapped_column(
+        "strava_activity_id",
         BigInteger,
         nullable=True,
         comment="Strava activity ID",
     )
-    garminconnect_activity_id: Mapped[int | None] = mapped_column(
+    legacy_garminconnect_activity_id: Mapped[int | None] = mapped_column(
+        "garminconnect_activity_id",
         BigInteger,
         nullable=True,
         comment="Garmin Connect activity ID",
@@ -418,6 +421,34 @@ class Activity(UpdatedAtMixin, Base):
         nullable=True,
         comment=("Stable idempotency key (provider id or content hash) to no-op re-imports"),
     )
+    sources: Mapped[list[ActivitySource]] = relationship(
+        lazy="selectin",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+        order_by=lambda: (ActivitySource.precedence.desc(), ActivitySource.received_at, ActivitySource.id),
+    )
+
+    def _provider_id(self, kind: str) -> int | None:
+        """Return the provider id of the best source of a kind.
+
+        Args:
+            kind: The source kind.
+
+        Returns:
+            The id, or ``None`` when the activity has no source of that kind.
+        """
+        return next((source.provider_id for source in self.sources if source.kind == kind), None)
+
+    @property
+    def strava_activity_id(self) -> int | None:
+        """The Strava activity id of the activity's best Strava source, or ``None``."""
+        return self._provider_id("strava")
+
+    @property
+    def garminconnect_activity_id(self) -> int | None:
+        """The Garmin Connect activity id of the activity's best Garmin source, or ``None``."""
+        return self._provider_id("garmin")
+
     location_next_lookup_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
         nullable=True,
@@ -445,3 +476,87 @@ class ActivityDeletion(TombstoneMixin, Base):
     __table_args__ = (Index("ix_activity_deletions_user_id_deleted_at_id", "user_id", "deleted_at", "id"),)
 
     record_id: Mapped[uuid.UUID] = mapped_column(nullable=False, comment="The id the deleted record had")
+
+
+class ActivitySource(Base):
+    """One source an activity was recorded or imported from: a provider activity id or a file's content.
+
+    An activity has one source per identity that reached it. Re-importing a known identity is a no-op.
+
+    Attributes:
+        id: Primary key, a random UUID.
+        activity_id: The activity the source belongs to; the row goes with it.
+        user_id: Owner of the activity, so the unique indexes are per user.
+        kind: ``file``, ``garmin`` or ``strava``.
+        provider_id: The provider's activity id; set for ``garmin`` and ``strava``.
+        file_sha256: Hex SHA-256 of the file; set for ``file``. Copied, not referenced, so the identity outlives the
+            retained file.
+        session_start: The start of the recording, whole seconds. A multi-activity file shares one hash and one Garmin
+            id between its activities, so the start tells them apart. Null for a whole file (a multisport activity)
+            and for a Strava activity.
+        precedence: How much the source's data is trusted: 2 a device file, 1 a generic file, 0 the Strava API.
+        received_at: When the source reached the activity.
+    """
+
+    __tablename__ = "activity_sources"
+
+    __table_args__ = (
+        # A null ``session_start`` is a value of its own, so a whole file, or a Strava activity, is unique too.
+        Index(
+            "uq_activity_sources_provider",
+            "user_id",
+            "kind",
+            "provider_id",
+            "session_start",
+            unique=True,
+            postgresql_nulls_not_distinct=True,
+            postgresql_where=text("provider_id IS NOT NULL"),
+        ),
+        Index(
+            "uq_activity_sources_file",
+            "user_id",
+            "file_sha256",
+            "session_start",
+            unique=True,
+            postgresql_nulls_not_distinct=True,
+            postgresql_where=text("file_sha256 IS NOT NULL"),
+        ),
+        Index("ix_activity_sources_activity_id_kind", "activity_id", "kind"),
+        CheckConstraint("kind IN ('file', 'garmin', 'strava')", name="ck_activity_sources_kind"),
+        CheckConstraint("num_nonnulls(provider_id, file_sha256) = 1", name="ck_activity_sources_one_identity"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    activity_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("activities.id", ondelete="CASCADE"),
+        nullable=False,
+        comment="Activity the source belongs to",
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        comment="User ID that owns the activity",
+    )
+    kind: Mapped[str] = mapped_column(String(16), nullable=False, comment="file, garmin or strava")
+    provider_id: Mapped[int | None] = mapped_column(
+        BigInteger, nullable=True, comment="Provider activity ID, for a garmin or strava source"
+    )
+    file_sha256: Mapped[str | None] = mapped_column(
+        String(64), nullable=True, comment="Hex SHA-256 of the file, for a file source"
+    )
+    session_start: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        comment="Start of the recording in whole seconds; null for a whole file and for a Strava activity",
+    )
+    precedence: Mapped[int] = mapped_column(
+        SmallInteger,
+        nullable=False,
+        comment="2 device file, 1 generic file, 0 Strava API; the higher is the better record",
+    )
+    received_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+        comment="When the source reached the activity",
+    )

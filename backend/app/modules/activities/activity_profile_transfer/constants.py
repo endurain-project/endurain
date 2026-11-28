@@ -17,3 +17,12 @@ ACTIVITY_READ_FIELDS = frozenset({"map_thumbnail_url", "media"})
 
 #: The field of an archived activity that names the multisport activity it is a leg of; the import remaps it.
 ACTIVITY_PARENT_FIELD = "parent_activity_id"
+
+#: The key of the sources contribution in the batch's component records.
+SOURCES_COMPONENT_KEY = "sources"
+
+#: The source an archived provider id stands for, with the archived field it is read from and the source's precedence.
+PROVIDER_ID_SOURCES = (
+    ("strava", "strava_activity_id", 0),
+    ("garmin", "garminconnect_activity_id", 2),
+)

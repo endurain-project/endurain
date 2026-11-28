@@ -763,6 +763,12 @@ one pattern. Recorded here so a review does not reopen them.
   a file) and never imports the package, so the pipeline, which sits above both, stages and attaches. A file stored
   before rows existed has no `file_id` and is still addressed by activity id (`processed/{activity id}`); the
   subscriber, the reader and the `processed/` listing sweep keep that path until those files are adopted.
+- **The `activity` core owns `activity_sources`.** One row per source an activity came from (a Strava or Garmin
+  activity id, or a file's SHA-256), unique per user, in `activity/models.py` with `source_crud.py` beside the
+  activity's own crud. The core owns it rather than a peer because the core's access rule (live Strava data is
+  owner-only) and its read schema need the rows, and a peer is not importable from the core. A file source copies the
+  hash and never references `activity_files`, so the core stays free of the file-storage package. Providers ask
+  whether a provider activity is stored through `activity_ingestion.integration_service`, never the table.
 - **Registration seams.** `RuntimeModule` in `app/module_registry.py` is the per-module manifest for bus,
   realtime and durable subscribers, nets, recurring jobs, startup tasks, audit actions and the shutdown of the
   module's in-process pools. Routers (`api.py`) and models (`model_registry.py`) remain separate composition
